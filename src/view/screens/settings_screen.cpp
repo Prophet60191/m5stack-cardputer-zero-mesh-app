@@ -1,0 +1,481 @@
+/*
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 Jose Di Lenola
+ */
+#include "settings_screen.h"
+
+#include "app_info.h"
+#include "asset_manager.h"
+#include "bindings.h"
+#include "theme.h"
+
+#include <cstdlib>
+#include <cstring>
+#include <string>
+
+namespace screen {
+namespace {
+
+const char* const kRows[] = {
+    "Radio", "Region", "Modem preset", "Hop limit", "Add a channel", "Node name",
+    "Share position", "Internet (MQTT)", "Auto-start radio", "Theme", "Channels", "About",
+    "Quick messages", "Signal on messages", "Keep per chat", "Mute all", "Message acks",
+};
+constexpr int kRowCount = 17;
+
+const std::vector<std::string> kRegions = {
+    "US", "EU_868", "EU_433", "ANZ", "NZ_865", "KR", "TW", "JP", "SG_923", "TH", "MY_919", "PH_915",
+};
+const std::vector<std::string> kPresets = {
+    "LONG_FAST", "LONG_MODERATE", "LONG_SLOW", "MEDIUM_FAST", "MEDIUM_SLOW", "SHORT_FAST", "SHORT_SLOW",
+};
+
+std::string s_of(lv_subject_t* subj) {
+    const char* s = lv_subject_get_string(subj);
+    return s ? s : "";
+}
+
+int index_of(const std::vector<std::string>& v, const std::string& x) {
+    for (int i = 0; i < static_cast<int>(v.size()); ++i) if (v[i] == x) return i;
+    return 0;
+}
+
+}  // namespace
+
+SettingsScreen::SettingsScreen(viewmodel::BaseViewModel& view_model, app::AssetManager& assets)
+    : BaseScreen(view_model, assets) {
+    init();
+}
+
+void SettingsScreen::build_content(lv_obj_t* content) {
+    list_ = lv_obj_create(content);
+    lv_obj_remove_style_all(list_);
+    lv_obj_set_size(list_, lv_pct(100), lv_pct(100));
+    lv_obj_set_flex_flow(list_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(list_, 1, 0);
+    lv_obj_set_style_pad_all(list_, 4, 0);
+    lv_obj_clear_flag(list_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    lv_obj_clear_flag(list_, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+    rebuild();
+    // Re-render when any bound value changes.
+    lv_subject_add_observer_obj(view_model().radio_state_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().region_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().owner_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().modem_preset_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().hop_limit_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().position_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().mqtt_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().autostart_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().dark_mode_subject(), on_change, list_, this);
+}
+
+void SettingsScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
+    auto* self = static_cast<SettingsScreen*>(lv_observer_get_user_data(observer));
+    if (self && self->overlay_mode_ == Overlay::None) {
+        self->rebuild();
+    }
+}
+
+std::string SettingsScreen::value_for(int row) {
+    switch (row) {
+        case 0: return s_of(view_model().radio_state_subject());
+        case 1: return s_of(view_model().region_subject());
+        case 2: return s_of(view_model().modem_preset_subject());
+        case 3: return std::to_string(lv_subject_get_int(view_model().hop_limit_subject()));
+        case 4: return "";
+        case 5: return s_of(view_model().owner_subject());
+        case 6: return lv_subject_get_int(view_model().position_subject()) ? "On" : "Off";
+        case 7: return lv_subject_get_int(view_model().mqtt_subject()) ? "On" : "Off";
+        case 8: return lv_subject_get_int(view_model().autostart_subject()) ? "On" : "Off";
+        case 9: return view_model().is_dark_mode() ? "Dark" : "Light";
+        case 10: return std::to_string(view_model().channels().size());
+        case 11: return "";
+        case 12: return std::to_string(view_model().canned_messages().size());
+        case 13: return view_model().show_signal() ? "On" : "Off";
+        case 14: return view_model().retention_cap() == 0 ? "All"
+                                                          : std::to_string(view_model().retention_cap());
+        case 15: return view_model().mute_all() ? "On" : "Off";
+        case 16: return view_model().want_ack() ? "On" : "Off";
+        default: return "";
+    }
+}
+
+void SettingsScreen::rebuild() {
+    lv_obj_clean(list_);
+    const auto colors = view::palette(view_model().is_dark_mode());
+    const lv_font_t* font = assets().load_standard_font(14, app::StandardFontWeight::Regular);
+    if (!font) font = &lv_font_montserrat_14;
+
+    lv_obj_t* sel_row = nullptr;
+    for (int i = 0; i < kRowCount; ++i) {
+        auto* row = lv_obj_create(list_);
+        lv_obj_remove_style_all(row);
+        lv_obj_set_width(row, lv_pct(100));
+        lv_obj_set_height(row, LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_ver(row, 4, 0);
+        lv_obj_set_style_pad_hor(row, 6, 0);
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        if (i == selected_) {
+            lv_obj_set_style_radius(row, 6, 0);
+            lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(row, colors.button, 0);
+            lv_obj_set_style_border_side(row, LV_BORDER_SIDE_LEFT, 0);
+            lv_obj_set_style_border_width(row, 3, 0);
+            lv_obj_set_style_border_color(row, colors.primary, 0);
+            sel_row = row;
+        }
+        auto* label = lv_label_create(row);
+        lv_label_set_text(label, kRows[i]);
+        lv_obj_set_style_text_font(label, font, 0);
+        lv_obj_set_style_text_color(label, colors.text, 0);
+
+        const std::string value = value_for(i);
+        auto* val = lv_label_create(row);
+        lv_label_set_text(val, value.c_str());
+        lv_obj_set_style_text_font(val, font, 0);
+        lv_obj_set_style_text_color(val, colors.text_disabled, 0);
+    }
+    lv_obj_update_layout(list_);
+    if (sel_row) lv_obj_scroll_to_view(sel_row, LV_ANIM_OFF);
+}
+
+void SettingsScreen::row_action(int row) {
+    switch (row) {
+        case 0: {  // Radio toggle
+            if (s_of(view_model().radio_state_subject()) == "online") view_model().radio_stop();
+            else view_model().radio_start();
+            break;
+        }
+        case 1: open_picker("Region", kRegions, "region", index_of(kRegions, s_of(view_model().region_subject()))); break;
+        case 2: open_picker("Modem preset", kPresets, "preset", index_of(kPresets, s_of(view_model().modem_preset_subject()))); break;
+        case 3: {
+            std::vector<std::string> hops;
+            for (int h = 1; h <= 7; ++h) hops.push_back(std::to_string(h));
+            open_picker("Hop limit", hops, "hop", lv_subject_get_int(view_model().hop_limit_subject()) - 1);
+            break;
+        }
+        case 4: open_picker("Add a channel", {"Scan QR code", "Paste share URL"}, "addmenu", 0); break;
+        case 5: open_text("Node name", s_of(view_model().owner_subject()), "name"); break;
+        case 6: view_model().set_position_sharing(!lv_subject_get_int(view_model().position_subject())); break;
+        case 7: view_model().set_mqtt(!lv_subject_get_int(view_model().mqtt_subject())); break;
+        case 8: view_model().set_auto_start(!lv_subject_get_int(view_model().autostart_subject())); break;
+        case 9: view_model().toggle_dark_mode(); break;
+        case 10: {
+            std::vector<std::string> rows;
+            for (const auto& c : view_model().channels()) {
+                rows.push_back((c.name.empty() ? std::string("(primary)") : c.name) + "   " + c.role);
+            }
+            if (rows.empty()) rows.push_back("No channels yet.");
+            open_info("Channels", rows);
+            break;
+        }
+        case 11: {
+            open_info("About", {
+                std::string("Version:  ") + app::kAppVersion,
+                std::string("Source:  ") + app::kRepoUrl,
+                "Node ID:  " + s_of(view_model().node_id_subject()),
+                "Firmware:  " + s_of(view_model().firmware_subject()),
+                "Model:  " + s_of(view_model().model_subject()),
+                "Region:  " + s_of(view_model().region_subject()),
+                "Name:  " + s_of(view_model().owner_subject()),
+            });
+            break;
+        }
+        case 12: open_canned(); break;
+        case 13: view_model().set_show_signal(!view_model().show_signal()); rebuild(); break;
+        case 14: {
+            const int cap = view_model().retention_cap();
+            int initial = 0;
+            if (cap == 50) initial = 1; else if (cap == 100) initial = 2; else if (cap == 200) initial = 3;
+            open_picker("Keep per chat", {"All", "50", "100", "200"}, "retention", initial);
+            break;
+        }
+        case 15: view_model().set_mute_all(!view_model().mute_all()); rebuild(); break;
+        case 16: view_model().set_want_ack(!view_model().want_ack()); rebuild(); break;
+        default: break;
+    }
+}
+
+// --- overlays ---------------------------------------------------------------
+void SettingsScreen::open_picker(const std::string& title, std::vector<std::string> options,
+                                 const std::string& pending, int initial) {
+    overlay_mode_ = Overlay::Picker;
+    overlay_title_ = title;
+    options_ = std::move(options);
+    pending_ = pending;
+    opt_sel_ = (initial < 0) ? 0 : initial;
+    if (opt_sel_ >= static_cast<int>(options_.size())) opt_sel_ = 0;
+    overlay_obj_ = lv_obj_create(lv_obj_get_parent(list_));
+    lv_obj_remove_style_all(overlay_obj_);
+    lv_obj_set_size(overlay_obj_, lv_pct(100), lv_pct(100));
+    const auto colors = view::palette(view_model().is_dark_mode());
+    lv_obj_set_style_bg_opa(overlay_obj_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(overlay_obj_, colors.background, 0);
+    lv_obj_set_flex_flow(overlay_obj_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(overlay_obj_, 6, 0);
+    lv_obj_set_style_pad_row(overlay_obj_, 2, 0);
+    lv_obj_clear_flag(overlay_obj_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    rebuild_picker();
+}
+
+void SettingsScreen::rebuild_picker() {
+    lv_obj_clean(overlay_obj_);
+    const auto colors = view::palette(view_model().is_dark_mode());
+    const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
+    if (!font) font = &lv_font_montserrat_14;
+
+    auto* head = lv_label_create(overlay_obj_);
+    lv_label_set_text(head, overlay_title_.c_str());
+    lv_obj_set_style_text_font(head, font, 0);
+    lv_obj_set_style_text_color(head, colors.text_disabled, 0);
+
+    if (opt_sel_ < 0) opt_sel_ = 0;
+    if (opt_sel_ >= static_cast<int>(options_.size())) opt_sel_ = static_cast<int>(options_.size()) - 1;
+
+    lv_obj_t* sel = nullptr;
+    for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
+        auto* row = lv_label_create(overlay_obj_);
+        lv_label_set_text(row, options_[i].c_str());
+        lv_obj_set_style_text_font(row, font, 0);
+        lv_obj_set_width(row, lv_pct(100));
+        lv_obj_set_style_pad_ver(row, 3, 0);
+        lv_obj_set_style_pad_hor(row, 4, 0);
+        if (i == opt_sel_) {
+            lv_obj_set_style_radius(row, 6, 0);
+            lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(row, colors.button, 0);
+            lv_obj_set_style_text_color(row, colors.primary, 0);
+            sel = row;
+        } else {
+            lv_obj_set_style_text_color(row, colors.text, 0);
+        }
+    }
+    lv_obj_update_layout(overlay_obj_);
+    if (sel) lv_obj_scroll_to_view(sel, LV_ANIM_OFF);
+}
+
+void SettingsScreen::open_text(const std::string& title, const std::string& initial,
+                               const std::string& pending) {
+    overlay_mode_ = Overlay::Text;
+    overlay_title_ = title;
+    pending_ = pending;
+    overlay_obj_ = lv_obj_create(lv_obj_get_parent(list_));
+    lv_obj_remove_style_all(overlay_obj_);
+    lv_obj_set_size(overlay_obj_, lv_pct(100), lv_pct(100));
+    const auto colors = view::palette(view_model().is_dark_mode());
+    lv_obj_set_style_bg_opa(overlay_obj_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(overlay_obj_, colors.background, 0);
+    lv_obj_set_flex_flow(overlay_obj_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(overlay_obj_, 8, 0);
+    lv_obj_set_style_pad_row(overlay_obj_, 6, 0);
+    lv_obj_clear_flag(overlay_obj_, LV_OBJ_FLAG_SCROLLABLE);
+    const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
+    if (!font) font = &lv_font_montserrat_14;
+
+    auto* head = lv_label_create(overlay_obj_);
+    lv_label_set_text(head, title.c_str());
+    lv_obj_set_style_text_font(head, font, 0);
+    lv_obj_set_style_text_color(head, colors.text_disabled, 0);
+
+    input_ = lv_textarea_create(overlay_obj_);
+    lv_textarea_set_one_line(input_, true);
+    lv_textarea_set_text(input_, initial.c_str());
+    lv_obj_set_width(input_, lv_pct(100));
+    lv_obj_set_style_text_font(input_, font, 0);
+    lv_group_t* g = lv_group_get_default();
+    if (g) { lv_group_add_obj(g, input_); lv_group_focus_obj(input_); }
+
+    auto* hint = lv_label_create(overlay_obj_);
+    lv_label_set_text(hint, "Enter: save   \xC2\xB7   Esc: cancel");
+    lv_obj_set_style_text_font(hint, font, 0);
+    lv_obj_set_style_text_color(hint, colors.text_disabled, 0);
+}
+
+void SettingsScreen::open_info(const std::string& title, std::vector<std::string> rows) {
+    overlay_mode_ = Overlay::Info;
+    overlay_title_ = title;
+    overlay_obj_ = lv_obj_create(lv_obj_get_parent(list_));
+    lv_obj_remove_style_all(overlay_obj_);
+    lv_obj_set_size(overlay_obj_, lv_pct(100), lv_pct(100));
+    const auto colors = view::palette(view_model().is_dark_mode());
+    lv_obj_set_style_bg_opa(overlay_obj_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(overlay_obj_, colors.background, 0);
+    lv_obj_set_flex_flow(overlay_obj_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(overlay_obj_, 8, 0);
+    lv_obj_set_style_pad_row(overlay_obj_, 3, 0);
+    lv_obj_clear_flag(overlay_obj_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    const lv_font_t* title_font = assets().load_standard_font(15);
+    if (!title_font) title_font = &lv_font_montserrat_16;
+    const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
+    if (!font) font = &lv_font_montserrat_14;
+
+    auto* head = lv_label_create(overlay_obj_);
+    lv_label_set_text(head, title.c_str());
+    lv_obj_set_style_text_font(head, title_font, 0);
+    lv_obj_set_style_text_color(head, colors.primary, 0);
+    for (const auto& r : rows) {
+        auto* row = lv_label_create(overlay_obj_);
+        lv_label_set_text(row, r.c_str());
+        lv_label_set_long_mode(row, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(row, lv_pct(100));
+        lv_obj_set_style_text_font(row, font, 0);
+        lv_obj_set_style_text_color(row, colors.text, 0);
+    }
+    auto* hint = lv_label_create(overlay_obj_);
+    lv_label_set_text(hint, "Esc: back");
+    lv_obj_set_style_text_font(hint, font, 0);
+    lv_obj_set_style_text_color(hint, colors.text_disabled, 0);
+}
+
+void SettingsScreen::open_canned() {
+    overlay_mode_ = Overlay::Canned;
+    overlay_title_ = "Quick messages";
+    pending_.clear();
+    options_.clear();
+    options_.push_back("+ Add new");
+    for (const auto& c : view_model().canned_messages()) options_.push_back(c);
+    opt_sel_ = 0;
+    overlay_obj_ = lv_obj_create(lv_obj_get_parent(list_));
+    lv_obj_remove_style_all(overlay_obj_);
+    lv_obj_set_size(overlay_obj_, lv_pct(100), lv_pct(100));
+    const auto colors = view::palette(view_model().is_dark_mode());
+    lv_obj_set_style_bg_opa(overlay_obj_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(overlay_obj_, colors.background, 0);
+    lv_obj_set_flex_flow(overlay_obj_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(overlay_obj_, 6, 0);
+    lv_obj_set_style_pad_row(overlay_obj_, 2, 0);
+    lv_obj_clear_flag(overlay_obj_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    rebuild_picker();
+}
+
+void SettingsScreen::teardown_overlay_obj() {
+    if (input_) {
+        lv_group_t* g = lv_group_get_default();
+        if (g) lv_group_remove_obj(input_);
+        input_ = nullptr;
+    }
+    if (overlay_obj_) { lv_obj_delete(overlay_obj_); overlay_obj_ = nullptr; }
+}
+
+void SettingsScreen::close_overlay() {
+    if (input_) {
+        lv_group_t* g = lv_group_get_default();
+        if (g) lv_group_remove_obj(input_);
+        input_ = nullptr;
+    }
+    if (overlay_obj_) { lv_obj_delete(overlay_obj_); overlay_obj_ = nullptr; }
+    overlay_mode_ = Overlay::None;
+    options_.clear();
+    pending_.clear();
+    from_canned_ = false;
+    canned_edit_index_ = -1;
+    rebuild();
+}
+
+void SettingsScreen::apply_overlay() {
+    if (overlay_mode_ == Overlay::Picker) {
+        if (opt_sel_ < 0 || opt_sel_ >= static_cast<int>(options_.size())) { close_overlay(); return; }
+        const std::string choice = options_[opt_sel_];
+        if (pending_ == "region") { view_model().set_region(choice); close_overlay(); }
+        else if (pending_ == "preset") { view_model().set_modem_preset(choice); close_overlay(); }
+        else if (pending_ == "hop") { view_model().set_hop_limit(opt_sel_ + 1); close_overlay(); }
+        else if (pending_ == "retention") {
+            view_model().set_retention_cap(choice == "All" ? 0 : std::atoi(choice.c_str()));
+            close_overlay();
+        }
+        else if (pending_ == "addmenu") {
+            if (opt_sel_ == 0) {
+                view_model().scan_channel_qr();
+                const bool have_overlay = overlay_obj_ != nullptr;
+                (void)have_overlay;
+                close_overlay();
+                open_info("Scan QR code", {"Point the camera at a Meshtastic channel QR code.",
+                                           "(Works on the device, not the simulator.)"});
+            } else {
+                close_overlay();
+                open_text("Paste share URL", "", "channel-url");
+            }
+        } else {
+            close_overlay();
+        }
+    } else if (overlay_mode_ == Overlay::Canned) {
+        const int choice = opt_sel_;
+        teardown_overlay_obj();
+        if (choice == 0) {
+            from_canned_ = true; canned_edit_index_ = -1;
+            open_text("New quick message", "", "canned-add");
+        } else {
+            const int idx = choice - 1;
+            const auto& canned = view_model().canned_messages();
+            const std::string cur = (idx >= 0 && idx < static_cast<int>(canned.size())) ? canned[idx] : "";
+            from_canned_ = true; canned_edit_index_ = idx;
+            open_text("Edit (empty = delete)", cur, "canned-edit");
+        }
+    } else if (overlay_mode_ == Overlay::Text) {
+        const char* text = input_ ? lv_textarea_get_text(input_) : "";
+        const std::string value = text ? text : "";
+        const std::string pending = pending_;
+        if (pending == "name" && !value.empty()) {
+            view_model().set_owner(value, value.substr(0, 4));
+        } else if (pending == "channel-url" && !value.empty()) {
+            view_model().add_channel_url(value);
+        } else if (pending == "canned-add") {
+            view_model().add_canned(value);
+        } else if (pending == "canned-edit") {
+            view_model().update_canned(canned_edit_index_, value);  // empty => delete
+        }
+        if (from_canned_) {
+            from_canned_ = false;
+            teardown_overlay_obj();
+            open_canned();
+        } else {
+            close_overlay();
+        }
+    } else {
+        close_overlay();
+    }
+}
+
+// --- navigation -------------------------------------------------------------
+void SettingsScreen::on_up() {
+    if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
+        if (opt_sel_ > 0) { --opt_sel_; rebuild_picker(); }
+        return;
+    }
+    if (overlay_mode_ != Overlay::None) return;
+    if (selected_ > 0) { --selected_; rebuild(); }
+}
+
+void SettingsScreen::on_down() {
+    if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
+        if (opt_sel_ < static_cast<int>(options_.size()) - 1) { ++opt_sel_; rebuild_picker(); }
+        return;
+    }
+    if (overlay_mode_ != Overlay::None) return;
+    if (selected_ < kRowCount - 1) { ++selected_; rebuild(); }
+}
+
+void SettingsScreen::on_enter() {
+    if (overlay_mode_ != Overlay::None) { apply_overlay(); return; }
+    row_action(selected_);
+}
+
+bool SettingsScreen::on_back() {
+    // Esc inside a quick-message editor returns to the list, not all the way out.
+    if (overlay_mode_ == Overlay::Text && from_canned_) {
+        from_canned_ = false;
+        teardown_overlay_obj();
+        open_canned();
+        return true;
+    }
+    if (overlay_mode_ != Overlay::None) { close_overlay(); return true; }
+    return false;
+}
+
+bool SettingsScreen::is_composing() {
+    return overlay_mode_ == Overlay::Text;
+}
+
+} // namespace screen

@@ -1,0 +1,25 @@
+[Unit]
+Description=@APP_DISPLAY_NAME@
+After=multi-user.target
+
+# Optional autostart service. The normal launch path on the CardputerZero is the
+# APPLaunch grid (which runs apps as the logged-in user), so this is OFF by
+# default. If you enable it, it runs as an UNPRIVILEGED user — never root — and
+# needs the video/input groups for the framebuffer and keyboard. The radio
+# supervisor is a separate service (it owns the SX1262 and meshtasticd).
+[Service]
+Type=simple
+User=@APP_SERVICE_USER@
+SupplementaryGroups=video input
+ExecStart=/usr/bin/@PROJECT_NAME@
+Restart=on-failure
+RestartSec=2
+# Least-privilege hardening (kept compatible with direct framebuffer access).
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+
+[Install]
+WantedBy=multi-user.target

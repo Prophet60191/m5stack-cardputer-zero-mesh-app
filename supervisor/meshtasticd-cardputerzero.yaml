@@ -1,0 +1,29 @@
+# meshtasticd configuration for the CardputerZero + Cap LoRa-1262.
+#
+# This is HARDWARE config only -- which radio, on which pins. Region and the
+# backhaul channel are set at runtime with the meshtastic client (so no secrets
+# live in this file, and it is safe to keep in the repo).
+#
+# Every value here was measured on the device and cross-checked against MeshTerm and
+# the pocket-mesh config; see ../../docs/hardware/cap-lora-1262.md.
+
+Lora:
+  Module: sx1262              # the radio chip on the Cap
+  spidev: spidev0.1           # SPI bus 0, kernel chip-select 1  (/dev/spidev0.1)
+  spiSpeed: 1000000           # 1 MHz SPI clock
+  gpiochip: 0                 # /dev/gpiochip0
+  IRQ: 23                     # DIO1 -> GPIO23 (interrupt line)
+  Busy: 22                    # BUSY -> GPIO22
+  Reset: 26                   # NRST -> GPIO26
+  DIO2_AS_RF_SWITCH: true     # the SX1262's DIO2 toggles TX/RX on-chip
+  DIO3_TCXO_VOLTAGE: 3.0      # DIO3 powers the 3.0 V TCXO (temperature xtal)
+
+GPS:
+  SerialPath: /dev/serial0    # the ATGM336H GNSS receiver, 115200 8N1
+
+# Keep the daemon quiet and local: no web server, info-level logs.
+Webserver:
+  Port: -1
+
+Logging:
+  LogLevel: info
