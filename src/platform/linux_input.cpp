@@ -28,6 +28,12 @@ uint32_t last_key = 0;
 bool last_key_pressed = false;
 bool nav_shortcut_mode = false;
 bool shift_held = false;
+// The keyboard's "Sym" modifier (blue symbols). The kernel does NOT translate it
+// to ASCII — it emits the Sym-layer keycodes plus this modifier (code 383), and
+// several of those keycodes collide with normal punctuation keys, so we must
+// know whether Sym is held to tell "!" (Sym) from "[" (plain).
+bool sym_held = false;
+constexpr uint16_t kSymKey = 383;
 // When false (menus, lists, settings - anywhere we are NOT typing into a text
 // field) the bare F/X/Z/C keys act as the Up/Down/Left/Right d-pad, so the user
 // never needs the Fn chord to navigate. When true (composing a message, editing
@@ -248,7 +254,29 @@ uint32_t printable_key(uint16_t code, bool shift) {
     return 0;
 }
 
-uint32_t map_evdev_key(uint16_t code, bool shift) {
+// The Sym layer (blue symbols), mapped from the device's own keycodes — captured
+// on-device because the kernel assigns them placeholder/punctuation codes.
+uint32_t sym_printable(uint16_t code) {
+    switch (code) {
+        case 93: return '?';
+        case 26: return '!';
+        case 27: return '@';
+        case 39: return '#';
+        case 40: return '$';
+        case 41: return '%';
+        case 51: return '&';
+        case 52: return '*';
+        case 53: return '(';
+        case 94: return ')';
+        case 80: return '-';
+        case 71: return '/';
+        case 92: return ':';
+        case 81: return '\'';
+        default: return 0;
+    }
+}
+
+uint32_t map_evdev_key(uint16_t code, bool shift, bool sym) {
     switch (code) {
         case KEY_ESC:
             return LV_KEY_ESC;
@@ -279,6 +307,12 @@ uint32_t map_evdev_key(uint16_t code, bool shift) {
             return kKeyHelp;
         default:
             break;
+    }
+
+    // Sym layer (blue symbols) takes precedence over the d-pad and over the plain
+    // character of keys that collide (code 26 is "!" with Sym, "[" without it).
+    if (sym) {
+        return sym_printable(code);
     }
 
     // Outside text entry the bare d-pad cluster navigates without Fn. (The kernel
@@ -336,6 +370,10 @@ void evdev_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
             shift_held = input.value != 0;
             continue;
         }
+        if (input.code == kSymKey) {
+            sym_held = input.value != 0;
+            continue;
+        }
         if (input.value == 2) {
             continue;   // auto-repeat
         }
@@ -346,7 +384,7 @@ void evdev_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
         static std::map<uint16_t, uint32_t> active_keys;
         uint32_t key;
         if (input.value) {
-            key = map_evdev_key(input.code, shift_held);
+            key = map_evdev_key(input.code, shift_held, sym_held);
             if (!key) continue;
             active_keys[input.code] = key;
         } else {
