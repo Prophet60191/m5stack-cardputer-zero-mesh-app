@@ -61,6 +61,12 @@ before release (see [Security](#security)).
 - **Keyboard-first** — the bare **F / X / Z / C** keys are the d-pad everywhere except while typing; hold
   **Fn** for arrows inside a text box. Press **HELP** on any screen for its keys.
 
+## Build your own
+
+Want to build an app for this device? This repo is the worked example for a full guide:
+**[Building Apps for the M5Stack Cardputer Zero](https://github.com/Prophet60191/m5stack-cardputer-zero-app-guide)**
+— the platform, the UI+supervisor architecture, the keyboard, packaging, and publishing.
+
 ## Architecture
 
 Two cooperating processes with a clean boundary — the UI never touches the radio:
