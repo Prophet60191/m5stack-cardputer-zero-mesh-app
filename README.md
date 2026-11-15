@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/screenshots/icon.png" alt="M5Stack Cardputer Zero Mesh App icon" width="96">
+</p>
+
 <h1 align="center">M5Stack Cardputer Zero Mesh App</h1>
 
 <p align="center">
