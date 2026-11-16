@@ -19,7 +19,8 @@
 - Isolate app settings with private atomic saves and deliberate migration; align
   package identity/version/assets and resolve actual native library dependencies.
 - Include full attribution and third-party licenses, synthetic current screenshots,
-  offline CI and regression checks. Remove the historical personal chat image
+  offline CI with a pinned Node 24 checkout action and regression checks. Remove
+  the historical personal chat image
   from publication history while preserving a private recovery backup.
 - Update the companion app builder guide with reusable lifecycle, routing, privacy,
   transport, storage, packaging, licensing and publication lessons.
