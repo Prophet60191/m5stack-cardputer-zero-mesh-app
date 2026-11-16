@@ -415,10 +415,13 @@ void MessagesScreen::rebuild_thread() {
         lv_obj_set_style_bg_opa(bubble, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(bubble, m.outgoing ? colors.primary : colors.button, 0);
         if (selected) {
-            lv_obj_set_style_outline_width(bubble, 2, 0);
-            lv_obj_set_style_outline_color(bubble, colors.error, 0);
-            lv_obj_set_style_outline_pad(bubble, 2, 0);
-            lv_obj_set_style_outline_opa(bubble, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_width(bubble, 2, 0);
+            lv_obj_set_style_border_color(bubble, colors.error, 0);
+            lv_obj_set_style_border_side(bubble, LV_BORDER_SIDE_FULL, 0);
+            lv_obj_set_style_border_opa(bubble, LV_OPA_COVER, 0);
+            // Draw inside the bubble so its tight parent cannot clip the line.
+            // Border + padding stays seven pixels, preserving text/layout bounds.
+            lv_obj_set_style_pad_all(bubble, 5, 0);
         }
         lv_obj_set_flex_flow(bubble, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_style_pad_row(bubble, 2, 0);

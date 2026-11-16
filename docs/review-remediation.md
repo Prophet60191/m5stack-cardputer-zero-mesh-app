@@ -1,6 +1,6 @@
 # Independent review remediation — 2026-11-15
 
-Initial review candidate: **0.1.1**; current candidate: **0.1.4** (latest evidence below).
+Initial review candidate: **0.1.1**; current candidate: **0.1.5** (latest evidence below).
 These changes replace the earlier assumption that
 all review concerns had already been resolved. The evidence below covers the
 current source and offline package; it does not certify an installed radio.
