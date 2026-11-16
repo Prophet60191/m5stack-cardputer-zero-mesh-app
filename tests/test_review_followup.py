@@ -173,11 +173,16 @@ class ReviewTests(unittest.TestCase):
             run.assert_not_called()
 
     def test_greeting_sends_history_once_and_queries_versions_outside_lifecycle_lock(self):
+        original_send = self.c.send
+        def send(event):
+            if event['event'] == 'threads': self.assertTrue(self.s._lock._is_owned())
+            original_send(event)
         def query(*args, **kwargs):
             self.assertFalse(self.s._life_lock._is_owned())
             return subprocess.CompletedProcess(args, 0, '2.7.26-synthetic', '')
         with patch('subprocess.run', side_effect=query) as run, patch.object(self.s, '_read_lines', return_value=iter(())), \
-                patch.object(self.s, '_check_firewall', return_value={'ok': True}), patch.object(self.c, 'close', create=True):
+                patch.object(self.s, '_check_firewall', return_value={'ok': True}), patch.object(self.c, 'close', create=True), \
+                patch.object(self.c, 'send', side_effect=send):
             self.s._handle_client(None, self.c)
             self.assertEqual(sum(e['event'] == 'messages' for e in self.c.events), 1)
             self.s._daemon_version(); self.assertEqual(run.call_count, 1)

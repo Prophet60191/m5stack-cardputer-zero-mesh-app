@@ -790,6 +790,7 @@ class Supervisor(ApplicationServices, ChannelImport):
 
     # --- intent dispatch -----------------------------------------------------
     def dispatch(self, client: Client, req: dict) -> None:
+        if self._stop.is_set(): return
         intent = req.get("intent")
         rid = req.get("id")
         correlation = {"id": rid} if isinstance(rid, str) and 0 < len(rid) <= 128 else {}
@@ -1470,7 +1471,8 @@ class Supervisor(ApplicationServices, ChannelImport):
         with self._life_lock:
             # Greet with a complete snapshot so a reconnecting UI is fully populated.
             client.send(self._status())
-            client.send(self._thread_state())
+            with self._lock:
+                client.send(self._thread_state())
             self._publish_history(client)
             client.send(self._setup_payload())
             if self._iface is not None and self._radio == "online":
