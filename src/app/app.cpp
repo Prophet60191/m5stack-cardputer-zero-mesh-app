@@ -5,6 +5,7 @@
  */
 
 #include "app.h"
+#include <cmath>
 
 #include "application_config.h"
 #include "asset_manager.h"
@@ -51,7 +52,7 @@
 #endif
 
 #ifndef APP_CONFIG_FILE
-#define APP_CONFIG_FILE "template-app.conf"
+#define APP_CONFIG_FILE "cardputerzero-mesh.conf"
 #endif
 
 namespace app {
@@ -80,7 +81,7 @@ viewmodel::MessageInfo parse_message(const json::Value& m) {
         if (s->type == json::Value::Num) { info.snr = s->num; info.hasSnr = true; }
     }
     if (const json::Value* h = m.find("hops")) {
-        if (h->type == json::Value::Num) info.hops = static_cast<int>(h->num);
+        if (h->type == json::Value::Num) info.hops = h->as_int32(-1);
     }
     info.relay = m.str_at("relay");
     const std::string st = m.str_at("status");
@@ -111,7 +112,6 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
     } else if (type == "_disconnected") {
         vm.set_connected(false);
     } else if (type == "status") {
-        vm.set_connected(true);
         vm.apply_status(ev.str_at("radio", "off"), ev.str_at("region", "UNSET"), ev.str_at("owner"));
     } else if (type == "nodes") {
         std::vector<viewmodel::NodeInfo> nodes;
@@ -126,13 +126,13 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
                 }
                 info.lastHeard = n.int_at("lastHeard");
                 if (const json::Value* h = n.find("hops")) {
-                    if (h->type == json::Value::Num) info.hops = static_cast<int>(h->num);
+                    if (h->type == json::Value::Num) info.hops = h->as_int32(-1);
                 }
                 if (const json::Value* s = n.find("self")) {
                     info.isSelf = s->as_bool();
                 }
                 if (const json::Value* b = n.find("battery")) {
-                    if (b->type == json::Value::Num) { info.battery = static_cast<int>(b->num); info.hasBattery = true; }
+                    if (b->type == json::Value::Num) { info.battery = b->as_int32(); info.hasBattery = true; }
                 }
                 if (const json::Value* v = n.find("voltage")) {
                     if (v->type == json::Value::Num) info.voltage = v->num;
@@ -154,6 +154,8 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
                 info.index = static_cast<int>(c.int_at("index"));
                 info.name = c.str_at("name");
                 info.role = c.str_at("role");
+                if (const auto* v = c.find("private")) info.isPrivate = v->as_bool();
+                info.positionPrecision = static_cast<int>(c.int_at("position_precision"));
                 chans.push_back(std::move(info));
             }
         }
@@ -175,9 +177,9 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
         const std::string st = ev.str_at("status");
         int hops = -1;
         if (const json::Value* h = ev.find("hops")) {
-            if (h->type == json::Value::Num) hops = static_cast<int>(h->num);
+            if (h->type == json::Value::Num) hops = h->as_int32(-1);
         }
-        vm.set_delivery(cid, st == "failed" ? viewmodel::kMsgFailed : viewmodel::kMsgDelivered, hops);
+        vm.set_delivery(cid, st == "failed" ? viewmodel::kMsgFailed : (st == "delivered" ? viewmodel::kMsgDelivered : 0), hops);
     } else if (type == "traceroute") {
         bool ok = false;
         if (const json::Value* o = ev.find("ok")) ok = o->as_bool();
@@ -192,18 +194,35 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
         } else {
             text = ev.str_at("text");
         }
-        vm.apply_traceroute(ok, text);
+        vm.apply_traceroute(ok, text, ev.str_at("node"), ev.str_at("id"));
     } else if (type == "channelshare") {
-        vm.apply_channel_share(ev.str_at("url"));
+        vm.apply_channel_share(static_cast<int>(ev.int_at("channel", -1)), ev.str_at("name"), ev.str_at("url"), ev.str_at("id"));
     } else if (type == "error") {
+        if (!ev.str_at("cid").empty()) vm.set_delivery(ev.str_at("cid"), viewmodel::kMsgFailed);
+        if (ev.str_at("intent").rfind("config.", 0) == 0) vm.config_unknown();
         vm.apply_notice(ev.str_at("text"));
     } else if (type == "device") {
         vm.apply_device(ev.str_at("node_id"), ev.str_at("firmware"), ev.str_at("model"));
+    } else if (type == "config.unknown") {
+        vm.config_unknown();
     } else if (type == "config") {
-        bool pos = false, mqtt = false;
-        if (const json::Value* p = ev.find("position")) pos = p->as_bool();
-        if (const json::Value* q = ev.find("mqtt")) mqtt = q->as_bool();
-        vm.apply_config(ev.str_at("preset"), static_cast<int>(ev.int_at("hop")), pos, mqtt);
+        const auto* confirmed = ev.find("confirmed");
+        const auto* position = ev.find("position");
+        const auto* mqtt = ev.find("mqtt");
+        const auto* preset = ev.find("preset");
+        const auto* hop = ev.find("hop");
+        const auto* slot = ev.find("frequency_slot");
+        if (!confirmed || confirmed->type != json::Value::Bool || !confirmed->b ||
+            !position || position->type != json::Value::Bool ||
+            !mqtt || mqtt->type != json::Value::Bool ||
+            !preset || preset->type != json::Value::Str || preset->str.empty() ||
+            !hop || hop->type != json::Value::Num || hop->num < 0 || hop->num > 7 ||
+            std::floor(hop->num) != hop->num ||
+            (slot && (slot->type != json::Value::Num || slot->num < 0 || slot->num > 255 || std::floor(slot->num) != slot->num))) {
+            vm.config_unknown();
+            return;
+        }
+        vm.apply_config(preset->str, hop->as_int32(), position->b, mqtt->b, ev.str_at("id"), static_cast<int>(ev.int_at("frequency_slot")));
     }
     // "notice" / "error": surfaced via toast during polish (step 5).
 }
@@ -215,13 +234,13 @@ std::string writable_config_path() {
     if (const char* xdg_config_home = std::getenv("XDG_CONFIG_HOME")) {
         const std::filesystem::path root(xdg_config_home);
         if (!root.empty() && root.is_absolute()) {
-            return (root / "template-app" / "template-app.conf").string();
+            return (root / "cardputerzero-mesh" / "cardputerzero-mesh.conf").string();
         }
     }
     if (const char* home = std::getenv("HOME")) {
         const std::filesystem::path root(home);
         if (!root.empty() && root.is_absolute()) {
-            return (root / ".config" / "template-app" / "template-app.conf").string();
+            return (root / ".config" / "cardputerzero-mesh" / "cardputerzero-mesh.conf").string();
         }
     }
     return APP_CONFIG_FILE;
@@ -474,10 +493,18 @@ int Application::run() {
     viewmodel::BaseViewModel view_model;
     const std::string user_config_path = writable_config_path();
     std::string loaded_config_path = APP_CONFIG_FILE;
+    bool legacy_preferences = false;
     if (user_config_path != APP_CONFIG_FILE) {
         std::error_code filesystem_error;
         if (std::filesystem::is_regular_file(user_config_path, filesystem_error)) {
             loaded_config_path = user_config_path;
+        } else {
+            const auto legacy = std::filesystem::path(user_config_path).parent_path().parent_path() /
+                                "template-app" / "template-app.conf";
+            if (std::filesystem::is_regular_file(legacy, filesystem_error)) {
+                loaded_config_path = legacy.string();
+                legacy_preferences = true;
+            }
         }
     }
 
@@ -488,7 +515,7 @@ int Application::run() {
         if (config.has_messaging) {
             view_model.load_messaging_prefs(config.show_signal, config.retention_cap,
                                             config.mute_all, config.want_ack);
-            view_model.load_auto_start(config.auto_start);
+            view_model.load_auto_start(config.auto_start && !legacy_preferences);
             view_model.load_canned(config.canned);
             view_model.load_muted(config.muted);
             view_model.load_favorites(config.favorites);
@@ -583,7 +610,7 @@ int Application::run() {
 
     // The supervisor owns the radio; the UI talks to it over a local socket.
     platform::SupervisorClient supervisor;
-    view_model.set_command_sink([&supervisor](const std::string& line) { supervisor.send_line(line); });
+    view_model.set_command_sink([&supervisor](const std::string& line) { return supervisor.send_line(line); });
     supervisor.start([&view_model, &supervisor](const json::Value& ev) {
         apply_supervisor_event(view_model, supervisor, ev);
     });
@@ -603,7 +630,8 @@ int Application::run() {
         // Only require Fn for the d-pad while a text field is capturing input;
         // everywhere else the bare F/X/Z/C keys navigate on their own.
         platform::set_text_entry_mode(screen_manager.is_composing());
-        supervisor.poll();          // drain supervisor events on the UI thread
+        supervisor.poll();
+        view_model.tick();          // drain supervisor events on the UI thread
         lv_timer_handler();
         lv_delay_ms(5);
     }

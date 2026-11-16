@@ -10,6 +10,9 @@
 #pragma once
 
 #include <map>
+#include <cmath>
+#include <limits>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -31,7 +34,23 @@ struct Value {
         return it == obj.end() ? nullptr : &it->second;
     }
     std::string as_str(const std::string& def = "") const { return type == Str ? str : def; }
-    long as_int(long def = 0) const { return type == Num ? static_cast<long>(num) : def; }
+    long as_int(long def = 0) const {
+        return type == Num && std::isfinite(num) &&
+               num >= static_cast<double>(std::numeric_limits<long>::min()) &&
+               num < static_cast<double>(std::numeric_limits<long>::max())
+                   ? static_cast<long>(num) : def;
+    }
+    int as_int32(int def = 0) const {
+        return type == Num && std::isfinite(num) &&
+               num >= std::numeric_limits<int>::min() && num <= std::numeric_limits<int>::max()
+                   ? static_cast<int>(num) : def;
+    }
+    size_t memory_size() const {
+        size_t n = sizeof(Value) + str.capacity();
+        for (const auto& v : arr) n += v.memory_size();
+        for (const auto& kv : obj) n += 64 + kv.first.capacity() + kv.second.memory_size();
+        return n;
+    }
     bool as_bool(bool def = false) const { return type == Bool ? b : def; }
 
     std::string str_at(const std::string& key, const std::string& def = "") const {
@@ -51,16 +70,18 @@ public:
     explicit Parser(const std::string& s) : s_(s) {}
 
     bool parse(Value& out) {
+        out = Value{};
         skip_ws();
         if (!value(out)) return false;
         skip_ws();
-        return true;  // trailing content tolerated
+        return i_ == s_.size();
     }
 
 private:
     const std::string& s_;
     size_t i_ = 0;
     int depth_ = 0;
+    size_t nodes_ = 0;
     static constexpr int kMaxDepth = 64;   // reject pathologically nested input
 
     void skip_ws() {
@@ -71,7 +92,7 @@ private:
 
     bool value(Value& out) {
         skip_ws();
-        if (eof()) return false;
+        if (eof() || ++nodes_ > 50000) return false;
         if (++depth_ > kMaxDepth) { --depth_; return false; }
         bool ok;
         switch (cur()) {
@@ -93,7 +114,7 @@ private:
         if (!eof() && cur() == '}') { ++i_; return true; }
         while (!eof()) {
             skip_ws();
-            if (cur() != '"') return false;
+            if (eof() || cur() != '"') return false;
             std::string key;
             if (!string(key)) return false;
             skip_ws();
@@ -101,7 +122,7 @@ private:
             ++i_;
             Value v;
             if (!value(v)) return false;
-            out.obj[key] = std::move(v);
+            if (!out.obj.emplace(key, std::move(v)).second) return false;
             skip_ws();
             if (eof()) return false;
             if (cur() == ',') { ++i_; continue; }
@@ -129,12 +150,35 @@ private:
         return false;
     }
 
+    static bool valid_utf8(const std::string& s) {
+        size_t i = 0;
+        while (i < s.size()) {
+            const unsigned char lead = static_cast<unsigned char>(s[i++]);
+            if (lead < 0x80) continue;
+            unsigned cp, count, minimum;
+            if (lead >= 0xC2 && lead <= 0xDF) { cp = lead & 0x1F; count = 1; minimum = 0x80; }
+            else if (lead >= 0xE0 && lead <= 0xEF) { cp = lead & 0x0F; count = 2; minimum = 0x800; }
+            else if (lead >= 0xF0 && lead <= 0xF4) { cp = lead & 0x07; count = 3; minimum = 0x10000; }
+            else return false;
+            if (i + count > s.size()) return false;
+            while (count--) {
+                const auto byte = static_cast<unsigned char>(s[i++]);
+                if ((byte & 0xC0) != 0x80) return false;
+                cp = (cp << 6) | (byte & 0x3F);
+            }
+            if (cp < minimum || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) return false;
+        }
+        return true;
+    }
+
     bool string(std::string& out) {
         out.clear();
         ++i_;  // opening "
         while (!eof()) {
+            if (out.size() > 4096) return false;
             char c = s_[i_++];
-            if (c == '"') return true;
+            if (static_cast<unsigned char>(c) < 0x20) return false;
+            if (c == '"') return valid_utf8(out);
             if (c == '\\') {
                 if (eof()) return false;
                 char e = s_[i_++];
@@ -225,23 +269,32 @@ private:
     }
 
     bool number(Value& out) {
-        size_t start = i_;
-        if (!eof() && (cur() == '-' || cur() == '+')) ++i_;
-        bool any = false;
-        while (!eof() && ((cur() >= '0' && cur() <= '9') || cur() == '.' || cur() == 'e' || cur() == 'E' ||
-                          cur() == '+' || cur() == '-')) {
-            ++i_;
-            any = true;
+        const size_t start = i_;
+        if (!eof() && cur() == '-') ++i_;
+        if (eof()) return false;
+        auto digit = [this] { return !eof() && cur() >= '0' && cur() <= '9'; };
+        if (cur() == '0') ++i_;
+        else {
+            if (!digit()) return false;
+            while (digit()) ++i_;
         }
-        if (!any) return false;
+        if (!eof() && cur() == '.') {
+            ++i_; if (!digit()) return false;
+            while (digit()) ++i_;
+        }
+        if (!eof() && (cur() == 'e' || cur() == 'E')) {
+            ++i_;
+            if (!eof() && (cur() == '+' || cur() == '-')) ++i_;
+            if (!digit()) return false;
+            while (digit()) ++i_;
+        }
         try {
             out.type = Value::Num;
             out.num = std::stod(s_.substr(start, i_ - start));
-        } catch (...) {
-            return false;
-        }
-        return true;
+        } catch (...) { return false; }
+        return std::isfinite(out.num);
     }
+
 };
 
 }  // namespace detail
@@ -261,7 +314,13 @@ inline std::string escape(const std::string& s) {
             case '\n': o += "\\n";  break;
             case '\r': o += "\\r";  break;
             case '\t': o += "\\t";  break;
-            default:   o.push_back(c); break;
+            default:
+                if (static_cast<unsigned char>(c) < 0x20) {
+                    char escaped[7];
+                    std::snprintf(escaped, sizeof(escaped), "\\u%04x", static_cast<unsigned char>(c));
+                    o += escaped;
+                } else o.push_back(c);
+                break;
         }
     }
     return o;

@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Jose Di Lenola
  *
  * Plain data the screens render. Mirrors the supervisor's event payloads
- * (see ../../docs/software/supervisor-protocol.md).
+ * (see ../../docs/supervisor-protocol.md).
  */
 #pragma once
 
@@ -34,7 +34,9 @@ struct NodeInfo {
 struct ChannelInfo {
     int index = 0;
     std::string name;   // empty = the default/primary channel
+    bool isPrivate = false;
     std::string role;   // "PRIMARY" | "SECONDARY"
+    int positionPrecision = 0;
 };
 
 struct MessageInfo {

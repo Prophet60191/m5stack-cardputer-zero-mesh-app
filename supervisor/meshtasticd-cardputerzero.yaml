@@ -1,11 +1,11 @@
 # meshtasticd configuration for the CardputerZero + Cap LoRa-1262.
 #
 # This is HARDWARE config only -- which radio, on which pins. Region and the
-# backhaul channel are set at runtime with the meshtastic client (so no secrets
+# private channels are configured separately with the meshtastic client (so no secrets
 # live in this file, and it is safe to keep in the repo).
 #
 # Every value here was measured on the device and cross-checked against MeshTerm and
-# the pocket-mesh config; see ../../docs/hardware/cap-lora-1262.md.
+# the upstream pocket-mesh hardware mapping. See the companion app guide.
 
 Lora:
   Module: sx1262              # the radio chip on the Cap

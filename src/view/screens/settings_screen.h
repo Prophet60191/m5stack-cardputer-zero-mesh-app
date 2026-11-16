@@ -49,6 +49,8 @@ private:
     int selected_ = 0;         // row selection
     int opt_sel_ = 0;          // picker selection
     std::vector<std::string> options_;
+    std::vector<int> position_channels_;
+    int public_position_channel_ = -1;
     std::string pending_;      // which setting the overlay edits
     bool from_canned_ = false; // a text editor opened from the Quick-messages list
     int canned_edit_index_ = -1;

@@ -123,18 +123,24 @@ public:
     const std::set<std::string>& muted_threads() const { return muted_; }
 
     // Mesh-native actions (new supervisor intents).
-    void send_position(int channel, const std::string& dest = "");
-    void request_position(const std::string& node_id);
-    void traceroute(const std::string& node_id);
-    void request_channel_share(const std::string& name = "backhaul");
+    void send_position(int channel, const std::string& dest = "", bool public_confirmed = false);
+    void request_position(const std::string& node_id, int channel);
+    void traceroute(const std::string& node_id, int channel);
+    void request_channel_share(int channel);
+    const ChannelInfo* channel(int index) const;
+    std::string channel_label(int index) const;
+    const std::string& channel_share_name() const { return channel_share_name_; }
+    void cancel_channel_share() { share_request_.clear(); }
+    const std::string& share_request_id() const { return share_request_; }
 
     // Results of those actions, surfaced to the Messages screen.
     lv_subject_t* traceroute_subject();       // bumped when a traceroute returns
     lv_subject_t* channel_share_subject();    // bumped when a share URL is ready
     const std::string& traceroute_result() const { return traceroute_result_; }
     const std::string& channel_share_url() const { return channel_share_url_; }
-    void apply_traceroute(bool ok, const std::string& text);
-    void apply_channel_share(const std::string& url);
+    void apply_traceroute(bool ok, const std::string& text, const std::string& node, const std::string& request);
+    void cancel_traceroute() { trace_request_.clear(); }
+    void apply_channel_share(int channel, const std::string& name, const std::string& url, const std::string& request);
 
     // A one-line notice/error from the supervisor, shown as a toast.
     lv_subject_t* notice_subject();
@@ -155,7 +161,7 @@ public:
     void load_favorites(const std::vector<std::string>& ids);
 
     // User actions -> intents sent to the supervisor.
-    void set_command_sink(std::function<void(const std::string&)> sink);
+    void set_command_sink(std::function<bool(const std::string&)> sink);
     void radio_start();
     void radio_stop();
     void send_message(int channel, const std::string& text, const std::string& dest = "");
@@ -167,6 +173,7 @@ public:
     // Device settings (bound by the Settings screen).
     lv_subject_t* modem_preset_subject();
     lv_subject_t* hop_limit_subject();
+    lv_subject_t* frequency_slot_subject() { return frequency_slot_subject_.native(); }
     lv_subject_t* position_subject();     // broadcast my position
     lv_subject_t* mqtt_subject();         // internet/MQTT bridge
     lv_subject_t* autostart_subject();    // start the radio on launch (app-local)
@@ -176,13 +183,18 @@ public:
 
     void set_modem_preset(const std::string& preset);
     void set_hop_limit(int hops);
-    void set_position_sharing(bool on);
+    void set_frequency_slot(int slot);
+    void set_position_sharing(bool on, int channel = -1, bool public_confirmed = false);
     void set_mqtt(bool on);
     void set_auto_start(bool on);
     void load_auto_start(bool on);   // apply persisted auto-start without re-saving
     bool auto_start() const;
     void apply_device(const std::string& node_id, const std::string& firmware, const std::string& model);
-    void apply_config(const std::string& preset, int hop, bool position, bool mqtt);
+    void apply_config(const std::string& preset, int hop, bool position, bool mqtt, const std::string& request = "", int frequency_slot = 0);
+    lv_subject_t* config_state_subject() { return config_state_.native(); }
+    const char* config_state() const { return config_state_.value(); }
+    void config_unknown();
+    void tick();
 
     // Direct-message target: when set, the Messages screen sends to this node.
     void set_dm_target(const std::string& id, const std::string& name);
@@ -192,7 +204,7 @@ public:
 
 private:
     void publish_all();
-    void send_intent(const std::string& line);
+    bool send_intent(const std::string& line);
 
     model::BaseModel model_;
     reactive::StringSubject<32> title_subject_;
@@ -219,7 +231,12 @@ private:
     reactive::IntSubject menu_index_subject_{0};
     reactive::StringSubject<20> modem_preset_subject_{"MEDIUM_FAST"};
     reactive::IntSubject hop_limit_subject_{3};
-    reactive::BoolSubject position_subject_{true};
+    reactive::IntSubject frequency_slot_subject_{0};
+    reactive::BoolSubject position_subject_{false};
+    reactive::StringSubject<16> config_state_{"unknown"};
+    std::string config_request_;
+    long long config_deadline_ = 0;
+    void send_config(const std::string& fields);
     reactive::BoolSubject mqtt_subject_{false};
     reactive::BoolSubject autostart_subject_{false};
     reactive::StringSubject<16> node_id_subject_{""};
@@ -239,12 +256,17 @@ private:
     bool mute_all_ = false;
     bool want_ack_ = true;
     std::string traceroute_result_;
+    std::string trace_request_, trace_node_;
     std::string channel_share_url_;
+    std::string channel_share_name_;
+    std::string share_request_;
+    int share_channel_ = -1;
     std::string last_notice_;
     std::function<void()> on_persist_;
     void persist();
     void trim_thread(const std::string& key);
     void trim_all_threads();
+    void prune_unread();
     std::string last_incoming_from_;
     std::string last_incoming_text_;
     std::string last_incoming_thread_;
@@ -253,12 +275,12 @@ private:
     std::string session_id_;          // per-session client-id prefix (collision-free)
     unsigned long cid_counter_ = 0;
 
-    void emit_message_send(int channel, const std::string& text,
+    bool emit_message_send(int channel, const std::string& text,
                            const std::string& dest, const std::string& cid);
 
     void apply_favorites();
 
-    std::function<void(const std::string&)> command_sink_;
+    std::function<bool(const std::string&)> command_sink_;
 };
 
 } // namespace viewmodel

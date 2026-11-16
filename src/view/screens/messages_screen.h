@@ -11,7 +11,7 @@
 
 namespace screen {
 
-// Phone-style messaging: a conversations list (the backhaul channel + one thread
+// Phone-style messaging: a conversations list (configured channels + one thread
 // per person you DM, plus "New message"), and a thread view you open into.
 class MessagesScreen : public BaseScreen {
 public:
@@ -26,7 +26,7 @@ public:
 
 private:
     enum class Mode { List, Thread };
-    enum class MenuKind { None, Thread, Message, Canned };
+    enum class MenuKind { None, Thread, Message, Canned, Channel, PublicLocation };
 
     void build_content(lv_obj_t* content) override;
     void rebuild();
@@ -50,6 +50,9 @@ private:
     void open_thread_menu();
     void open_message_menu(const std::string& msg_id);
     void open_canned_picker();
+    void open_channel_picker();
+    void open_public_location_confirmation();
+    void create_menu();
     void rebuild_menu();
     void close_menu();
     void menu_activate();
@@ -77,6 +80,9 @@ private:
     int msg_sel_ = -1;             // thread: -1 = compose row, 0..n-1 = a bubble
     bool composing_ = false;
     bool at_bottom_ = true;        // smart auto-scroll
+    int dm_channel_ = -1;          // explicitly chosen; never a primary fallback
+    int location_channel_ = -1;
+    std::string location_peer_;
 
     MenuKind menu_kind_ = MenuKind::None;
     bool awaiting_traceroute_ = false;   // a traceroute result overlay is expected

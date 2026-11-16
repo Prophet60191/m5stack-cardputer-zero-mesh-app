@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -eu
+runtime_python="${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv/bin/python"
+if [ ! -x "$runtime_python" ]; then
+    echo 'Create ~/.local/share/cardputerzero-mesh/venv and install meshtastic==2.7.11; see README.' >&2
+    exit 1
+fi
+exec "$runtime_python" /usr/lib/cardputerzero-mesh/supervisor.py

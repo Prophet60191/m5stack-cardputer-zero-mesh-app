@@ -11,6 +11,11 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
+#include <charconv>
+#include <cerrno>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace app {
 namespace {
@@ -47,6 +52,11 @@ bool load_application_config(const std::string& path,
                              ApplicationConfig& config,
                              std::string& error) {
     error.clear();
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(path, ec) || std::filesystem::file_size(path, ec) > 256 * 1024 || ec) {
+        error = "config must be a regular file no larger than 256 KiB";
+        return false;
+    }
     std::ifstream input(path);
     if (!input) {
         error = "could not open file";
@@ -71,7 +81,13 @@ bool load_application_config(const std::string& path,
             if (key == "dark_mode") config.dark_mode = to_bool(line.substr(sep + 1));
         } else if (section == "messaging") {
             if (key == "show_signal") config.show_signal = to_bool(line.substr(sep + 1));
-            else if (key == "retention") config.retention_cap = std::atoi(trim(line.substr(sep + 1)).c_str());
+            else if (key == "retention") {
+                const auto value = trim(line.substr(sep + 1));
+                int cap = 0;
+                auto parsed = std::from_chars(value.data(), value.data() + value.size(), cap);
+                if (parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size())
+                    config.retention_cap = std::clamp(cap, 0, 2000);
+            }
             else if (key == "mute_all") config.mute_all = to_bool(line.substr(sep + 1));
             else if (key == "want_ack") config.want_ack = to_bool(line.substr(sep + 1));
             else if (key == "auto_start") config.auto_start = to_bool(line.substr(sep + 1));
@@ -95,31 +111,50 @@ bool save_application_config(const std::string& path,
         if (ec) { error = "could not create parent directory: " + ec.message(); return false; }
     }
 
-    // Write to a temp file and atomically rename, so a power loss mid-write can
-    // never leave a truncated or empty config behind.
-    const std::string tmp = path + ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::trunc);
-        if (!out) { error = "could not open file for writing"; return false; }
-
-        out << "[application]\n";
-        out << "dark_mode=" << (config.dark_mode ? "yes" : "no") << "\n\n";
-
-        out << "[messaging]\n";
-        out << "show_signal=" << (config.show_signal ? "yes" : "no") << "\n";
-        out << "retention=" << config.retention_cap << "\n";
-        out << "mute_all=" << (config.mute_all ? "yes" : "no") << "\n";
-        out << "want_ack=" << (config.want_ack ? "yes" : "no") << "\n";
-        out << "auto_start=" << (config.auto_start ? "yes" : "no") << "\n";
-        for (const auto& c : config.canned) out << "canned=" << c << "\n";
-        for (const auto& m : config.muted) out << "muted=" << m << "\n";
-        for (const auto& f : config.favorites) out << "favorite=" << f << "\n";
-        out.flush();
-        if (!out) { error = "write failed"; return false; }
+    // Each writer gets an exclusive 0600 temp file. Sync its contents before
+    // atomic replacement, then sync the directory entry; never follow a shared
+    // predictable .tmp symlink or interleave two clients' saves.
+    std::ostringstream out;
+    out << "[application]\n";
+    out << "dark_mode=" << (config.dark_mode ? "yes" : "no") << "\n\n";
+    out << "[messaging]\n";
+    out << "show_signal=" << (config.show_signal ? "yes" : "no") << "\n";
+    out << "retention=" << std::clamp(config.retention_cap, 0, 2000) << "\n";
+    out << "mute_all=" << (config.mute_all ? "yes" : "no") << "\n";
+    out << "want_ack=" << (config.want_ack ? "yes" : "no") << "\n";
+    out << "auto_start=" << (config.auto_start ? "yes" : "no") << "\n";
+    auto line_value = [](std::string value) {
+        std::replace(value.begin(), value.end(), '\n', ' ');
+        std::replace(value.begin(), value.end(), '\r', ' ');
+        return value;
+    };
+    for (const auto& c : config.canned) out << "canned=" << line_value(c) << "\n";
+    for (const auto& m : config.muted) out << "muted=" << line_value(m) << "\n";
+    for (const auto& f : config.favorites) out << "favorite=" << line_value(f) << "\n";
+    const std::string content = out.str();
+    if (content.size() > 256 * 1024) { error = "config exceeds 256 KiB"; return false; }
+    std::string tmp = path + ".tmp.XXXXXX";
+    const int fd = ::mkstemp(tmp.data());
+    if (fd < 0) { error = "could not create private temporary config"; return false; }
+    size_t offset = 0;
+    bool ok = true;
+    while (offset < content.size()) {
+        const auto n = ::write(fd, content.data() + offset, content.size() - offset);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) { ok = false; break; }
+        offset += static_cast<size_t>(n);
     }
-    std::error_code rename_ec;
-    std::filesystem::rename(tmp, path, rename_ec);
-    if (rename_ec) { error = "rename failed: " + rename_ec.message(); return false; }
+    if (ok && ::fsync(fd) != 0) ok = false;
+    if (::close(fd) != 0) ok = false;
+    if (!ok || ::rename(tmp.c_str(), path.c_str()) != 0) {
+        ::unlink(tmp.c_str()); error = "config write/sync/rename failed"; return false;
+    }
+    const std::string directory = parent.empty() ? "." : parent.string();
+    const int dir = ::open(directory.c_str(), O_RDONLY);
+    if (dir < 0) { error = "config saved, but directory could not be opened for sync"; return false; }
+    ok = ::fsync(dir) == 0;
+    ::close(dir);
+    if (!ok) { error = "config saved, but directory sync failed"; return false; }
     return true;
 }
 

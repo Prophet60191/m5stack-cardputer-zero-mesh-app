@@ -11,10 +11,12 @@ source files that originate from the Template.
 Licensing split
 ---------------
 - Application (src/, CMake build, this README)  . . . . . MIT
-- Radio supervisor (supervisor/supervisor.py)   . . . . . GPL-3.0-or-later
+- Radio supervisor and guardian/firewall helpers   . . . . . GPL-3.0-or-later
   (licensed GPL because it links the GPL `meshtastic` Python library; it runs as
   a separate process and talks to the MIT app only over a local socket.)
   cap_lora.py and radio_up.py are MIT (they do not link the meshtastic library).
+
+Full third-party notices and license texts: THIRD_PARTY_NOTICES.md and licenses/.
 
 Third-party components vendored or fetched by the app build
 -----------------------------------------------------------
@@ -34,8 +36,8 @@ depends on, and the user separately installs:
 - meshtasticd (GPL-3.0) — https://github.com/meshtastic/firmware
 - the meshtastic Python client library (GPL-3.0) — https://github.com/meshtastic/python
 Because these are installed by the user and run as separate programs, this
-repository distributes no GPL binaries; only supervisor.py (which imports the
-meshtastic library) is itself GPL-3.0-or-later.
+repository distributes no GPL binaries; the supervisor and its guardian/firewall helpers are GPL-3.0-or-later.
+See supervisor/LICENSE.GPL for the full license.
 
 Meshtastic(R) is a registered trademark of Meshtastic LLC. This is an
 independent community project, not affiliated with or endorsed by Meshtastic LLC

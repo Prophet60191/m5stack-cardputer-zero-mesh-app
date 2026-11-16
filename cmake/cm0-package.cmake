@@ -5,8 +5,9 @@
 # Packaging and install layout for CardputerZero Debian builds.
 
 include(GNUInstallDirs)
+set(APP_DOC_DIR "${CMAKE_INSTALL_DATAROOTDIR}/doc/cardputerzero-mesh")
 
-set(APP_DISPLAY_NAME "TemplateApp" CACHE STRING "Human-readable application name used by launchers and package filename")
+set(APP_DISPLAY_NAME "Cardputer Zero Mesh" CACHE STRING "Human-readable application name used by launchers and package filename")
 set(APP_DEBIAN_REVISION "rev1" CACHE STRING "Debian package revision/vendor suffix")
 set(APP_DEBIAN_ARCHITECTURE "arm64" CACHE STRING "Debian package architecture")
 # Deliberately a placeholder: the store rejects packages whose Maintainer is
@@ -21,7 +22,7 @@ set(APP_SERVICE_USER "" CACHE STRING "Unprivileged user the optional systemd ser
 set(APP_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/package")
 configure_file(
     "${CMAKE_CURRENT_LIST_DIR}/templates/app.desktop.in"
-    "${APP_GENERATED_DIR}/${PROJECT_NAME}.desktop"
+    "${APP_GENERATED_DIR}/${APP_NAME}.desktop"
     @ONLY
 )
 
@@ -41,7 +42,7 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/template-app.conf"
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/cardputerzero-mesh.conf"
     DESTINATION "/etc"
 )
 
@@ -60,10 +61,10 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/assets/images/"
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/assets/images/"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/APPLaunch/share/images"
     FILES_MATCHING
-    PATTERN "template*.png"
+    PATTERN "mesh.png"
 )
 
-install(FILES "${APP_GENERATED_DIR}/${PROJECT_NAME}.desktop"
+install(FILES "${APP_GENERATED_DIR}/${APP_NAME}.desktop"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/APPLaunch/applications"
 )
 
@@ -73,45 +74,49 @@ if(APP_INSTALL_SYSTEMD_SERVICE)
     )
 endif()
 
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/docs" DESTINATION "${APP_DOC_DIR}")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md" DESTINATION "${APP_DOC_DIR}")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
-    DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+    DESTINATION "${APP_DOC_DIR}"
 )
 install(FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
     "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
-    DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES.md"
+    DESTINATION "${APP_DOC_DIR}"
 )
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/licenses/" DESTINATION "${APP_DOC_DIR}/licenses")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/supervisor/LICENSE.GPL" DESTINATION "${APP_DOC_DIR}")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/LICENSE.txt"
-    DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+    DESTINATION "${APP_DOC_DIR}"
     RENAME "third-party-assets-license.txt"
 )
 
 set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
-set(CPACK_OUTPUT_FILE_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/dist")
+set(CPACK_OUTPUT_FILE_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist" CACHE PATH "Package output directory")
 set(CPACK_PACKAGE_NAME "${APP_DISPLAY_NAME}")
 set(CPACK_PACKAGE_VENDOR "${APP_MAINTAINER}")
 set(CPACK_PACKAGE_CONTACT "${APP_MAINTAINER}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${APP_PACKAGE_DESCRIPTION}")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_FILE_NAME "${APP_DISPLAY_NAME}_${PROJECT_VERSION}_${APP_DEBIAN_REVISION}_${APP_DEBIAN_ARCHITECTURE}")
+set(CPACK_PACKAGE_FILE_NAME "cardputerzero-mesh_${PROJECT_VERSION}_${APP_DEBIAN_REVISION}_${APP_DEBIAN_ARCHITECTURE}")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 
 string(TOLOWER "${APP_DISPLAY_NAME}" APP_DEBIAN_PACKAGE_NAME)
 string(REGEX REPLACE "[^a-z0-9+.-]" "-" APP_DEBIAN_PACKAGE_NAME "${APP_DEBIAN_PACKAGE_NAME}")
-set(CPACK_DEBIAN_PACKAGE_NAME "${APP_DEBIAN_PACKAGE_NAME}")
+set(CPACK_DEBIAN_PACKAGE_NAME "cardputerzero-mesh")
 set(CPACK_DEBIAN_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_DEBIAN_PACKAGE_RELEASE "${APP_DEBIAN_REVISION}")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "${APP_DEBIAN_ARCHITECTURE}")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${APP_MAINTAINER}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-set(APP_DEBIAN_DEPENDS "libc6, libstdc++6, libgcc-s1, libfreetype6, libpng16-16, libjpeg62-turbo, zlib1g")
-if(FMT_INCLUDE_DIR AND FMT_LIBRARY)
-    string(APPEND APP_DEBIAN_DEPENDS ", libfmt10")
-endif()
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "${APP_DEBIAN_DEPENDS}")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
+# Derive native library dependencies from the built ELF, including SONAMEs.
+# Hardcoded libjpeg/libfmt package names were wrong across Debian/Ubuntu/BSPs.
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3, python3-venv, nftables, sudo, adduser, systemd")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CM0_LIBRARY_HINTS}")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
 
 configure_file(
@@ -119,6 +124,16 @@ configure_file(
     "${APP_GENERATED_DIR}/conffiles"
     @ONLY
 )
-set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${APP_GENERATED_DIR}/conffiles")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/supervisor/"
+    DESTINATION "lib/cardputerzero-mesh"
+    FILES_MATCHING PATTERN "*.py" PATTERN "*.yaml" PATTERN "LICENSE.GPL")
+install(PROGRAMS supervisor/firewall-setup.sh packaging/run-supervisor
+    DESTINATION "lib/cardputerzero-mesh")
+install(PROGRAMS packaging/mesh-launch DESTINATION "bin")
+install(FILES packaging/cardputerzero-mesh-firewall.service DESTINATION "lib/systemd/system")
+install(FILES packaging/cardputerzero-mesh-supervisor.service DESTINATION "lib/systemd/user")
+install(FILES packaging/cardputerzero-mesh.sudoers DESTINATION "/etc/sudoers.d" RENAME "cardputerzero-mesh"
+    PERMISSIONS OWNER_READ GROUP_READ)
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${APP_GENERATED_DIR}/conffiles;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postinst;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postrm")
 
 include(CPack)

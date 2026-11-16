@@ -4,7 +4,7 @@ Copyright (c) 2026 Jose Di Lenola
 Copyright (c) 2026 M5Stack Technology Co., Ltd. (original CardputerZero Application Template)
 
 This license covers the application (the C++/LVGL UI and its build system). The
-Python radio supervisor (supervisor/supervisor.py) is licensed separately under
+Python radio supervisor and guardian/firewall helpers are licensed separately under
 GPL-3.0-or-later; see NOTICE and supervisor/LICENSE.GPL.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

@@ -9,6 +9,7 @@
 #include "theme.h"
 
 #include <cmath>
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -29,7 +30,8 @@ double haversine_km(double lat1, double lon1, double lat2, double lon2) {
     const double a = std::sin(dlat / 2) * std::sin(dlat / 2) +
                      std::cos(to_rad(lat1)) * std::cos(to_rad(lat2)) *
                      std::sin(dlon / 2) * std::sin(dlon / 2);
-    return 6371.0 * 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+    const double bounded = std::clamp(a, 0.0, 1.0);  // roundoff near antipodes
+    return 6371.0 * 2 * std::atan2(std::sqrt(bounded), std::sqrt(1 - bounded));
 }
 
 double bearing_rad(double lat1, double lon1, double lat2, double lon2) {

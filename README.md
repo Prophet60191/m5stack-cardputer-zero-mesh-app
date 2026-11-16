@@ -5,7 +5,7 @@
 <h1 align="center">M5Stack Cardputer Zero Mesh App</h1>
 
 <p align="center">
-  <b>The first Meshtastic&reg; client for the M5Stack CardputerZero</b><br>
+  <b>A Meshtastic&reg; client for the M5Stack CardputerZero</b><br>
   A native LVGL messaging app + a Python radio supervisor, built to be robust enough to trust.
 </p>
 
@@ -27,20 +27,23 @@
 
 The **M5Stack CardputerZero** is a credit-card-sized Debian Linux computer (Raspberry Pi CM0) with its own
 keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns it into a real
-**[Meshtastic](https://meshtastic.org) handheld** — send and receive encrypted text over the mesh, see who's
+**[Meshtastic](https://meshtastic.org) handheld** — send and receive text on public or private channels, see who's
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-As far as we can tell, **it's the first Meshtastic client for this device.** The on-device app Store ships no
-Meshtastic client; the one mesh app it does have speaks a different protocol (MeshCore); and the only earlier
-Meshtastic attempt couldn't bring up this board's radio at all. So this is new ground — and because a mesh
-radio you carry deserves it, the whole thing was put through an independent security and privacy review
-before release (see [Security](#security)).
+The current source is **0.1.1, a release candidate** with public/private channel
+support and fixes from an independent security and robustness review. Native UI,
+sanitizer, backend and Debian arm64 package checks pass. Live public-mesh delivery,
+full cold-boot and other remaining device checks are documented in the
+[verification record](docs/review-remediation.md); the candidate is not a claim
+that all hardware qualification is complete.
 
 > **Meshtastic&reg; is a registered trademark of Meshtastic LLC.** This is an independent, community project and
 > is not affiliated with or endorsed by Meshtastic LLC or M5Stack.
 
 ## Screenshots
+
+These are native LVGL renders using synthetic data, not personal messages or device identities.
 
 | Messages | Nodes | Map | Settings |
 |:--:|:--:|:--:|:--:|
@@ -48,15 +51,17 @@ before release (see [Security](#security)).
 
 ## Features
 
+- **Public and private channels** — clearly labeled group conversations and explicit DM channel selection; no silent channel fallback.
+
 - **Threaded messaging** — a conversation per channel and per node, with delivery status (sending / delivered
   with hop count / failed) and **resend** for the ones the mesh drops.
 - **Quick messages** — one-key canned replies ("OK", "On my way", "Need help"&hellip;), editable in Settings.
 - **Nodes & Map** — who's on the mesh, signal, battery, last-heard, distance; a you-centred radar map.
 - **Mesh-native tools** — share your **location**, request a node's position, **trace the route** a packet
-  takes, and **share a channel as a QR code** (the private channel only — never your public default).
+  takes, and **share a channel as a QR code** (only the selected channel, public or private).
 - **Per-thread controls** — mute, mark-read, clear history, delete a conversation; an unread badge and a
   notification toast when a message arrives while you're elsewhere.
-- **Settings that persist** — region, modem preset, hop limit, add-a-channel (QR or paste), node name,
+- **Settings that persist** — region, modem preset, frequency slot, hop limit, add-a-channel (QR or paste), node name,
   delivery-ack and retention preferences, theme — all saved across restarts.
 - **Keyboard-first** — the bare **F / X / Z / C** keys are the d-pad everywhere except while typing; hold
   **Fn** for arrows inside a text box. Press **HELP** on any screen for its keys.
@@ -81,7 +86,7 @@ Two cooperating processes with a clean boundary — the UI never touches the rad
 - The **app** (MIT) renders screens and sends **intents** (`radio.start`, `message.send`, `traceroute`&hellip;)
   over a local Unix socket; it holds no radio state of its own.
 - The **supervisor** (GPL-3.0, because it uses the GPL `meshtastic` library) powers the Cap, runs `meshtasticd`
-  as a child bound to **loopback only**, and translates intents into radio actions. The full contract is in
+  through a guardian, with TCP **firewall-confined to loopback**, and translates intents into radio actions. The full contract is in
   [docs/supervisor-protocol.md](docs/supervisor-protocol.md).
 
 ## Hardware you need
@@ -96,43 +101,81 @@ Two cooperating processes with a clean boundary — the UI never touches the rad
 > This repo ships the **app** and the **supervisor**. The radio stack it depends on — `meshtasticd` and the
 > `meshtastic` Python library — are **GPL-3.0** and are **not** bundled here; you install them yourself (below).
 
-**1. Radio dependencies (on the device):**
+**1. Install the built Debian package on the device:**
 
 ```bash
-# meshtasticd (the LoRa daemon) — see https://meshtastic.org/docs/software/linux/
-sudo apt install meshtasticd            # or the official .deb for your image
-
-# the meshtastic client library, in a venv the supervisor uses
-python3 -m venv .venv
-.venv/bin/pip install meshtastic
+# Prevent the dependency package from starting its separate system daemon.
+sudo systemctl mask --now meshtasticd.service
+sudo apt install ./cardputerzero-mesh_0.1.1_rev1_arm64.deb
+sudo apt install meshtasticd      # or the official daemon .deb for your Debian image
+sudo usermod -aG cardputerzero-mesh "$(id -un)"
 ```
 
-**2. Confine the radio API to loopback (one-time, needs root):**
+The package installs the supervisor, user service, scoped firewall check, and
+boot-persistent nftables service. It does not start RF. Log out and back in after
+adding the group. Keep the existing platform SPI/GPIO/I2C/video/input permissions;
+do not run the app as root or grant blanket sudo.
+
+**2. Install the pinned radio client in your own venv:**
 
 ```bash
-sudo supervisor/firewall-setup.sh      # meshtasticd binds all interfaces; this restricts it to localhost
+python3 -m venv "${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv"
+"${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv/bin/pip" install 'meshtastic==2.7.11'
 ```
 
-**3. Start the supervisor, then launch the app:**
+Camera QR scanning is optional. Install `python3-opencv`, `python3-pyzbar` and
+`libzbar0` from Debian, and create/update the radio venv with
+`python3 -m venv --system-site-packages <venv-path>` so its scanner can import
+those system packages. Pasting a private share URL works without camera support.
+
+**3. Attach the antenna and launch Mesh from the grid.** The launcher starts the
+user supervisor service; radio startup stays an explicit action unless you enable
+auto-start. Closing the UI leaves the supervisor running; stop the radio or the
+user service before swapping the Cap. The firewall must pass verification before power-on. Check setup with:
 
 ```bash
-.venv/bin/python supervisor/supervisor.py &               # owns the radio, serves the UI socket
-./build/cp0-native/Release/template_app                   # the app (or launch it from the grid)
+sudo -n /usr/lib/cardputerzero-mesh/firewall-setup.sh check
+systemctl is-enabled cardputerzero-mesh-firewall.service
+systemctl --user status cardputerzero-mesh-supervisor.service
 ```
 
-Antenna-before-power, private channel only, US band (902–928 MHz in the US) — the app and supervisor enforce
-the channel rules; the antenna rule is on you.
+Source development can run the supervisor manually with the pinned venv, after
+installing this package's runtime/firewall integration. The retired `radio_up.py`
+entry point cannot bypass those checks.
+
+Public and private channels are both supported, including imports, messaging,
+DMs, position requests, traces and selected-channel QR sharing. New message and
+Channels show **Public/Private** labels. Choose a DM's channel explicitly; no
+missing/disabled channel falls back to primary. The label describes the channel
+key, not a guarantee of the firmware's per-message DM encryption.
+
+Imported channels start with location and MQTT forwarding off, and do not retune
+the radio from the share URL. All channels share one region, modem preset and
+frequency slot. Match those to the mesh you want to join; Settings includes
+**Frequency slot** (0 = Auto, derived from the primary channel's name).
+
+Public messages and firmware identity/telemetry can be visible to others.
+Automatic public location starts off, requires a separate confirmation and is
+limited to 15-bit precision (roughly 730 m). A manual public location send can
+contain precise coordinates and has its own confirmation. Only the selected
+channel is enabled for automatic location; Off disables it on every channel.
+Unapproved public location defaults are disabled on disk **before** firmware can
+broadcast. A matching, confirmed public-location choice survives restarts.
+
+Use the appropriate regional band and a valid preconfigured profile. Persisted
+configuration must use the qualified firmware's preference schema 24;
+incomplete/other versions fail closed. See [the security model](docs/security.md).
 
 ## Build
 
 A desktop **simulator** (SDL) gives fast, flash-free UI iteration; the device build targets the CardputerZero's
-framebuffer. Full build matrix (Linux/macOS/Windows desktop, cross-compile, Debian package) is in
+framebuffer. Build presets and requirements (desktop, device and Debian package) is in
 [docs/build.md](docs/build.md).
 
 ```bash
 # desktop simulator (macOS example)
 cmake --preset darwin-arm64 && cmake --build build/darwin-arm64 --config Release
-./build/darwin-arm64/Release/template_app
+./build/darwin-arm64/Release/cardputerzero-mesh
 
 # device (native, on the CardputerZero)
 cmake --preset cp0-native -DCM0_SDK_ROOT=/ -DCM0_ALLOW_FETCH_DEPS=ON
@@ -141,15 +184,16 @@ cmake --build build/cp0-native --config Release
 
 ## Security
 
-Because this is a radio you carry, it went through an independent code + sensitivity review before release.
+This release candidate includes fixes from an independent code and sensitivity review;
+see the remediation record for verification limits.
 Highlights of what's hardened:
 
 - The `meshtasticd` TCP API is **confined to loopback** (it binds all interfaces by default).
-- Sends **refuse an unconfigured channel** — a "private" conversation can never fall through to the public
-  default channel.
-- "Share position: Off" **actually stops** location broadcasts (not just the interval).
+- Sends require the **selected, enabled channel**, public or private; a missing
+  channel never falls back to primary. Public location requires deliberate opt-in.
+- Privacy settings show Pending/Unknown until effective radio settings are confirmed.
 - The control socket is owner-only (`0600`, ownership-checked); the UI verifies the supervisor is yours.
-- Input is bounded (line length, JSON nesting, connections) and the supervisor survives hostile/stuck clients.
+- Input and work are bounded (frames, JSON, queued bytes, connections, operations, traces) and the supervisor survives hostile/stuck clients.
 
 See [docs/security.md](docs/security.md) for the full list. Found something? Please open an issue.
 

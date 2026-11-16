@@ -1,0 +1,16 @@
+[Unit]
+Description=Cardputer Zero Mesh radio supervisor
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/cardputerzero-mesh/run-supervisor
+ExecStopPost=/usr/bin/python3 /usr/lib/cardputerzero-mesh/radio_guardian.py --runtime %t/cz-mesh --cleanup
+KillMode=control-group
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=3
+UMask=0077
+# Keep this user service outside a user namespace and without seccomp options
+# that imply NoNewPrivileges: its fixed, root-owned sudo firewall check must
+# retain host root ownership/credentials. Root-owned system files remain
+# protected by normal DAC; all radio work still runs as the logged-in user.

@@ -10,6 +10,7 @@
 #include "theme.h"
 
 #include <cstdlib>
+#include <cerrno>
 #include <cstring>
 #include <string>
 
@@ -20,8 +21,9 @@ const char* const kRows[] = {
     "Radio", "Region", "Modem preset", "Hop limit", "Add a channel", "Node name",
     "Share position", "Internet (MQTT)", "Auto-start radio", "Theme", "Channels", "About",
     "Quick messages", "Signal on messages", "Keep per chat", "Mute all", "Message acks",
+    "Frequency slot",
 };
-constexpr int kRowCount = 17;
+constexpr int kRowCount = 18;
 
 const std::vector<std::string> kRegions = {
     "US", "EU_868", "EU_433", "ANZ", "NZ_865", "KR", "TW", "JP", "SG_923", "TH", "MY_919", "PH_915",
@@ -63,9 +65,12 @@ void SettingsScreen::build_content(lv_obj_t* content) {
     lv_subject_add_observer_obj(view_model().owner_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().modem_preset_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().hop_limit_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().frequency_slot_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().position_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().config_state_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().mqtt_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().autostart_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().channels_version_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().dark_mode_subject(), on_change, list_, this);
 }
 
@@ -77,6 +82,10 @@ void SettingsScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*
 }
 
 std::string SettingsScreen::value_for(int row) {
+    if (row == 2 || row == 3 || row == 6 || row == 7 || row == 17) {
+        const std::string state = view_model().config_state();
+        if (state != "confirmed") return state == "pending" ? "Pending..." : "Unknown";
+    }
     switch (row) {
         case 0: return s_of(view_model().radio_state_subject());
         case 1: return s_of(view_model().region_subject());
@@ -84,7 +93,11 @@ std::string SettingsScreen::value_for(int row) {
         case 3: return std::to_string(lv_subject_get_int(view_model().hop_limit_subject()));
         case 4: return "";
         case 5: return s_of(view_model().owner_subject());
-        case 6: return lv_subject_get_int(view_model().position_subject()) ? "On" : "Off";
+        case 6:
+            if (!lv_subject_get_int(view_model().position_subject())) return "Off";
+            for (const auto& ch : view_model().channels()) if (ch.positionPrecision > 0)
+                return std::string(ch.isPrivate ? "Private: " : "Public: ") + std::to_string(ch.index);
+            return "On";
         case 7: return lv_subject_get_int(view_model().mqtt_subject()) ? "On" : "Off";
         case 8: return lv_subject_get_int(view_model().autostart_subject()) ? "On" : "Off";
         case 9: return view_model().is_dark_mode() ? "Dark" : "Light";
@@ -96,6 +109,10 @@ std::string SettingsScreen::value_for(int row) {
                                                           : std::to_string(view_model().retention_cap());
         case 15: return view_model().mute_all() ? "On" : "Off";
         case 16: return view_model().want_ack() ? "On" : "Off";
+        case 17: {
+            const int slot = lv_subject_get_int(view_model().frequency_slot_subject());
+            return slot == 0 ? "Auto" : std::to_string(slot);
+        }
         default: return "";
     }
 }
@@ -142,6 +159,11 @@ void SettingsScreen::rebuild() {
 }
 
 void SettingsScreen::row_action(int row) {
+    if (row == 17) {
+        if (std::string(view_model().config_state()) != "confirmed") { view_model().apply_notice("Wait for confirmed radio settings"); return; }
+        open_text("Frequency slot (0=Auto)", std::to_string(lv_subject_get_int(view_model().frequency_slot_subject())), "frequency-slot");
+        return;
+    }
     switch (row) {
         case 0: {  // Radio toggle
             if (s_of(view_model().radio_state_subject()) == "online") view_model().radio_stop();
@@ -158,14 +180,33 @@ void SettingsScreen::row_action(int row) {
         }
         case 4: open_picker("Add a channel", {"Scan QR code", "Paste share URL"}, "addmenu", 0); break;
         case 5: open_text("Node name", s_of(view_model().owner_subject()), "name"); break;
-        case 6: view_model().set_position_sharing(!lv_subject_get_int(view_model().position_subject())); break;
+        case 6: {
+            if (std::string(view_model().config_state()) != "confirmed") {
+                view_model().apply_notice("Wait for confirmed radio settings");
+                break;
+            }
+            if (lv_subject_get_int(view_model().position_subject())) {
+                view_model().set_position_sharing(false);
+            } else {
+                position_channels_.clear();
+                std::vector<std::string> names;
+                for (const auto& ch : view_model().channels()) {
+                    position_channels_.push_back(ch.index);
+                    names.push_back(view_model().channel_label(ch.index));
+                }
+                if (names.empty()) view_model().apply_notice("Configure a channel first");
+                else open_picker("Share position on", names, "position-channel", 0);
+            }
+            break;
+        }
         case 7: view_model().set_mqtt(!lv_subject_get_int(view_model().mqtt_subject())); break;
         case 8: view_model().set_auto_start(!lv_subject_get_int(view_model().autostart_subject())); break;
         case 9: view_model().toggle_dark_mode(); break;
         case 10: {
             std::vector<std::string> rows;
             for (const auto& c : view_model().channels()) {
-                rows.push_back((c.name.empty() ? std::string("(primary)") : c.name) + "   " + c.role);
+                rows.push_back(view_model().channel_label(c.index) + " " + c.role +
+                    (c.positionPrecision ? " / Location On" : " / Location Off"));
             }
             if (rows.empty()) rows.push_back("No channels yet.");
             open_info("Channels", rows);
@@ -381,6 +422,24 @@ void SettingsScreen::apply_overlay() {
         if (pending_ == "region") { view_model().set_region(choice); close_overlay(); }
         else if (pending_ == "preset") { view_model().set_modem_preset(choice); close_overlay(); }
         else if (pending_ == "hop") { view_model().set_hop_limit(opt_sel_ + 1); close_overlay(); }
+        else if (pending_ == "position-channel") {
+            const int index = opt_sel_ >= 0 && opt_sel_ < static_cast<int>(position_channels_.size()) ? position_channels_[opt_sel_] : -1;
+            const auto* ch = view_model().channel(index);
+            const bool is_public = ch && !ch->isPrivate;
+            const bool valid = ch != nullptr;
+            close_overlay();
+            if (is_public) {
+                public_position_channel_ = index;
+                open_picker("Public location (~730 m)?", {"Cancel", "Enable: " + view_model().channel_label(index)}, "position-public", 0);
+            } else if (valid) view_model().set_position_sharing(true, index);
+        }
+        else if (pending_ == "position-public") {
+            const bool confirmed = opt_sel_ == 1;
+            const int index = public_position_channel_;
+            close_overlay();
+            public_position_channel_ = -1;
+            if (confirmed && view_model().channel(index)) view_model().set_position_sharing(true, index, true);
+        }
         else if (pending_ == "retention") {
             view_model().set_retention_cap(choice == "All" ? 0 : std::atoi(choice.c_str()));
             close_overlay();
@@ -421,6 +480,13 @@ void SettingsScreen::apply_overlay() {
             view_model().set_owner(value, value.substr(0, 4));
         } else if (pending == "channel-url" && !value.empty()) {
             view_model().add_channel_url(value);
+        } else if (pending == "frequency-slot") {
+            char* end = nullptr;
+            errno = 0;
+            const long slot = std::strtol(value.c_str(), &end, 10);
+            if (value.empty() || errno || !end || *end || slot < 0 || slot > 255)
+                view_model().apply_notice("Enter a frequency slot from 0 to 255 (0=Auto)");
+            else view_model().set_frequency_slot(static_cast<int>(slot));
         } else if (pending == "canned-add") {
             view_model().add_canned(value);
         } else if (pending == "canned-edit") {

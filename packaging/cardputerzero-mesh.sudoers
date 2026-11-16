@@ -1,0 +1,2 @@
+# Only a fixed, read-only check. No install/remove, Python, shell, or port arguments.
+%cardputerzero-mesh ALL=(root) NOPASSWD: /usr/lib/cardputerzero-mesh/firewall-setup.sh check

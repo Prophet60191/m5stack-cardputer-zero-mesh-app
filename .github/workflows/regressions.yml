@@ -1,0 +1,17 @@
+name: Offline regressions
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  regressions:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build libpng-dev libjpeg-dev libfmt-dev libsdl2-dev libfreetype-dev zlib1g-dev
+      - run: python3 -m venv .venv && .venv/bin/pip install cmake==3.31.6 meshtastic==2.7.11
+      - run: .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
+      - run: .venv/bin/cmake -S . -B build/ci -G Ninja -DUSE_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS='-fsanitize=address,undefined' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'
+      - run: .venv/bin/cmake --build build/ci -j 2
+      - run: ASAN_OPTIONS=detect_leaks=0 .venv/bin/ctest --test-dir build/ci --output-on-failure

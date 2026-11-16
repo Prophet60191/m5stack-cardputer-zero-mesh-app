@@ -1,19 +1,19 @@
 {
   "app_name": "Cardputer Zero Mesh",
   "package_name": "cardputerzero-mesh",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Meshtastic client for the M5Stack CardputerZero",
 
   "store": {
     "summary": "Send and receive Meshtastic messages over LoRa on the CardputerZero.",
-    "description": "The first Meshtastic client for the M5Stack CardputerZero. Threaded messaging over the LoRa mesh with delivery status and resend, a nodes list and radar map, quick (canned) messages, send/request location, traceroute, and channel-QR share. A native LVGL UI drives a Python radio supervisor that owns the SX1262 Cap and meshtasticd. Requires the Cap LoRa-1262 (install meshtasticd and the meshtastic library separately).",
+    "description": "A Meshtastic client for the M5Stack CardputerZero. Threaded messaging over the LoRa mesh with delivery status and resend, a nodes list and radar map, quick (canned) messages, send/request location, traceroute, and channel-QR share. A native LVGL UI drives a Python radio supervisor that owns the SX1262 Cap and meshtasticd. Requires the Cap LoRa-1262 (install meshtasticd and the meshtastic library separately).",
     "categories": ["Communication", "Utilities"],
     "screenshots": [
       "docs/screenshots/carousel.png",
       "docs/screenshots/messages.png"
     ],
     "icon": "assets/images/mesh.png",
-    "license": "MIT",
+    "license": "MIT AND GPL-3.0-or-later",
     "source_repo": "https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app",
     "author": { "github": "Prophet60191", "display_name": "Jose Di Lenola" },
     "share_code": "",

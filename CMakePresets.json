@@ -195,7 +195,7 @@
         {
             "name": "cp0-cross-deb",
             "displayName": "CardputerZero Debian Package",
-            "description": "Package the CardputerZero release build as a Debian package in dist/",
+            "description": "Package the CardputerZero release build as a Debian package in the build directory",
             "configurePreset": "cp0-cross",
             "generators": [
                 "DEB"
@@ -204,7 +204,7 @@
                 "Release"
             ],
             "configFile": "${sourceDir}/build/cp0-cross/CPackConfig.cmake",
-            "packageDirectory": "${sourceDir}/dist"
+            "packageDirectory": "${sourceDir}/build/cp0-cross/dist"
         }
     ],
     "workflowPresets": [

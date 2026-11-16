@@ -1,6 +1,6 @@
 {
-  "name": "template-app-simulator-on-windows",
-  "version": "1.0.0",
+  "name": "cardputerzero-mesh-simulator",
+  "version": "0.1.1",
   "dependencies": [
     "fmt",
     "libpng",

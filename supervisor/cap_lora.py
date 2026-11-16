@@ -152,9 +152,10 @@ def enable_rf_path(fd: int) -> None:
 
 @contextlib.contextmanager
 def powered_cap(*, drive_rf: bool = True):
-    """Context manager: power the Cap and enable the RF path, then guarantee it
-    is powered back down afterwards -- even if the body raises or the process is
-    killed mid-way.
+    """Context manager: power the Cap and enable the RF path, then restore switches
+    when the context exits, including ordinary exceptions. SIGKILL cannot run
+    Python finally blocks; the supervisor uses a separate guardian and service
+    cleanup for that case.
 
         with powered_cap():
             ...run meshtasticd here, Cap stays powered...

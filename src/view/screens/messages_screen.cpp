@@ -45,7 +45,7 @@ std::string thread_of(const viewmodel::MessageInfo& m) {
 enum {
     A_MARK_READ = 1, A_MUTE, A_CLEAR, A_DELETE_THREAD, A_INFO,
     A_MSG_DETAILS, A_MSG_QUOTE, A_MSG_RESEND, A_MSG_DELETE,
-    A_SEND_LOCATION, A_REQUEST_POSITION, A_TRACEROUTE, A_SHARE_CHANNEL,
+    A_SEND_LOCATION, A_REQUEST_POSITION, A_TRACEROUTE, A_SHARE_CHANNEL, A_CHANNEL,
 };
 
 std::string status_text(int s) {
@@ -112,6 +112,7 @@ void MessagesScreen::build_content(lv_obj_t* content) {
         rebuild();
     }
     lv_subject_add_observer_obj(view_model().messages_version_subject(), on_change, body_, this);
+    lv_subject_add_observer_obj(view_model().channels_version_subject(), on_change, body_, this);
     lv_subject_add_observer_obj(view_model().traceroute_subject(), traceroute_cb, body_, this);
     lv_subject_add_observer_obj(view_model().channel_share_subject(), channel_share_cb, body_, this);
 }
@@ -124,10 +125,7 @@ std::string MessagesScreen::peer_name_for(const std::string& id) {
 }
 
 std::string MessagesScreen::channel_name(int index) {
-    for (const auto& c : view_model().channels()) {
-        if (c.index == index) return c.name.empty() ? ("channel " + std::to_string(index)) : c.name;
-    }
-    return "channel " + std::to_string(index);
+    return view_model().channel_label(index);
 }
 
 std::string MessagesScreen::group_name(const std::string& key) {
@@ -140,7 +138,7 @@ void MessagesScreen::update_hint() {
         lv_label_set_text(hint_, "\xE2\x86\x91\xE2\x86\x93 pick   \xC2\xB7   Enter: open");
     } else {
         const std::string who = viewmodel::is_group_thread(thread_key_) ? group_name(thread_key_)
-                                                                        : ("DM to " + peer_name_);
+        : ("DM via " + (dm_channel_ < 0 ? "choose channel" : channel_name(dm_channel_)) + " to " + peer_name_);
         const char* keys = (msg_sel_ >= 0)
             ? "Enter: actions \xC2\xB7 o: options"
             : "Enter: write \xC2\xB7 q: quick \xC2\xB7 o: options";
@@ -150,12 +148,12 @@ void MessagesScreen::update_hint() {
 
 int MessagesScreen::send_channel() {
     // A group thread carries its own channel index; never fall back to a
-    // different (or the public primary) channel. A DM rides channel 0 + a dest.
+    // different channel. DMs have their own explicit selection.
     if (mode_ == Mode::Thread && viewmodel::is_group_thread(thread_key_)) {
         const int idx = viewmodel::group_thread_channel(thread_key_);
-        return idx >= 0 ? idx : 0;
+        return view_model().channel(idx) ? idx : -1;
     }
-    return 0;
+    return view_model().channel(dm_channel_) ? dm_channel_ : -1;
 }
 
 void MessagesScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
@@ -431,7 +429,9 @@ void MessagesScreen::open_thread(const std::string& key, const std::string& peer
     peer_name_ = peer_name.empty() ? peer_name_for(peer_id) : peer_name;
     at_bottom_ = true;
     msg_sel_ = -1;
+    dm_channel_ = -1;
     rebuild();
+    if (!viewmodel::is_group_thread(thread_key_)) open_channel_picker();
 }
 
 // ---------------------------------------------------------------------------
@@ -468,7 +468,7 @@ void MessagesScreen::rebuild_picker() {
     // specific (named) channel; then the nodes for direct messages.
     for (const auto& c : view_model().channels()) {
         picker_id_.push_back("ch:" + std::to_string(c.index));
-        picker_name_.push_back("# " + (c.name.empty() ? ("channel " + std::to_string(c.index)) : c.name));
+        picker_name_.push_back("# " + channel_name(c.index));
     }
     for (const auto& n : view_model().nodes()) {
         if (n.isSelf) continue;
@@ -637,6 +637,8 @@ bool MessagesScreen::is_composing() { return composing_; }
 // ---------------------------------------------------------------------------
 void MessagesScreen::start_compose() {
     if (!input_ || mode_ != Mode::Thread) return;
+    if (send_channel() < 0) { open_channel_picker(); return; }
+    lv_textarea_set_placeholder_text(input_, (view_model().channel(send_channel())->isPrivate ? "Message [Private channel]" : "Message [Public channel]"));
     lv_textarea_set_text(input_, "");
     lv_obj_add_flag(hint_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(input_, LV_OBJ_FLAG_HIDDEN);
@@ -689,7 +691,7 @@ std::string MessagesScreen::details_text(const viewmodel::MessageInfo& m) {
         fmt("%b %d, %Y  %H:%M:%S", t, sizeof(t), m.time);
         s += std::string("Time: ") + t + "\n";
     }
-    s += std::string("Channel: ") + (m.to == "broadcast" ? "backhaul" : "direct") + "\n";
+    s += std::string("Channel: ") + channel_name(m.channel) + "\n";
     if (m.outgoing && m.status != 0) {
         s += "Status: " + status_text(m.status) + "\n";
     }
@@ -722,6 +724,7 @@ void MessagesScreen::open_thread_menu() {
     if (viewmodel::is_group_thread(thread_key_)) {
         menu_labels_.push_back("Share channel (QR)"); menu_actions_.push_back(A_SHARE_CHANNEL);
     } else {
+        menu_labels_.push_back("Choose DM channel"); menu_actions_.push_back(A_CHANNEL);
         menu_labels_.push_back("Request position"); menu_actions_.push_back(A_REQUEST_POSITION);
         menu_labels_.push_back("Trace route"); menu_actions_.push_back(A_TRACEROUTE);
     }
@@ -775,6 +778,7 @@ void MessagesScreen::open_message_menu(const std::string& msg_id) {
 
 void MessagesScreen::open_canned_picker() {
     if (mode_ != Mode::Thread) return;
+    if (send_channel() < 0) { open_channel_picker(); return; }
     const auto& canned = view_model().canned_messages();
     if (canned.empty()) {
         open_info("Quick messages",
@@ -801,6 +805,48 @@ void MessagesScreen::open_canned_picker() {
     rebuild_menu();
 }
 
+void MessagesScreen::create_menu() {
+    if (menu_) lv_obj_delete(menu_);
+    menu_ = lv_obj_create(lv_obj_get_parent(body_));
+    lv_obj_remove_style_all(menu_);
+    lv_obj_set_size(menu_, lv_pct(100), lv_pct(100));
+    const auto colors = view::palette(view_model().is_dark_mode());
+    lv_obj_set_style_bg_opa(menu_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(menu_, colors.background, 0);
+    lv_obj_set_flex_flow(menu_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(menu_, 4, 0);
+    lv_obj_set_style_pad_row(menu_, 2, 0);
+    lv_obj_clear_flag(menu_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    rebuild_menu();
+}
+
+void MessagesScreen::open_channel_picker() {
+    if (viewmodel::is_group_thread(thread_key_)) {
+        view_model().apply_notice("Channel unavailable; choose a configured channel in New message");
+        return;
+    }
+    close_menu();
+    if (view_model().channels().empty()) { open_info("DM channel", "No enabled channels. Start the radio or add a channel first."); return; }
+    menu_kind_ = MenuKind::Channel;
+    for (const auto& c : view_model().channels()) {
+        menu_labels_.push_back(channel_name(c.index));
+        menu_actions_.push_back(c.index);
+    }
+    menu_sel_ = 0;
+    create_menu();
+}
+
+void MessagesScreen::open_public_location_confirmation() {
+    close_menu();
+    location_channel_ = send_channel();
+    location_peer_ = viewmodel::is_group_thread(thread_key_) ? std::string() : peer_id_;
+    menu_kind_ = MenuKind::PublicLocation;
+    menu_labels_ = {"Cancel", "Send precise coordinates"};
+    menu_actions_ = {0, 1};
+    menu_sel_ = 0;
+    create_menu();
+}
+
 void MessagesScreen::rebuild_menu() {
     if (!menu_) return;
     lv_obj_clean(menu_);
@@ -814,8 +860,13 @@ void MessagesScreen::rebuild_menu() {
         title = viewmodel::is_group_thread(thread_key_) ? group_name(thread_key_) : peer_name_;
     } else if (menu_kind_ == MenuKind::Canned) {
         title = "Quick message";
+    } else if (menu_kind_ == MenuKind::Channel) {
+        title = "DM via channel:";
+    } else if (menu_kind_ == MenuKind::PublicLocation) {
+        title = "Precise location via " + channel_name(location_channel_) + "?";
     }
     lv_label_set_text(header, title.c_str());
+    lv_obj_set_width(header, lv_pct(100));
     lv_obj_set_style_text_font(header, font, 0);
     lv_obj_set_style_text_color(header, colors.text_disabled, 0);
 
@@ -848,9 +899,28 @@ void MessagesScreen::close_menu() {
     menu_kind_ = MenuKind::None;
     menu_labels_.clear();
     menu_actions_.clear();
+    location_channel_ = -1;
+    location_peer_.clear();
 }
 
 void MessagesScreen::menu_activate() {
+    if (menu_kind_ == MenuKind::Channel) {
+        const int channel = menu_sel_ >= 0 && menu_sel_ < static_cast<int>(menu_actions_.size()) ? menu_actions_[menu_sel_] : -1;
+        close_menu();
+        dm_channel_ = view_model().channel(channel) ? channel : -1;
+        update_hint();
+        return;
+    }
+    if (menu_kind_ == MenuKind::PublicLocation) {
+        const bool confirmed = menu_sel_ == 1;
+        const int channel = location_channel_;
+        const std::string dest = location_peer_;
+        close_menu();
+        if (confirmed && channel >= 0 && channel == send_channel() &&
+            dest == (viewmodel::is_group_thread(thread_key_) ? std::string() : peer_id_))
+            view_model().send_position(channel, dest, true);
+        return;
+    }
     // Quick messages: the selected label IS the text; send it straight away.
     if (menu_kind_ == MenuKind::Canned) {
         if (menu_sel_ < 0 || menu_sel_ >= static_cast<int>(menu_labels_.size())) { close_menu(); return; }
@@ -934,27 +1004,35 @@ void MessagesScreen::menu_activate() {
             msg_sel_ = -1;
             break;
         case A_SEND_LOCATION: {
+            const int channel = send_channel();
+            if (channel < 0) { open_channel_picker(); break; }
+            if (!view_model().channel(channel)->isPrivate) { open_public_location_confirmation(); break; }
             const std::string dest = (viewmodel::is_group_thread(thread_key_)) ? std::string() : peer_id_;
             at_bottom_ = true;
             msg_sel_ = -1;
-            view_model().send_position(send_channel(), dest);
+            view_model().send_position(channel, dest);
             break;
         }
+        case A_CHANNEL:
+            open_channel_picker();
+            break;
         case A_REQUEST_POSITION:
-            view_model().request_position(peer_id_);
+            if (send_channel() < 0) { open_channel_picker(); break; }
+            view_model().request_position(peer_id_, send_channel());
             open_info("Request position", "Asked " + peer_name_ + " for their position.\n"
                                           "It updates on the Nodes and Map screens when it replies.");
             break;
         case A_TRACEROUTE:
-            awaiting_traceroute_ = true;
-            view_model().traceroute(peer_id_);
+            if (send_channel() < 0) { open_channel_picker(); break; }
             open_info("Trace route", "Tracing the route to " + peer_name_ + "\xE2\x80\xA6\n"
                                      "(up to ~20 seconds)");
+            awaiting_traceroute_ = true;
+            view_model().traceroute(peer_id_, send_channel());
             break;
         case A_SHARE_CHANNEL:
+            open_info("Share channel", "Building the selected channel share code...");
             awaiting_share_ = true;
-            view_model().request_channel_share("backhaul");
-            open_info("Share channel", "Building the backhaul share code\xE2\x80\xA6");
+            view_model().request_channel_share(send_channel());
             break;
         default:
             break;
@@ -998,6 +1076,10 @@ void MessagesScreen::open_info(const std::string& title, const std::string& body
 }
 
 void MessagesScreen::close_info() {
+    awaiting_share_ = false;
+    awaiting_traceroute_ = false;
+    view_model().cancel_channel_share();
+    view_model().cancel_traceroute();
     if (overlay_) { lv_obj_delete(overlay_); overlay_ = nullptr; }
 }
 
@@ -1061,7 +1143,7 @@ void MessagesScreen::channel_share_cb(lv_observer_t* observer, lv_subject_t* /*s
     auto* self = static_cast<MessagesScreen*>(lv_observer_get_user_data(observer));
     if (!self || !self->awaiting_share_) return;        // ignore the subscribe-time call
     self->awaiting_share_ = false;
-    self->open_qr("backhaul", self->view_model().channel_share_url());
+    self->open_qr(self->view_model().channel_share_name(), self->view_model().channel_share_url());
 }
 
 } // namespace screen

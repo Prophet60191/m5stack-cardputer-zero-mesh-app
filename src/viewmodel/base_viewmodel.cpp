@@ -9,6 +9,8 @@
 #include "json.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <ctime>
 #include <random>
@@ -35,8 +37,8 @@ BaseViewModel::BaseViewModel()
     // A per-session prefix so our client ids never collide with those from an
     // earlier UI session (the supervisor keeps history across UI reconnects).
     std::random_device rd;
-    char buf[16];
-    std::snprintf(buf, sizeof(buf), "c%06x-", static_cast<unsigned>(rd() & 0xFFFFFFu));
+    char buf[48];
+    std::snprintf(buf, sizeof(buf), "c%08x%08x%08x%08x-", rd(), rd(), rd(), rd());
     session_id_ = buf;
 }
 
@@ -201,19 +203,29 @@ lv_subject_t* BaseViewModel::channel_share_subject() { return channel_share_subj
 // --- applied as supervisor events arrive (UI thread) ------------------------
 void BaseViewModel::set_connected(bool connected) {
     connected_subject_.set(connected);
+    if (connected) send_intent("{\"intent\":\"message.retention\",\"cap\":" + std::to_string(retention_cap_) + "}");
     if (!connected) {
-        radio_state_subject_.set("off");
+        radio_state_subject_.set("unknown");
+        config_unknown();
+        cancel_channel_share();
+        cancel_traceroute();
     }
 }
 
 void BaseViewModel::apply_status(const std::string& radio, const std::string& region,
                                  const std::string& owner) {
+    if (radio != "online") config_unknown();
     radio_state_subject_.set(radio.c_str());
     region_subject_.set(region.c_str());
     owner_subject_.set(owner.c_str());
 }
 
 void BaseViewModel::set_nodes(std::vector<NodeInfo> nodes) {
+    if (nodes.size() > 256) nodes.resize(256);
+    for (auto& n : nodes) {
+        if (!std::isfinite(n.lat) || !std::isfinite(n.lon) ||
+            n.lat < -90 || n.lat > 90 || n.lon < -180 || n.lon > 180) n.hasPos = false;
+    }
     nodes_ = std::move(nodes);
     apply_favorites();
     nodes_version_subject_.set(nodes_version_subject_.value() + 1);
@@ -255,17 +267,31 @@ void BaseViewModel::load_favorites(const std::vector<std::string>& ids) {
 }
 
 void BaseViewModel::set_channels(std::vector<ChannelInfo> channels) {
+    if (channels.size() > 8) channels.resize(8);
+    std::set<int> indices;
+    channels.erase(std::remove_if(channels.begin(), channels.end(), [&](const auto& ch) {
+        return ch.index < 0 || ch.index > 7 || (ch.role != "PRIMARY" && ch.role != "SECONDARY") || !indices.insert(ch.index).second;
+    }), channels.end());
     channels_ = std::move(channels);
     channels_version_subject_.set(channels_version_subject_.value() + 1);
 }
 
 void BaseViewModel::set_messages(std::vector<MessageInfo> messages) {
+    if (messages.size() > 2000) messages.erase(messages.begin(), messages.end() - 2000);
     messages_ = std::move(messages);
     messages_version_subject_.set(messages_version_subject_.value() + 1);
     trim_all_threads();
+    prune_unread();
 }
 
 void BaseViewModel::add_message(MessageInfo message) {
+    for (auto& m : messages_) {
+        if (!message.id.empty() && m.id == message.id && m.from == message.from) {
+            m = std::move(message);
+            messages_version_subject_.set(messages_version_subject_.value() + 1);
+            return;
+        }
+    }
     const bool incoming = !message.outgoing;
     const std::string key = thread_key_of(message);
     if (incoming) {
@@ -284,25 +310,38 @@ void BaseViewModel::add_message(MessageInfo message) {
     }
 
     messages_.push_back(std::move(message));
+    if (messages_.size() > 2000) messages_.erase(messages_.begin());
+    prune_unread();
     messages_version_subject_.set(messages_version_subject_.value() + 1);
     trim_thread(key);   // honour the per-thread retention cap
 }
 
+void BaseViewModel::prune_unread() {
+    std::set<std::string> live;
+    for (const auto& m : messages_) live.insert(thread_key_of(m));
+    bool changed = false;
+    for (auto it = unread_.begin(); it != unread_.end();) {
+        if (!live.count(it->first)) { it = unread_.erase(it); changed = true; }
+        else ++it;
+    }
+    if (changed) unread_version_subject_.set(unread_version_subject_.value() + 1);
+}
+
 // --- user actions -> intents ------------------------------------------------
-void BaseViewModel::set_command_sink(std::function<void(const std::string&)> sink) {
+void BaseViewModel::set_command_sink(std::function<bool(const std::string&)> sink) {
     command_sink_ = std::move(sink);
 }
 
-void BaseViewModel::send_intent(const std::string& line) {
-    if (command_sink_) {
-        command_sink_(line);
-    }
+bool BaseViewModel::send_intent(const std::string& line) {
+    if (command_sink_ && command_sink_(line)) return true;
+    apply_notice("Supervisor unavailable; action was not sent");
+    return false;
 }
 
 void BaseViewModel::radio_start() { send_intent("{\"intent\":\"radio.start\"}"); }
 void BaseViewModel::radio_stop() { send_intent("{\"intent\":\"radio.stop\"}"); }
 
-void BaseViewModel::emit_message_send(int channel, const std::string& text,
+bool BaseViewModel::emit_message_send(int channel, const std::string& text,
                                       const std::string& dest, const std::string& cid) {
     std::string line = "{\"intent\":\"message.send\",\"channel\":" + std::to_string(channel) +
                        ",\"text\":\"" + json::escape(text) + "\",\"cid\":\"" + cid + "\"" +
@@ -311,15 +350,16 @@ void BaseViewModel::emit_message_send(int channel, const std::string& text,
         line += ",\"dest\":\"" + json::escape(dest) + "\"";
     }
     line += "}";
-    send_intent(line);
+    return send_intent(line);
 }
 
 void BaseViewModel::send_message(int channel, const std::string& text, const std::string& dest) {
-    if (text.empty()) {
+    if (text.empty() || text.size() > 200) {
+        apply_notice("Messages must contain 1..200 UTF-8 bytes");
         return;
     }
     const std::string cid = session_id_ + std::to_string(++cid_counter_);
-    emit_message_send(channel, text, dest, cid);
+    const bool accepted = emit_message_send(channel, text, dest, cid);
 
     // Local echo (the supervisor does not echo our own sends; delivery arrives
     // later as a "delivery" event keyed by this cid).
@@ -331,7 +371,7 @@ void BaseViewModel::send_message(int channel, const std::string& text, const std
     m.id = cid;
     m.channel = channel;
     m.outgoing = true;
-    m.status = want_ack_ ? kMsgSending : 0;   // no ack requested -> no pending state
+    m.status = !accepted ? kMsgFailed : (want_ack_ ? kMsgSending : 0);   // no ack requested -> no pending state
     m.time = static_cast<long>(std::time(nullptr));
     add_message(std::move(m));
 }
@@ -416,7 +456,7 @@ void BaseViewModel::resend_message(const std::string& id) {
         if (m.outgoing && m.id == id) {
             m.status = kMsgSending;
             const std::string dest = (m.to == "broadcast" || m.to.empty()) ? std::string() : m.to;
-            emit_message_send(m.channel, m.text, dest, m.id);   // same cid -> updates this bubble
+            if (!emit_message_send(m.channel, m.text, dest, m.id)) m.status = kMsgFailed;   // same cid -> updates this bubble
             messages_version_subject_.set(messages_version_subject_.value() + 1);
             return;
         }
@@ -452,7 +492,7 @@ void BaseViewModel::set_show_signal(bool on) {
 }
 
 void BaseViewModel::set_retention_cap(int cap) {
-    if (cap < 0) cap = 0;
+    cap = std::clamp(cap, 0, 2000);
     if (retention_cap_ == cap) return;
     retention_cap_ = cap;
     persist();
@@ -472,33 +512,57 @@ void BaseViewModel::set_want_ack(bool on) {
     persist();
 }
 
-void BaseViewModel::send_position(int channel, const std::string& dest) {
+void BaseViewModel::send_position(int channel, const std::string& dest, bool public_confirmed) {
     std::string line = "{\"intent\":\"position.send\",\"channel\":" + std::to_string(channel);
     if (!dest.empty()) line += ",\"dest\":\"" + json::escape(dest) + "\"";
-    line += "}";
+    line += std::string(",\"public_confirmed\":") + (public_confirmed ? "true}" : "false}");
     send_intent(line);
 }
 
-void BaseViewModel::request_position(const std::string& node_id) {
+void BaseViewModel::request_position(const std::string& node_id, int channel) {
     if (node_id.empty()) return;
-    send_intent("{\"intent\":\"position.request\",\"node\":\"" + json::escape(node_id) + "\"}");
+    send_intent("{\"intent\":\"position.request\",\"node\":\"" + json::escape(node_id) + "\",\"channel\":" + std::to_string(channel) + "}");
 }
 
-void BaseViewModel::traceroute(const std::string& node_id) {
+void BaseViewModel::traceroute(const std::string& node_id, int channel) {
     if (node_id.empty()) return;
-    send_intent("{\"intent\":\"traceroute\",\"node\":\"" + json::escape(node_id) + "\"}");
+    trace_node_ = node_id;
+    trace_request_ = session_id_ + "trace" + std::to_string(++cid_counter_);
+    if (!send_intent("{\"intent\":\"traceroute\",\"node\":\"" + json::escape(node_id) +
+                    "\",\"id\":\"" + trace_request_ + "\",\"channel\":" +
+                    std::to_string(channel) + "}")) cancel_traceroute();
 }
 
-void BaseViewModel::request_channel_share(const std::string& name) {
-    send_intent("{\"intent\":\"channel.share\",\"name\":\"" + json::escape(name) + "\"}");
+const ChannelInfo* BaseViewModel::channel(int index) const {
+    for (const auto& c : channels_) if (c.index == index) return &c;
+    return nullptr;
 }
 
-void BaseViewModel::apply_traceroute(bool ok, const std::string& text) {
+std::string BaseViewModel::channel_label(int index) const {
+    const auto* c = channel(index);
+    if (!c) return "Unavailable channel " + std::to_string(index);
+    return std::to_string(index) + ": " + (c->name.empty() ? "Default" : c->name) + (c->isPrivate ? " [Private]" : " [Public]");
+}
+
+void BaseViewModel::request_channel_share(int channel) {
+    share_channel_ = channel;
+    share_request_ = session_id_ + "share" + std::to_string(++cid_counter_);
+    if (!send_intent("{\"intent\":\"channel.share\",\"channel\":" + std::to_string(channel) +
+                    ",\"id\":\"" + share_request_ + "\"}")) cancel_channel_share();
+}
+
+void BaseViewModel::apply_traceroute(bool ok, const std::string& text, const std::string& node, const std::string& request) {
+    if (trace_request_.empty() || trace_request_ != request || trace_node_ != node) return;
+    trace_request_.clear();
     traceroute_result_ = ok ? text : (text.empty() ? "No route found." : text);
     traceroute_subject_.set(traceroute_subject_.value() + 1);
 }
 
-void BaseViewModel::apply_channel_share(const std::string& url) {
+void BaseViewModel::apply_channel_share(int channel, const std::string& name,
+                                        const std::string& url, const std::string& request) {
+    if (share_request_.empty() || request != share_request_ || channel != share_channel_) return;
+    share_request_.clear();
+    channel_share_name_ = name;
     channel_share_url_ = url;
     channel_share_subject_.set(channel_share_subject_.value() + 1);
 }
@@ -521,7 +585,7 @@ void BaseViewModel::load_muted(std::vector<std::string> keys) {
 
 void BaseViewModel::load_messaging_prefs(bool show_signal, int retention, bool mute_all, bool want_ack) {
     show_signal_ = show_signal;
-    retention_cap_ = retention < 0 ? 0 : retention;
+    retention_cap_ = std::clamp(retention, 0, 2000);
     mute_all_ = mute_all;
     want_ack_ = want_ack;
 }
@@ -587,28 +651,51 @@ lv_subject_t* BaseViewModel::node_id_subject() { return node_id_subject_.native(
 lv_subject_t* BaseViewModel::firmware_subject() { return firmware_subject_.native(); }
 lv_subject_t* BaseViewModel::model_subject() { return model_subject_.native(); }
 
+void BaseViewModel::config_unknown() {
+    config_request_.clear();
+    config_state_.set("unknown");
+}
+
+void BaseViewModel::tick() {
+    const auto now = std::chrono::steady_clock::now().time_since_epoch();
+    if (!config_request_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() > config_deadline_) {
+        config_unknown();
+        apply_notice("Radio confirmation timed out; settings unknown");
+    }
+}
+
+void BaseViewModel::send_config(const std::string& fields) {
+    if (!connected_subject_.value() || std::string(radio_state_subject_.value()) != "online") {
+        apply_notice("Turn the radio on before changing settings");
+        return;
+    }
+    if (!config_request_.empty()) { apply_notice("Waiting for radio confirmation"); return; }
+    config_request_ = session_id_ + "config" + std::to_string(++cid_counter_);
+    config_deadline_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count() + 45000;
+    config_state_.set("pending");
+    if (!send_intent("{\"intent\":\"config.set\",\"id\":\"" + config_request_ + "\"," + fields + "}")) config_unknown();
+}
+
 void BaseViewModel::set_modem_preset(const std::string& preset) {
-    modem_preset_subject_.set(preset.c_str());
-    send_intent("{\"intent\":\"config.set\",\"path\":\"lora.modem_preset\",\"value\":\"" +
-                json::escape(preset) + "\"}");
+    send_config("\"path\":\"lora.modem_preset\",\"value\":\"" + json::escape(preset) + "\"");
 }
 
 void BaseViewModel::set_hop_limit(int hops) {
-    hop_limit_subject_.set(hops);
-    send_intent("{\"intent\":\"config.set\",\"path\":\"lora.hop_limit\",\"value\":" +
-                std::to_string(hops) + "}");
+    send_config("\"path\":\"lora.hop_limit\",\"value\":" + std::to_string(hops));
 }
 
-void BaseViewModel::set_position_sharing(bool on) {
-    position_subject_.set(on);
-    send_intent(std::string("{\"intent\":\"config.set\",\"path\":\"position.enabled\",\"value\":") +
-                (on ? "true" : "false") + "}");
+void BaseViewModel::set_frequency_slot(int slot) {
+    send_config("\"path\":\"lora.channel_num\",\"value\":" + std::to_string(slot));
+}
+
+void BaseViewModel::set_position_sharing(bool on, int channel, bool public_confirmed) {
+    send_config(std::string("\"path\":\"position.enabled\",\"value\":") + (on ? "true" : "false") +
+                ",\"channel\":" + std::to_string(channel) + ",\"public_confirmed\":" + (public_confirmed ? "true" : "false"));
 }
 
 void BaseViewModel::set_mqtt(bool on) {
-    mqtt_subject_.set(on);
-    send_intent(std::string("{\"intent\":\"config.set\",\"path\":\"mqtt.enabled\",\"value\":") +
-                (on ? "true" : "false") + "}");
+    send_config(std::string("\"path\":\"mqtt.enabled\",\"value\":") + (on ? "true" : "false"));
 }
 
 void BaseViewModel::set_auto_start(bool on) {
@@ -631,11 +718,15 @@ void BaseViewModel::apply_device(const std::string& node_id, const std::string& 
     model_subject_.set(model.c_str());
 }
 
-void BaseViewModel::apply_config(const std::string& preset, int hop, bool position, bool mqtt) {
+void BaseViewModel::apply_config(const std::string& preset, int hop, bool position, bool mqtt, const std::string& request, int frequency_slot) {
+    if (!config_request_.empty() && request != config_request_) return;
+    config_request_.clear();
     if (!preset.empty()) modem_preset_subject_.set(preset.c_str());
-    if (hop > 0) hop_limit_subject_.set(hop);
+    if (hop >= 0) hop_limit_subject_.set(hop);
+    frequency_slot_subject_.set(frequency_slot);
     position_subject_.set(position);
     mqtt_subject_.set(mqtt);
+    config_state_.set("confirmed");
 }
 
 } // namespace viewmodel

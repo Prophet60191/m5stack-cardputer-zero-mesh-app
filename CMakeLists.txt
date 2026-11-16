@@ -6,11 +6,16 @@
 
 cmake_minimum_required(VERSION 3.31)
 
-project(template_app VERSION 0.2.1 LANGUAGES C CXX)
+project(template_app VERSION 0.1.1 LANGUAGES C CXX)
+
+add_compile_definitions(APP_VERSION="${PROJECT_VERSION}")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options("-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=.")
+endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 # CMake configure options
@@ -18,9 +23,9 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 # USE_DESKTOP: whether to build desktop emulator, useful when you want preview with LVGL simulator
 # For instance, '-DUSE_DESKTOP=OFF' suggest building for CM0
 set(USE_DESKTOP ON CACHE BOOL "Build the desktop emulator target with LVGL SDL support")
-set(APP_NAME "${PROJECT_NAME}" CACHE STRING "Application name used for installed asset lookup")
+set(APP_NAME "cardputerzero-mesh" CACHE STRING "Application name used for installed asset lookup")
 set(APP_ASSETS_ROOT "" CACHE PATH "Optional runtime assets root. Expected subdirectories include fonts/")
-set(APP_CONFIG_FILE "" CACHE FILEPATH "Application config file; defaults to the repository file on desktop and /etc/template-app.conf on device")
+set(APP_CONFIG_FILE "" CACHE FILEPATH "Application config file; defaults to the repository file on desktop and /etc/cardputerzero-mesh.conf on device")
 set(APP_KEY_INPUT_DEVICE "" CACHE STRING "Optional Linux evdev keyboard/keypad device path, e.g. /dev/input/event0")
 set(APP_FRAMEBUFFER_DEVICE "/dev/fb0" CACHE STRING "Linux framebuffer device path used by embedded builds")
 set(APP_DRM_DEVICE "/dev/dri/card0" CACHE STRING "Linux DRM device path used when APP_USE_DRM=ON")
@@ -33,9 +38,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile_commands.json" F
 
 if(NOT APP_CONFIG_FILE)
     if(USE_DESKTOP)
-        set(APP_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/template-app.conf")
+        set(APP_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/cardputerzero-mesh.conf")
     else()
-        set(APP_CONFIG_FILE "/etc/template-app.conf")
+        set(APP_CONFIG_FILE "/etc/cardputerzero-mesh.conf")
     endif()
 endif()
 
@@ -585,7 +590,7 @@ target_compile_definitions(${PROJECT_NAME}_core
         APP_NAME="${APP_NAME}"
         APP_CONFIG_FILE="${APP_CONFIG_FILE}"
         APP_CMAKE_ASSETS_ROOT="${APP_ASSETS_ROOT}"
-        APP_SOURCE_ASSETS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+        APP_SOURCE_ASSETS_ROOT="$<IF:$<BOOL:${USE_DESKTOP}>,${CMAKE_CURRENT_SOURCE_DIR}/assets,>"
         APP_FRAMEBUFFER_DEVICE="${APP_FRAMEBUFFER_DEVICE}"
         APP_DRM_DEVICE="${APP_DRM_DEVICE}"
         APP_DRM_CONNECTOR_ID=${APP_DRM_CONNECTOR_ID}
@@ -620,6 +625,8 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
 )
 
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "cardputerzero-mesh")
+
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_NAME}_platform
@@ -631,3 +638,12 @@ target_link_libraries(${PROJECT_NAME}
 
 # Package deb
 include(cmake/cm0-package.cmake)
+
+include(CTest)
+if(BUILD_TESTING AND USE_DESKTOP)
+    add_executable(mesh_regressions tests/regressions.cpp)
+    target_link_libraries(mesh_regressions PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
+        ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive
+        ${PROJECT_NAME}_model PNG::PNG)
+    add_test(NAME mesh_regressions COMMAND mesh_regressions)
+endif()

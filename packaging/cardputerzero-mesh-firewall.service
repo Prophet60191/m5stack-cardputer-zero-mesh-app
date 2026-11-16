@@ -1,0 +1,22 @@
+[Unit]
+Description=Confine the Meshtastic local API
+Before=network-pre.target
+Wants=network-pre.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=cz-mesh-firewall
+Group=cz-mesh-firewall
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_NETLINK
+ExecStart=/usr/lib/cardputerzero-mesh/firewall-setup.sh ensure
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,39 +1,24 @@
-# CardputerZero app toolkit — first pieces
+# Radio supervisor
 
-The start of our reusable app toolkit (design: [../../docs/software/reusable-library.md](../../docs/software/reusable-library.md)) and the **radio-foundation test** for the Meshtastic client ([builds #2](../../docs/builds/README.md)). These run **on the device** (Linux `/sys` + `/dev`), not on the Mac.
+This directory contains the Linux radio backend for the native Mesh UI:
 
-| File | What it is |
+| File | Purpose |
 |---|---|
-| `cap_lora.py` | The lowest layer: power the Cap LoRa-1262 the right way and enable its RF switch, with a `powered_cap()` context manager and classified errors. Reusable by any app that drives this Cap. Recipe: [../../docs/software/cap-radio-bringup.md](../../docs/software/cap-radio-bringup.md). |
-| `meshtasticd-cardputerzero.yaml` | Our `meshtasticd` hardware config (pins only — no region, no channel, no secrets). |
-| `radio_up.py` | Powers the Cap, runs `meshtasticd` against the SX1262, and reports whether the radio came up. The foundation test. |
+| `supervisor.py` | Same-user intent socket, validated explicit-channel actions and authoritative session state |
+| `radio_guardian.py` | Own daemon/power lease, detect supervisor pipe EOF, stop/reap before restoring switches |
+| `cap_lora.py` | MIT reusable Cap bring-up context and diagnostics; ordinary context exit restores prior values |
+| `firewall.py`, `firewall-setup.sh` | Fixed-port nftables ensure/check/remove helper; only `check` is granted to the app user |
+| `qr_scan.py` | Optional camera decoder, run with a supervisor-enforced subprocess timeout |
+| `meshtasticd-cardputerzero.yaml` | Hardware pins only; no channel keys or region |
+| `radio_up.py` | Retired entry point; refuses the former unguarded daemon startup path |
 
-## Prerequisites
+Use the package's user service and firewall boot integration. The pinned client
+library is meshtastic 2.7.11, installed separately in the user's venv. Follow the
+[root README](../README.md), [protocol](../docs/supervisor-protocol.md), and
+[security model](../docs/security.md). Supervisor source is GPL-3.0-or-later;
+MIT components retain their own SPDX notices. LICENSE.GPL contains the full GPL.
 
-- The **Cap LoRa-1262 is seated and its antenna attached** (never power the radio without the antenna).
-- Your user is in the `spi`, `gpio`, `i2c` groups (usually already the case).
-- `meshtasticd` installed (one-time, needs sudo):
-  ```bash
-  sudo apt-get install -y ~/meshtasticd-pkg/meshtasticd.deb
-  ```
-
-## Use
-
-Safe check first — powers the Cap, verifies the 0x43 RF-switch expander, powers back down. No transmit:
-```bash
-python3 cap_lora.py --probe
-```
-
-The foundation test — powers the Cap and brings `meshtasticd` up on the radio:
-```bash
-python3 radio_up.py            # reports RADIO ONLINE or a classified failure, then powers down
-python3 radio_up.py --keep     # leave it running so a client can connect (Ctrl-C stops + powers down)
-```
-
-A success looks like `[ok] radio initialized: …` then `RADIO ONLINE — meshtasticd is serving on 127.0.0.1:<port>`. After that, the next step is to set **Region US** and import the **`backhaul`** channel with the `meshtastic` client against that port, and message the T-Deck Pro both ways.
-
-## Safety
-
-- The Cap is always powered back **down** on exit (even on error or Ctrl-C), so it doesn't drain the battery.
-- `radio_up.py` runs `meshtasticd` as a short-lived **child process**, not a system service — the kernel frees SPI/GPIO the moment it stops.
-- US band + `backhaul` channel only; never the public LongFast channel.
+Antenna before power; configure the correct region and a reviewed public/private profile
+before running the daemon. Software cannot detect an antenna or guarantee safe
+firmware boot traffic from an unsafe persisted profile. A bare Python `finally`
+cannot restore switches after SIGKILL; use the guardian/service lifecycle.
