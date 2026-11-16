@@ -5,9 +5,12 @@ This directory contains the Linux radio backend for the native Mesh UI:
 | File | Purpose |
 |---|---|
 | `supervisor.py` | Same-user intent socket, validated explicit-channel actions and authoritative session state |
+| `application_services.py` | Setup, channel/profile management, TX confirmation and sanitized diagnostics |
+| `radio_settings.py` | Private recoverable preferences, opaque channel identity and local saved profiles |
+| `state_store.py` | Bounded SQLite conversations, drafts and pins; no automatic resend queue |
 | `radio_guardian.py` | Own daemon/power lease, detect supervisor pipe EOF, stop/reap before restoring switches |
 | `cap_lora.py` | MIT reusable Cap bring-up context and diagnostics; ordinary context exit restores prior values |
-| `firewall.py`, `firewall-setup.sh` | Fixed-port nftables ensure/check/remove helper; only `check` is granted to the app user |
+| `firewall.py`, `firewall-setup.sh` | Fixed-port nftables ensure/check/monitor/remove helper; capability-owned monitor, app sudo grant limited to manual `check` |
 | `qr_scan.py` | Optional camera decoder, run with a supervisor-enforced subprocess timeout |
 | `meshtasticd-cardputerzero.yaml` | Hardware pins only; no channel keys or region |
 | `radio_up.py` | Retired entry point; refuses the former unguarded daemon startup path |

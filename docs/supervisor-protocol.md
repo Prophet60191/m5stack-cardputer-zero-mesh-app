@@ -136,7 +136,7 @@ the receiver independently of location-sharing consent. Diagnostics include
 | `diagnostics.get/export` | whitelisted health/version/counts, no chats/keys/IDs/coordinates; export writes fixed private `diagnostics-export.json` in the radio state directory |
 | `thread.state` | `thread`, `state:{draft,pinned}`; draft at most 200 UTF-8 bytes, max 256 saved states; broadcasts `threads` |
 | `thread.delete` | forget thread state; use `message.clear` separately for messages |
-| `history.set` | strict boolean `enabled`; disabling deletes saved messages/drafts and retains the current RAM session; broadcasts `threads` |
+| `history.set` | strict boolean `enabled`; disabling deletes saved messages/drafts and retains RAM; enabling saves the current RAM messages/drafts and future updates; replies and broadcasts `threads` |
 
 Greeting always includes history and `threads`, even with the radio Off.
 History/drafts live in private bounded SQLite storage in the radio state directory;

@@ -867,8 +867,15 @@ class Supervisor(ApplicationServices):
                 value = req.get("enabled")
                 if type(value) is not bool: raise ValueError("history preference must be boolean")
                 self._store.set_preference("history.enabled", value)
-                if value: self._store.replace_messages(self._messages)
+                if value:
+                    self._store.replace_messages(self._messages)
+                    # Off retains this session's drafts in RAM. Re-enabling
+                    # persistence must save them even if they are never edited
+                    # again before exit/restart.
+                    for thread, state in self._threads.items():
+                        self._store.set_thread(thread, state)
                 reply(self._thread_state())
+                self._broadcast(self._thread_state())
             elif intent == "radio.start":
                 self.radio_start()
                 reply({"event": "notice", "text": "starting radio"})

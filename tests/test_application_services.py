@@ -161,6 +161,18 @@ class ApplicationTests(unittest.TestCase):
             self.assertEqual(other._messages[0]['status'],'failed'); self.assertIn('not replayed',other._messages[0]['reason'])
             self.assertIsNone(other._iface); self.assertEqual(other._radio,'off')
         finally: other._stop.set(); other._worker.join(1); other._store.close(); other._state_lease.close()
+    def test_reenabling_history_saves_ram_drafts_without_another_edit(self):
+        state = {'draft': 'Synthetic unsent draft', 'pinned': True}
+        self.s._threads['ch:synthetic'] = state
+        self.s._dispatch(self.c, {'intent': 'history.set', 'enabled': False})
+        self.s._store.set_thread('ch:synthetic', state)
+        self.assertEqual(self.s._store.load_threads()['ch:synthetic']['draft'], '')
+        with patch.object(self.s, '_broadcast') as broadcast:
+            self.s._dispatch(self.c, {'intent': 'history.set', 'enabled': True})
+        self.assertEqual(broadcast.call_args[0][0]['event'], 'threads')
+        reopened = StateStore(self.s._state_dir)
+        try: self.assertEqual(reopened.load_threads()['ch:synthetic'], state)
+        finally: reopened.close()
     def test_channel_manager_rotate_protect_primary_and_stale_request(self):
         ident=self.s._channel_identity(1)
         self.s._channel_manage(dict(action='rotate',channel=1,channel_id=ident,confirmed=True))

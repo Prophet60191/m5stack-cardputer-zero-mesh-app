@@ -168,6 +168,8 @@ FULL synchronous commits and a 2,000-message global bound. Drafts/pins have a
 read it. Disabling saved history deletes disk messages/drafts and suppresses
 future writes; RAM history remains until shutdown. Deletion is logical, not a
 promise of forensic erasure from flash, WAL, filesystem snapshots or backups.
+Re-enabling saved history saves the current RAM messages and drafts as well as
+future updates; the confirmation describes saving the current session.
 No message is automatically resent after restart.
 
 Opaque local channel identities bind routing to effective name/key and any

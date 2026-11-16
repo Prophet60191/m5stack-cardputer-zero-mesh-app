@@ -28,8 +28,10 @@
   and cleared conversations and reject malformed saved peer identities.
 - Separate GPS receiver control from sharing, mark stale map locations, and count
   actual remote receive packets with tested parent/child pubsub signatures.
+- Re-enabling saved history also commits the current RAM drafts without another
+  edit; history-preference changes reach every connected UI.
 
-Validation: 66 backend regressions (one Linux-only case skipped on macOS),
+Validation: 67 backend regressions (one Linux-only case skipped on macOS),
 real LVGL keyboard/lifetime/parser/transport checks with ASAN/UBSAN, synthetic
 320x170 renders and Debian arm64 package validation. Native arm64 GitHub CI and
 downloaded artifact checks passed. Actual device checks passed for private-peer
