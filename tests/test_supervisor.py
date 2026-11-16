@@ -254,6 +254,34 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(self.c.events[-2]['event'], 'messages')
         self.dispatch(intent='message.clear', thread='ch:legacy:1')
         self.assertEqual(len(self.s._messages), 4)
+    def test_silent_retention_sync_still_trims_and_replies_with_correlation(self):
+        for i in range(15):
+            self.s._record({'id': str(i), 'from': 'rf', 'channel': i % 3, 'to': 'broadcast'})
+        self.c.events.clear()
+        self.dispatch(intent='message.retention', cap=2, silent=True, id='startup-sync')
+        self.assertEqual(self.s._retention, 2)
+        self.assertEqual(len(self.s._messages), 6)
+        self.assertTrue(any(e['event'] == 'messages' for e in self.c.events))
+        self.assertFalse(any(e['event'] == 'notice' for e in self.c.events))
+        self.assertEqual(self.c.events[-1], {'event': 'message.retention', 'cap': 2, 'id': 'startup-sync'})
+        self.c.events.clear()
+        self.dispatch(intent='message.retention', cap=2, silent=True, id='reconnect-sync')
+        self.assertEqual(self.c.events, [{'event': 'message.retention', 'cap': 2, 'id': 'reconnect-sync'}])
+    def test_explicit_retention_change_keeps_confirmation(self):
+        for fields in ({}, {'silent': False}):
+            self.dispatch(intent='message.retention', cap=100, id='user-choice', **fields)
+            self.assertEqual(self.c.events[-1], {'event': 'notice', 'text': 'retention set', 'id': 'user-choice'})
+    def test_silent_retention_validation_errors_are_visible_and_do_not_mutate_history(self):
+        self.s._record({'id': 'keep', 'from': 'rf', 'channel': 0, 'to': 'broadcast'})
+        before = copy.deepcopy(self.s._messages)
+        for value in ('true', 'false', 0, 1, None, [], {}):
+            self.dispatch(intent='message.retention', cap=1, silent=value)
+            self.assertEqual(self.c.events[-1]['event'], 'error')
+            self.assertEqual(self.s._retention, 0)
+            self.assertEqual(self.s._messages, before)
+        self.dispatch(intent='message.retention', cap='invalid', silent=True)
+        self.assertEqual(self.c.events[-1]['event'], 'error')
+        self.assertEqual(self.s._messages, before)
     def test_global_history_and_attempt_bounds(self):
         for i in range(mod.MAX_MESSAGES + 5):
             self.s._record({'id': str(i), 'from': 'self', 'outgoing': True, 'channel': i % 3, 'to': 'broadcast'})

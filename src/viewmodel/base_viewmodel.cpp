@@ -162,7 +162,7 @@ void BaseViewModel::set_connected(bool connected) {
     }
     if (!connected) import_request_id_.clear();
     connected_subject_.set(connected);
-    if (connected) send_intent("{\"intent\":\"message.retention\",\"cap\":" + std::to_string(retention_cap_) + "}");
+    if (connected) send_intent("{\"intent\":\"message.retention\",\"cap\":" + std::to_string(retention_cap_) + ",\"silent\":true}");
     if (!connected) {
         radio_state_subject_.set("unknown");
         config_unknown();

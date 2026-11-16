@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.10 — 2026-11-16 (release candidate)
+
+- Apply saved message-retention preferences silently on startup and reconnect,
+  while keeping confirmation for deliberate changes to "Keep per chat".
+- Acknowledge silent synchronization without a notice; still enforce history
+  trimming/broadcasts and report validation errors. Preserve default replies for
+  clients that omit the new optional boolean.
+- Add backend and native regressions for quiet startup/reconnect, explicit
+  confirmation, actual retention enforcement and visible validation failures.
+
+Validation: native ASAN/UBSAN checks, all 98 backend cases and the Debian 13
+arm64 package/install/upgrade, real-reader and firewall/policy gate pass locally.
+
 ## 0.1.9 — 2026-11-16 (release candidate)
 
 - Correct Store categories/share code and add a separate 256px Store icon with

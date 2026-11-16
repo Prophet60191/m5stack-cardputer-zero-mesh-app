@@ -574,6 +574,17 @@ int main(int argc, char** argv) {
         vm.set_position_sharing(false); CHECK(std::string(vm.config_state()) == "unknown");
         CHECK(!lv_subject_get_int(vm.position_subject()));
         vm.set_connected(true); CHECK(sent.find("message.retention") != std::string::npos);
+        json::Value retention_request;
+        CHECK(json::parse(sent, retention_request));
+        CHECK(retention_request.find("silent") && retention_request.find("silent")->as_bool());
+        vm.set_retention_cap(100);
+        CHECK(json::parse(sent, retention_request));
+        CHECK(retention_request.int_at("cap") == 100);
+        CHECK(!retention_request.find("silent") || !retention_request.find("silent")->as_bool());
+        vm.set_connected(false); vm.set_connected(true);
+        CHECK(json::parse(sent, retention_request));
+        CHECK(retention_request.int_at("cap") == 100 && retention_request.find("silent") && retention_request.find("silent")->as_bool());
+        vm.set_retention_cap(0);
         vm.apply_status("online", "UNSET", "Demo");
         vm.set_channels({{0, "Public", false, "PRIMARY", 0, "synthetic-public"}, {1, "Field One", true, "SECONDARY", 0, "synthetic-private"}, {2, "Field Two", true, "SECONDARY", 0, "synthetic-other"}});
         CHECK(vm.channel(0) && !vm.channel(0)->isPrivate); CHECK(vm.channel(1)->isPrivate); CHECK(!vm.channel(7));

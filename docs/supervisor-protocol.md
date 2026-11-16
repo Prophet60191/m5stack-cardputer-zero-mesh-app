@@ -76,11 +76,16 @@ replies only after readback matches the requested effective values. A write/read
 failure emits `config.unknown` and `error` (with intent/request ID); clients must
 not display an unconfirmed Off. The UI expires pending config after 45 seconds.
 
-`message.clear {thread}`, `message.delete {message_id}` and `message.retention {cap}`
+`message.clear {thread}`, `message.delete {message_id}` and `message.retention {cap,silent?}`
 mutate authoritative history and broadcast a complete `messages` snapshot. A
 snapshot replaces local history, including removals. Retention is global server
 session policy; each UI reapplies its saved preference on connection (last writer
-wins if multiple UIs choose different values). Outgoing message IDs are required;
+wins if multiple UIs choose different values). On startup/reconnect, the UI sends
+`silent:true`: the policy still applies and trims/broadcasts when changed, but the
+reply is `message.retention {cap}` rather than a user-facing notice. Omitted or
+false `silent` preserves the explicit-setting confirmation notice. The optional
+field must be a boolean; errors are still reported normally, and request IDs are
+echoed in either reply. Outgoing message IDs are required;
 retrying an ID replaces that message and only the latest attempt's ACK applies.
 Outgoing status is `sending`, `sent` (no acknowledgment requested), `mesh` (mesh ACK), `delivered` (ACK source matches the DM recipient) or `failed`. These are transport results, never read receipts. `reason` preserves the failure or uncertainty.
 Pending delivery fails after 60 seconds. `error` includes `cid` for failed sends.

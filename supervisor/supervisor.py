@@ -979,13 +979,19 @@ class Supervisor(ApplicationServices, ChannelImport):
                 self._publish_history()
                 reply({"event": "notice", "text": "deleted"})
             elif intent == "message.retention":
+                silent = req.get("silent", False)
+                if type(silent) is not bool:
+                    raise ValueError("silent must be boolean")
                 with self._lock:
                     cap = max(0, min(MAX_MESSAGES, int(req.get("cap", 0))))
                     if cap != self._retention:
                         self._retention = cap
                         self._trim_history()
                         self._publish_history()
-                reply({"event": "notice", "text": "retention set"})
+                if silent:
+                    reply({"event": "message.retention", "cap": cap})
+                else:
+                    reply({"event": "notice", "text": "retention set"})
             elif intent == "channel.add":
                 self._require_online()
                 added = self._confirm_import(client, req)

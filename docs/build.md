@@ -73,7 +73,7 @@ cd build/cp0-native
 cpack -G DEB -C Release
 ```
 
-Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.9-rev1_arm64.deb`.
+Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.10-rev1_arm64.deb`.
 The package contains the UI, assets, launcher, supervisor/guardian sources, both
 licenses, a fixed transient user-service controller, capability-limited firewall boot service, and canonical version metadata. The launcher starts the supervisor; it does not automatically start
 RF. Follow the README for platform permissions and pinned venv setup. The optional
