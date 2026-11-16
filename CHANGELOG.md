@@ -36,9 +36,12 @@ real LVGL keyboard/lifetime/parser/transport checks with ASAN/UBSAN, synthetic
 320x170 renders and Debian arm64 package validation. Native arm64 GitHub CI and
 downloaded artifact checks passed. Actual device checks passed for private-peer
 ACK/reply, CSI QR decoding, cold power/firewall order, empty setup, channel/profile
-readback and crash cleanup/durable drafts. Outdoor GPS remains deferred because
-the operator cannot provide sky view now; final installed-build stability and
-qualification status are tracked in the implementation checklist.
+readback and crash cleanup/durable drafts. The installed radio completed 30m12s
+with 119 healthy samples and zero failures/restarts; physical settings/Esc checks
+passed. The final storage-only follow-up passed CI and that exact artifact was
+installed with runtime hashes, saved data and original settings verified; ADB
+was disabled afterward. Outdoor GPS remains deferred
+because the operator cannot provide sky view now; see the implementation checklist.
 
 ## 0.1.1 — 2026-11-15 (release candidate)
 

@@ -199,6 +199,26 @@ The receiver had been configured absent. Enabling it worked through planned
 restart/readback, but no valid fix was observed indoors. The operator cannot
 provide clear sky now; outdoor fix/freshness is explicitly deferred. The previous
 receiver setting has been restored, with automatic sharing still Off.
-Final package installation and sustained installed-build stability are tracked
+Package installation and sustained radio stability are tracked
 in [the implementation checklist](implementation-plan.md). Earlier source-stage
 hardware results must not be mistaken for verification of an older installed UI.
+
+### 2026-11-16 completion evidence
+
+After the radio-path fixes, the installed candidate ran for **30m12s** with
+**119 healthy samples, zero failures and zero supervisor restarts**. The longest
+recorded firewall-verdict age was 2.01s against the seven-second limit. This is
+bounded qualification evidence, not a guarantee against every future failure.
+The operator also confirmed the added settings screens open and Esc returns.
+An actual diagnostic export had mode0600 and only the documented safe fields.
+
+A final storage-only correction commits RAM drafts when saved history is
+re-enabled, without waiting for another edit, and updates all connected UIs.
+Both CI jobs passed **67** backend regressions plus native ASAN/UBSAN and Debian
+arm64 package/install/policy checks on that functional source. The downloaded
+artifact's checksum and source ID were verified. That exact CI artifact was
+installed afterward: all ten runtime hashes matched, saved data survived, and
+original keys/tuning/TX/GPS settings were confirmed. Radio online and firewall
+health readback passed. ADB/hotplug were disabled and inactive again over SSH;
+no temporary source override remains. This follow-up does not change the radio
+lifecycle qualified above, and is not represented as another 30-minute run.
