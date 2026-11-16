@@ -116,6 +116,70 @@ static lv_obj_t* label_starting(lv_obj_t* root, const std::string& prefix) {
 
 static void save_png(const char* path, lv_obj_t* root);
 
+static void maintenance_data_regression() {
+    viewmodel::BaseViewModel vm;
+    std::string sent; vm.set_command_sink([&](const std::string& line) { sent=line; return true; });
+    vm.set_connected(true);
+    vm.set_channels({{2,"Field",true,"PRIMARY",0,"live"}});
+    viewmodel::NodeInfo a; a.id="!11111111";a.name="Alpha";
+    auto b=a;b.id="!22222222";b.name="Beta";vm.set_nodes({a,b});
+    const auto dm = [](const std::string& peer,const std::string& text,const std::string& id,long time) {
+        viewmodel::MessageInfo m;m.from=peer;m.to="self";m.text=text;m.id=id;m.time=time;return m;
+    };
+    auto group=dm("!44444444","Group text","group",15);group.to="broadcast";group.channel=2;group.channelIdentity="live";
+    auto archived=group;archived.id="archived";archived.channelIdentity="retired";archived.channelName="Retired";archived.channelPrivate=true;archived.time=25;
+    vm.set_messages({dm(a.id,"old needle","a1",10),dm(b.id,"Beta recent","b1",30),dm(a.id,"Alpha latest","a2",20),group,archived});
+    vm.remember_conversation("dm:!33333333");
+    vm.save_draft("dm:!11111111@a","first draft");vm.save_draft("dm:!11111111@z","second draft");vm.toggle_pin("dm:!22222222");
+    auto rows=vm.conversation_rows();CHECK(rows.size()==5);
+    CHECK(rows[0].key=="dm:!22222222" && rows[0].name=="* Beta");
+    CHECK(rows[1].name=="Archived: Retired [Private]");
+    CHECK(rows[2].key=="dm:!11111111" && rows[2].preview=="Draft: first draft");
+    CHECK(rows[3].key=="ch:live" && rows[3].name=="# 2: Field [Private]");
+    CHECK(rows[4].key=="dm:!33333333" && rows[4].preview=="No messages");
+    CHECK(vm.conversation_rows("needle").size()==1);CHECK(vm.conversation_rows("first draft").size()==1);
+    CHECK(vm.conversation_rows("second draft").empty());CHECK(vm.conversation_rows("Retired").size()==1);
+    CHECK(vm.conversation_rows("* Beta").empty()); // A visual pin marker is not searchable content.
+    CHECK(vm.conversation_rows("absent").empty());
+    viewmodel::BaseViewModel equal;equal.set_command_sink([](const std::string&) {return true;});
+    equal.set_messages({dm(a.id,"first","1",5),dm(b.id,"second","2",5),dm(a.id,"latest tie","3",5)});
+    rows=equal.conversation_rows();CHECK(rows[0].key=="dm:!11111111" && rows[0].preview=="latest tie");CHECK(rows[1].key=="dm:!22222222");
+    // A refresh can reorder chats, but Enter must still open the highlighted identity.
+    viewmodel::BaseViewModel selected;selected.set_command_sink([](const std::string&) {return true;});
+    selected.set_nodes({a,b}); selected.set_messages({dm(a.id,"Older","1",1),dm(b.id,"Newer","2",2)});
+    selected.set_channels({{2,"Field",true,"PRIMARY",0,"live"}});
+    app::AssetManager assets;screen::MessagesScreen screen(selected,assets);lv_screen_load(screen.root());
+    screen.on_down(); // Beta is the latest chat.
+    selected.set_messages({dm(a.id,"Now latest","3",3),dm(b.id,"Newer","2",2)});
+    CHECK(selected_setting(screen.root())=="Beta");
+    screen.on_enter();screen.on_enter();CHECK(labels(screen.root()).find("DM via 2: Field [Private] to Beta")!=std::string::npos);
+}
+
+static void unchanged_thread_regression() {
+    viewmodel::BaseViewModel vm; std::string sent;
+    vm.set_command_sink([&](const std::string& line) {sent=line;return true;});vm.set_connected(true);
+    vm.set_channels({{1,"Synthetic",true,"PRIMARY",0,"synthetic"}});
+    viewmodel::MessageInfo m;m.from="!11111111";m.to="broadcast";m.id="message";m.text="Synthetic message";m.channelIdentity="synthetic";m.channel=1;vm.set_messages({m});
+    app::AssetManager assets;screen::MessagesScreen screen(vm,assets);lv_screen_load(screen.root());
+    screen.on_down();screen.on_enter();screen.on_enter();auto* input=textarea(screen.root());CHECK(input);
+    lv_textarea_set_text(input,"new local draft");
+    json::Value event; CHECK(json::parse(R"({"event":"threads","history_enabled":true,"threads":{"ch:synthetic":{"draft":"old draft","pinned":false}}})",event));
+    const auto revision=lv_subject_get_int(vm.messages_version_subject());vm.apply_threads(event);
+    CHECK(vm.draft("ch:synthetic")=="new local draft");CHECK(lv_subject_get_int(vm.messages_version_subject())==revision);
+    CHECK(screen.is_composing() && lv_obj_is_valid(input) && std::string(lv_textarea_get_text(input))=="new local draft");
+    vm.flush_drafts();CHECK(json::parse(R"({"event":"threads","history_enabled":true,"threads":{"ch:synthetic":{"draft":"new local draft","pinned":false}}})",event));
+    for (int i=0;i<100;++i) vm.apply_threads(event);
+    CHECK(lv_subject_get_int(vm.messages_version_subject())==revision);
+    CHECK(json::parse(R"({"event":"threads","history_enabled":false,"threads":{"ch:synthetic":{"draft":"new local draft","pinned":true}}})",event));
+    vm.apply_threads(event);CHECK(lv_subject_get_int(vm.messages_version_subject())==revision+1);CHECK(vm.pinned("ch:synthetic"));CHECK(!vm.history_enabled());
+    CHECK(vm.service_request("history.set",",\"enabled\":false"));json::Value request;CHECK(json::parse(sent,request));
+    auto id=request.str_at("id");CHECK(json::parse("{\"event\":\"threads\",\"id\":\""+id+"\",\"history_enabled\":false,\"threads\":{\"ch:synthetic\":{\"draft\":\"new local draft\",\"pinned\":true}}}",event));
+    vm.apply_threads(event);CHECK(lv_subject_get_int(vm.messages_version_subject())==revision+1);
+    vm.tick(std::chrono::steady_clock::now()+std::chrono::seconds(91));CHECK(vm.service_event().str_at("event")=="threads");
+    CHECK(json::parse(R"({"event":"threads","history_enabled":false,"threads":{}})",event));vm.apply_threads(event);
+    CHECK(lv_subject_get_int(vm.messages_version_subject())==revision+2);CHECK(vm.conversation_keys().empty());
+}
+
 static void dual_channel_ui_regression(const char* screenshot_path) {
     viewmodel::BaseViewModel vm;
     std::string sent;
@@ -495,6 +559,8 @@ int main(int argc, char** argv) {
     platform::SupervisorClientTest::queue_bounds();
     platform::SupervisorClientTest::partial_frame();
     lv_init(); auto* display = lv_display_create(320, 170); CHECK(display);
+    maintenance_data_regression();
+    unchanged_thread_regression();
     dual_channel_ui_regression(argc > 1 ? argv[1] : nullptr);
     services_ui_regression(argc > 1 ? argv[1] : nullptr);
     qr_scan_ui_regression(argc > 1 ? argv[1] : nullptr);

@@ -21,8 +21,6 @@ inline constexpr int kMenuEntryCount = 4;   // Messages, Nodes, Map, Settings
 
 class BaseModel {
 public:
-    const char* app_title() const;
-    const char* greeting() const;
 
     bool dark_mode() const;
     void set_dark_mode(bool enabled);

@@ -643,6 +643,12 @@ target_link_libraries(${PROJECT_NAME}
 include(cmake/cm0-package.cmake)
 
 include(CTest)
+option(MESH_BUILD_BENCHMARKS "Build synthetic, headless maintenance measurements" OFF)
+if(MESH_BUILD_BENCHMARKS)
+    add_executable(mesh_benchmarks tests/maintenance_benchmarks.cpp)
+    target_link_libraries(mesh_benchmarks PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
+        ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
+endif()
 if(BUILD_TESTING AND USE_DESKTOP)
     add_executable(mesh_regressions tests/regressions.cpp)
     target_link_libraries(mesh_regressions PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view

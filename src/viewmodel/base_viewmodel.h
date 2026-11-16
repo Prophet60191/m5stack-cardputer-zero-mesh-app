@@ -30,13 +30,8 @@ public:
     BaseViewModel(const BaseViewModel&) = delete;
     BaseViewModel& operator=(const BaseViewModel&) = delete;
 
-    lv_subject_t* title_subject();
-    lv_subject_t* greeting_subject();
     lv_subject_t* dark_mode_subject();
     lv_subject_t* current_page_subject();
-    lv_subject_t* counter_subject();
-    lv_subject_t* bold_text_subject();
-    lv_subject_t* info_visible_subject();
     lv_subject_t* quit_requested_subject();
 
     bool is_dark_mode() const;
@@ -49,7 +44,6 @@ public:
     void show_map_page();
     void show_settings_page();
     void show_menu_page();
-    void toggle_page();
     void show_next_page();
     void show_prev_page();
 
@@ -58,10 +52,6 @@ public:
     void menu_prev();
     void menu_next();
     void open_menu_selection();
-    void increment_counter();
-    void decrement_counter();
-    void toggle_bold_text();
-    void toggle_info();
     void request_quit();
 
     // --- mesh state (bound by the Messages / Nodes / Settings screens) -------
@@ -106,6 +96,7 @@ public:
     void flush_drafts();
     bool pinned(const std::string& key) const;
     void remember_conversation(const std::string& key);
+    std::vector<ConversationRow> conversation_rows(const std::string& search = "") const;
     std::vector<std::string> conversation_keys() const;
     std::string conversation_draft(const std::string& key) const;
     void toggle_pin(const std::string& key);
@@ -251,13 +242,8 @@ private:
     bool send_intent(const std::string& line);
 
     model::BaseModel model_;
-    reactive::StringSubject<32> title_subject_;
-    reactive::StringSubject<32> greeting_subject_;
     reactive::BoolSubject dark_mode_subject_;
     reactive::IntSubject current_page_subject_;
-    reactive::IntSubject counter_subject_;
-    reactive::BoolSubject bold_text_subject_;
-    reactive::BoolSubject info_visible_subject_;
     reactive::BoolSubject quit_requested_subject_;
 
     reactive::StringSubject<16> radio_state_subject_{"off"};

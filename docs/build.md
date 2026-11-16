@@ -73,7 +73,7 @@ cd build/cp0-native
 cpack -G DEB -C Release
 ```
 
-Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.6_rev1_arm64.deb`.
+Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.7_rev1_arm64.deb`.
 The package contains the UI, assets, launcher, supervisor/guardian sources, both
 licenses, user service, capability-limited firewall boot service, and canonical version metadata. The launcher starts the supervisor; it does not automatically start
 RF. Follow the README for platform permissions and pinned venv setup. The optional
@@ -140,3 +140,13 @@ power-on until explicitly qualified in source and tests.
 The authoritative app version is `app-builder.json`. CMake reads it for the UI and
 Debian package; the supervisor reads the same file from source or its installed
 copy. There is no independent C++ fallback or Python version literal.
+
+
+## Optional maintenance measurements
+
+Configure with `-DMESH_BUILD_BENCHMARKS=ON`, build target `mesh_benchmarks`, then
+run it as an ordinary user. It uses synthetic history and a headless LVGL display;
+it opens no radio socket, framebuffer or camera. The isolated package gate also
+compiles/runs it and checks that the binary is excluded from the installed package.
+Timing results are informational, without timing thresholds in regression tests.
+See [the measurement record](maintenance-pass.md) for the actual-device baseline.

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.7 — 2026-11-16 (release candidate)
+
+- Prepare typed conversation rows in one pass, index history search once and
+  sort once. Pins, archived channels and draft precedence remain intact;
+  equal-time chats keep first-seen order and refreshes preserve selection by ID.
+- Suppress unchanged thread-state redraws, SQLite replacements and broadcasts
+  after strict validation. Genuine changes, pending drafts, history opt-out and
+  correlated request completion retain their existing behavior.
+- Remove unused template navbar/icon-button demos and their Hello World/counter/
+  bold/info state. Preserve current navigation, app identity, attribution and
+  deliberate legacy-settings migration.
+- Add an optional synthetic headless benchmark, exercised by the isolated package
+  gate and excluded from the installed app. Record actual-device before/after
+  measurements in [the maintenance record](docs/maintenance-pass.md).
+
+Validation: native ASAN/UBSAN and 86 backend cases pass locally. Synthetic
+measurements show reduced list/search work, no redraw for unchanged draft echoes,
+and no duplicate draft writes; these are not battery-life measurements. Final
+Debian package/CI and installed-runtime verification are tracked separately.
+
 ## 0.1.6 — 2026-11-16 (release candidate)
 
 - Verify the supplied 13-item report against the actual code; record corrections

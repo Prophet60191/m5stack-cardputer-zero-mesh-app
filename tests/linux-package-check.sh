@@ -9,7 +9,7 @@ fi
 mesh_build="${CZ_MESH_BUILD_DIR:-/work/linux}"
 cmake -S /src -B "$mesh_build" -G Ninja -DUSE_DESKTOP=OFF -DCM0_SDK_ROOT=/ \
     -DCM0_ALLOW_FETCH_DEPS=OFF -DFETCHCONTENT_SOURCE_DIR_LVGL=/lvgl \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DMESH_BUILD_BENCHMARKS=ON \
     -DCPACK_OUTPUT_FILE_PREFIX="$mesh_build/dist"
 cmake --build "$mesh_build" -j 8
 cd "$mesh_build"
@@ -21,6 +21,8 @@ dpkg-deb --contents "$package" > package-contents.txt
 # Some minimized images exclude docs by default; include them for validation.
 dpkg --path-include='/usr/share/doc/*' -i "$package"
 test -x /usr/bin/cardputerzero-mesh
+test ! -e /usr/bin/mesh_benchmarks
+./mesh_benchmarks > synthetic-benchmarks.txt
 test -f /usr/share/doc/cardputerzero-mesh/docs/security.md
 test -f /etc/cardputerzero-mesh.conf
 test ! -e /usr/bin/template_app

@@ -1,6 +1,7 @@
 # Independent review remediation — 2026-11-15
 
-Initial review candidate: **0.1.1**; current candidate: **0.1.6** (latest evidence below).
+Initial review candidate: **0.1.1**; current candidate: **0.1.7** (latest evidence below).
+The [maintenance record](maintenance-pass.md) covers the subsequent measured cleanup.
 The [13-item report follow-up](report-followup.md) records the subsequent
 verification, corrections and qualified claims.
 These changes replace the earlier assumption that

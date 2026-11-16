@@ -65,6 +65,11 @@ struct MessageInfo {
     std::string reason;
 };
 
+struct ConversationRow {
+    std::string key, peer, name, preview;
+    long last_time = 0;
+};
+
 // Delivery status values for MessageInfo::status.
 inline constexpr int kMsgSending = 1;
 inline constexpr int kMsgDelivered = 2;

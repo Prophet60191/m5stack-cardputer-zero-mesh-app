@@ -179,3 +179,8 @@ fresh on every check. Status uses a captured interface and reports Unknown if th
 library node is incomplete. Message targets use `message_id`; `id` is exclusively
 request correlation. Generic UI service waits expire after 60 seconds (90 for a
 confirmed import), report uncertainty, and ignore late replies after dismissal.
+
+
+Unchanged `thread.state` updates are idempotent and need not broadcast another
+`threads` snapshot. Validation still runs before comparing state. Use `state.sync`
+for an explicit persistence barrier rather than waiting for an unchanged echo.

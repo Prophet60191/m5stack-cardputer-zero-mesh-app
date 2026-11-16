@@ -102,30 +102,37 @@ class StateStore:
             return {name: json.loads(payload) for name, payload in
                     self._db.execute("SELECT name,payload FROM threads LIMIT 256")}
 
-    def set_thread(self, name, value):
+    @staticmethod
+    def validate_thread_name(name):
         if (not isinstance(name, str) or len(name) <= 3 or len(name) > 160 or
                 not name.startswith(("ch:", "dm:")) or
                 (name.startswith("dm:") and not re.fullmatch(r"dm:![0-9a-fA-F]{8}(?:@[A-Za-z0-9_-]{1,64})?", name))):
             raise ValueError("invalid conversation identity")
+
+    @classmethod
+    def clean_thread(cls, name, value):
+        cls.validate_thread_name(name)
         if not isinstance(value, dict): raise ValueError("invalid conversation state")
         draft = value.get("draft", "")
         if not isinstance(draft, str) or len(draft.encode("utf-8")) > 200:
             raise ValueError("draft must be at most 200 UTF-8 bytes")
         if type(value.get("pinned", False)) is not bool:
             raise ValueError("pinned must be boolean")
-        clean = {"draft": draft, "pinned": value.get("pinned", False)}
+        return {"draft": draft, "pinned": value.get("pinned", False)}
+
+    def set_thread(self, name, value):
+        clean = self.clean_thread(name, value)
         with self._lock, self._db:
             if not self.preference("history.enabled", True): return
-            count = self._db.execute("SELECT COUNT(*) FROM threads").fetchone()[0]
-            exists = self._db.execute("SELECT 1 FROM threads WHERE name=?", (name,)).fetchone()
-            if count >= 256 and not exists: raise ValueError("conversation state limit reached")
-            self._db.execute("INSERT OR REPLACE INTO threads VALUES (?,?)", (name, json.dumps(clean)))
+            payload = json.dumps(clean)
+            existing = self._db.execute("SELECT payload FROM threads WHERE name=?", (name,)).fetchone()
+            if existing and existing[0] == payload: return
+            if not existing and self._db.execute("SELECT COUNT(*) FROM threads").fetchone()[0] >= 256:
+                raise ValueError("conversation state limit reached")
+            self._db.execute("INSERT OR REPLACE INTO threads VALUES (?,?)", (name, payload))
 
     def delete_thread(self, name):
-        if (not isinstance(name, str) or len(name) <= 3 or len(name) > 160 or
-                not name.startswith(("ch:", "dm:")) or
-                (name.startswith("dm:") and not re.fullmatch(r"dm:![0-9a-fA-F]{8}(?:@[A-Za-z0-9_-]{1,64})?", name))):
-            raise ValueError("invalid conversation identity")
+        self.validate_thread_name(name)
         with self._lock, self._db:
             keys = [key for (key,) in self._db.execute("SELECT name FROM threads") if key == name or key.startswith(name + "@")]
             self._db.executemany("DELETE FROM threads WHERE name=?", [(key,) for key in keys])

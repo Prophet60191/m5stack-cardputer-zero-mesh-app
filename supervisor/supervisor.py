@@ -866,12 +866,14 @@ class Supervisor(ApplicationServices, ChannelImport):
                 self._channel_manage(req)
                 reply(self._channel_slots())
             elif intent == "thread.state":
-                state = req.get("state")
+                name = req.get("thread")
+                state = self._store.clean_thread(name, req.get("state"))
                 with self._lock:
-                    self._store.set_thread(req.get("thread"), state)
-                    if req["thread"] not in self._threads and len(self._threads) >= 256:
+                    if self._threads.get(name) == state: return
+                    if name not in self._threads and len(self._threads) >= 256:
                         raise ValueError("conversation state limit reached")
-                    self._threads[req["thread"]] = {"draft": state.get("draft", ""), "pinned": state.get("pinned", False)}
+                    self._store.set_thread(name, state)
+                    self._threads[name] = state
                     self._broadcast(self._thread_state())
             elif intent == "thread.delete":
                 with self._lock:

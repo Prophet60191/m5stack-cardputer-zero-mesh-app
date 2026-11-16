@@ -16,6 +16,7 @@
 #include <ctime>
 #include <random>
 #include <utility>
+#include <unordered_map>
 
 namespace viewmodel {
 namespace {
@@ -27,13 +28,8 @@ int page_to_int(model::AppPage page) {
 } // namespace
 
 BaseViewModel::BaseViewModel()
-    : title_subject_(model_.app_title()),
-      greeting_subject_(model_.greeting()),
-      dark_mode_subject_(model_.dark_mode()),
+    : dark_mode_subject_(model_.dark_mode()),
       current_page_subject_(page_to_int(model_.current_page())),
-      counter_subject_(0),
-      bold_text_subject_(false),
-      info_visible_subject_(false),
       quit_requested_subject_(false) {
     // A per-session prefix so our client ids never collide with those from an
     // earlier UI session (the supervisor keeps history across UI reconnects).
@@ -45,32 +41,12 @@ BaseViewModel::BaseViewModel()
 
 BaseViewModel::~BaseViewModel() = default;
 
-lv_subject_t* BaseViewModel::title_subject() {
-    return title_subject_.native();
-}
-
-lv_subject_t* BaseViewModel::greeting_subject() {
-    return greeting_subject_.native();
-}
-
 lv_subject_t* BaseViewModel::dark_mode_subject() {
     return dark_mode_subject_.native();
 }
 
 lv_subject_t* BaseViewModel::current_page_subject() {
     return current_page_subject_.native();
-}
-
-lv_subject_t* BaseViewModel::counter_subject() {
-    return counter_subject_.native();
-}
-
-lv_subject_t* BaseViewModel::bold_text_subject() {
-    return bold_text_subject_.native();
-}
-
-lv_subject_t* BaseViewModel::info_visible_subject() {
-    return info_visible_subject_.native();
 }
 
 lv_subject_t* BaseViewModel::quit_requested_subject() {
@@ -116,11 +92,6 @@ void BaseViewModel::show_settings_page() {
     publish_all();
 }
 
-void BaseViewModel::toggle_page() {
-    model_.toggle_page();
-    publish_all();
-}
-
 void BaseViewModel::show_next_page() {
     model_.toggle_page();
     publish_all();
@@ -160,30 +131,11 @@ void BaseViewModel::open_menu_selection() {
     }
 }
 
-void BaseViewModel::increment_counter() {
-    counter_subject_.set(counter_subject_.value() + 1);
-}
-
-void BaseViewModel::decrement_counter() {
-    const auto next = counter_subject_.value() - 1;
-    counter_subject_.set(next < 0 ? 0 : next);
-}
-
-void BaseViewModel::toggle_bold_text() {
-    bold_text_subject_.toggle();
-}
-
-void BaseViewModel::toggle_info() {
-    info_visible_subject_.toggle();
-}
-
 void BaseViewModel::request_quit() {
     quit_requested_subject_.set(true);
 }
 
 void BaseViewModel::publish_all() {
-    title_subject_.set(model_.app_title());
-    greeting_subject_.set(model_.greeting());
     dark_mode_subject_.set(model_.dark_mode());
     current_page_subject_.set(page_to_int(model_.current_page()));
 }
@@ -778,7 +730,6 @@ void BaseViewModel::apply_config(const std::string& preset, int hop, bool positi
     config_state_.set("confirmed");
 }
 
-
 int BaseViewModel::channel_for_thread(const std::string& key) const {
     for (const auto& ch : channels_) if (!ch.identity.empty() && key == "ch:" + ch.identity) return ch.index;
     return -1;
@@ -832,23 +783,104 @@ void BaseViewModel::apply_setup(const json::Value& event) {
     if (event.str_at("id").empty()) services_version_.set(services_version_.value() + 1);
     else apply_service(event);
 }
+std::vector<ConversationRow> BaseViewModel::conversation_rows(const std::string& search) const {
+    struct Item { ConversationRow row; bool pinned = false; bool match = false; };
+    std::vector<Item> items;
+    items.reserve(messages_.size() + drafts_.size());
+    std::unordered_map<std::string,size_t> index;
+    index.reserve(messages_.size() + drafts_.size());
+    std::unordered_map<std::string,std::string> peers, groups;
+    for (const auto& node : nodes_) peers.emplace(node.id, node.name.empty() ? node.id : node.name);
+    for (const auto& channel : channels_) if (!channel.identity.empty())
+        groups.emplace("ch:" + channel.identity, "# " + channel_label(channel.index));
+    const auto peer_name = [&](const std::string& id) {
+        const auto found = peers.find(id); return found == peers.end() ? id : found->second;
+    };
+    const auto add = [&](const std::string& key, const std::string& peer, const std::string& name,
+                         const std::string& preview, long time) {
+        index.emplace(key, items.size());
+        items.push_back({{key, peer, name, preview, time}, pinned(key), false});
+        return items.size()-1;
+    };
+    for (const auto& message : messages_) {
+        const auto key = thread_key_of(message);
+        auto found = index.find(key);
+        size_t slot;
+        if (found == index.end()) {
+            const bool group = is_group_thread(key);
+            const std::string peer = group ? "" : (message.outgoing ? message.to : message.from);
+            const auto live = groups.find(key);
+            const std::string name = !group ? peer_name(peer) : live != groups.end() ? live->second :
+                "Archived: " + (message.channelName.empty() ? std::string("Default") : message.channelName) +
+                    (message.channelPrivate ? " [Private]" : " [Public]");
+            slot = add(key, peer, name, message.text, message.time);
+        } else slot = found->second;
+        auto& item = items[slot];
+        if (message.time >= item.row.last_time) {
+            item.row.last_time = message.time; item.row.preview = message.text;
+        }
+        if (!search.empty() && message.text.find(search) != std::string::npos) item.match = true;
+    }
+    // The first nonempty draft in map order has the same precedence as
+    // conversation_draft(), including channel-qualified DM drafts.
+    std::unordered_map<std::string,std::string> drafts;
+    for (const auto& [key,text] : drafts_) if (!text.empty()) {
+        drafts.emplace(key.substr(0,key.find('@')),text);
+        drafts.emplace(key,text);
+    }
+    for (const auto& key : conversation_keys()) {
+        const auto draft = drafts.find(key);
+        auto found = index.find(key);
+        const bool group = is_group_thread(key);
+        size_t slot;
+        if (found == index.end()) {
+            const auto live = groups.find(key);
+            const std::string peer = group ? "" : key.substr(3);
+            slot = add(key, peer, group ? (live == groups.end() ? "Archived channel" : live->second) : peer_name(peer), "No messages", 0);
+        } else slot = found->second;
+        if (draft != drafts.end()) items[slot].row.preview = "Draft: " + draft->second;
+    }
+    if (!search.empty()) items.erase(std::remove_if(items.begin(),items.end(),[&](const Item& item) {
+        return !item.match && item.row.name.find(search) == std::string::npos && item.row.preview.find(search) == std::string::npos;
+    }),items.end());
+    std::stable_sort(items.begin(),items.end(),[](const Item& a,const Item& b) {
+        if (a.pinned != b.pinned) return a.pinned;
+        return a.row.last_time > b.row.last_time;
+    });
+    std::vector<ConversationRow> rows;
+    rows.reserve(items.size());
+    for (auto& item : items) {
+        if (item.pinned) item.row.name = "* " + item.row.name;
+        rows.push_back(std::move(item.row));
+    }
+    return rows;
+}
+
 void BaseViewModel::apply_threads(const json::Value& event) {
-    const auto local = drafts_;
-    drafts_.clear(); pinned_.clear();
+    std::map<std::string,std::string> drafts;
+    std::set<std::string> pins;
+    bool history_enabled = history_enabled_;
     if (const auto* states = event.find("threads")) for (const auto& [key, value] : states->obj) {
-        if (drafts_.size() >= 256) break;
+        if (drafts.size() >= 256) break;
         if (key.size() <= 3 || key.size() > 160 || value.type != json::Value::Obj ||
             (key.rfind("ch:",0) != 0 && key.rfind("dm:",0) != 0) || value.str_at("draft").size() > 200) continue;
         if (key.rfind("dm:",0) == 0) {
             const auto peer = key.substr(3,key.find('@') == std::string::npos ? std::string::npos : key.find('@')-3);
             if (peer.size() != 9 || peer[0] != '!' || !std::all_of(peer.begin()+1,peer.end(),[](unsigned char c) { return std::isxdigit(c); })) continue;
         }
-        drafts_[key] = value.str_at("draft");
-        if (const auto* pin = value.find("pinned"); pin && pin->as_bool()) pinned_.insert(key);
+        drafts[key] = value.str_at("draft");
+        if (const auto* pin = value.find("pinned"); pin && pin->as_bool()) pins.insert(key);
     }
-    if (const auto* v = event.find("history_enabled")) history_enabled_ = v->as_bool();
-    for (const auto& key : dirty_drafts_) { const auto it = local.find(key); if (it != local.end()) drafts_[key] = it->second; }
-    messages_version_subject_.set(messages_version_subject_.value() + 1);
+    if (const auto* v = event.find("history_enabled")) history_enabled = v->as_bool();
+    for (const auto& key : dirty_drafts_) {
+        const auto it = drafts_.find(key);
+        if (it != drafts_.end()) drafts[key] = it->second;
+    }
+    if (drafts != drafts_ || pins != pinned_ || history_enabled != history_enabled_) {
+        drafts_ = std::move(drafts); pinned_ = std::move(pins); history_enabled_ = history_enabled;
+        messages_version_subject_.set(messages_version_subject_.value() + 1);
+    }
+    // An unchanged payload can still complete a correlated preference request.
     if (!event.str_at("id").empty()) apply_service(event);
 }
 std::string BaseViewModel::draft(const std::string& key) const {
