@@ -6,7 +6,7 @@
 
 cmake_minimum_required(VERSION 3.31)
 
-project(template_app VERSION 0.1.3 LANGUAGES C CXX)
+project(template_app VERSION 0.1.4 LANGUAGES C CXX)
 
 add_compile_definitions(APP_VERSION="${PROJECT_VERSION}")
 

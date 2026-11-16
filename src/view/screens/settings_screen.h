@@ -34,7 +34,7 @@ private:
     int managed_channel_ = -1;
     bool offered_setup_ = false;
     std::vector<json::Value> service_items_;
-    enum class Overlay { None, Picker, Text, Info, Canned };
+    enum class Overlay { None, Picker, Text, Info, Canned, ScanReady, ScanBusy };
 
     void build_content(lv_obj_t* content) override;
     void rebuild();
@@ -43,7 +43,9 @@ private:
     void open_picker(const std::string& title, std::vector<std::string> options,
                      const std::string& pending, int initial);
     void open_text(const std::string& title, const std::string& initial, const std::string& pending);
-    void open_info(const std::string& title, std::vector<std::string> rows);
+    void open_info(const std::string& title, std::vector<std::string> rows,
+                   const char* hint = "Esc: back");
+    void open_scan_ready(const std::string& error = "");
     void open_canned();
     void teardown_overlay_obj();
     void rebuild_picker();

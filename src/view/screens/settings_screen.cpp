@@ -89,6 +89,7 @@ void SettingsScreen::build_content(lv_obj_t* content) {
     lv_obj_clear_flag(list_, LV_OBJ_FLAG_SCROLL_MOMENTUM);
     rebuild();
     lv_subject_add_observer_obj(view_model().services_subject(), services_cb, list_, this);
+    lv_subject_add_observer_obj(view_model().connected_subject(), on_change, list_, this);
     // Re-render when any bound value changes.
     lv_subject_add_observer_obj(view_model().radio_state_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().region_subject(), on_change, list_, this);
@@ -108,6 +109,13 @@ void SettingsScreen::build_content(lv_obj_t* content) {
 
 void SettingsScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
     auto* self = static_cast<SettingsScreen*>(lv_observer_get_user_data(observer));
+    if (self && self->overlay_mode_ == Overlay::ScanBusy &&
+        !lv_subject_get_int(self->view_model().connected_subject())) {
+        self->service_route_.clear();
+        self->close_overlay();
+        self->open_scan_ready("Connection lost. Check Channels before retrying.");
+        return;
+    }
     if (self && self->overlay_mode_ == Overlay::None) {
         self->rebuild();
     }
@@ -394,7 +402,8 @@ void SettingsScreen::open_text(const std::string& title, const std::string& init
     lv_obj_set_style_text_color(hint, colors.text_disabled, 0);
 }
 
-void SettingsScreen::open_info(const std::string& title, std::vector<std::string> rows) {
+void SettingsScreen::open_info(const std::string& title, std::vector<std::string> rows,
+                               const char* hint_text) {
     overlay_mode_ = Overlay::Info;
     overlay_title_ = title;
     overlay_obj_ = lv_obj_create(lv_obj_get_parent(list_));
@@ -427,9 +436,16 @@ void SettingsScreen::open_info(const std::string& title, std::vector<std::string
         lv_obj_set_style_text_color(row, colors.text, 0);
     }
     auto* hint = lv_label_create(overlay_obj_);
-    lv_label_set_text(hint, "Esc: back");
+    lv_label_set_text(hint, hint_text);
     lv_obj_set_style_text_font(hint, font, 0);
-    lv_obj_set_style_text_color(hint, colors.text_disabled, 0);
+    lv_obj_set_style_text_color(hint, colors.text, 0);
+}
+
+void SettingsScreen::open_scan_ready(const std::string& error) {
+    open_info(error.empty() ? "Scan QR code" : "Scan failed",
+              {error.empty() ? "Aim the camera at a Meshtastic channel QR code." : error},
+              error.empty() ? "Return: scan    Esc: back" : "Return: retry    Esc: back");
+    overlay_mode_ = Overlay::ScanReady;
 }
 
 void SettingsScreen::open_canned() {
@@ -478,7 +494,11 @@ void SettingsScreen::close_overlay() {
 }
 
 void SettingsScreen::apply_overlay() {
-    if (overlay_mode_ == Overlay::Picker) {
+    if (overlay_mode_ == Overlay::ScanBusy) {
+        return; // A held Return key must not dismiss or queue another scan.
+    } else if (overlay_mode_ == Overlay::ScanReady) {
+        request_service("scan", "channel.scan");
+    } else if (overlay_mode_ == Overlay::Picker) {
         if (opt_sel_ < 0 || opt_sel_ >= static_cast<int>(options_.size())) { close_overlay(); return; }
         const std::string choice = options_[opt_sel_];
         if (extended_picker(pending_, opt_sel_)) return;
@@ -516,12 +536,8 @@ void SettingsScreen::apply_overlay() {
         }
         else if (pending_ == "addmenu") {
             if (opt_sel_ == 0) {
-                view_model().scan_channel_qr();
-                const bool have_overlay = overlay_obj_ != nullptr;
-                (void)have_overlay;
                 close_overlay();
-                open_info("Scan QR code", {"Point the camera at a Meshtastic channel QR code.",
-                                           "(Works on the device, not the simulator.)"});
+                open_scan_ready();
             } else {
                 close_overlay();
                 open_text("Paste share URL", "", "channel-url");
@@ -577,7 +593,7 @@ void SettingsScreen::apply_overlay() {
 
 // --- navigation -------------------------------------------------------------
 void SettingsScreen::on_up() {
-    if (overlay_mode_ == Overlay::Info && overlay_obj_) {
+    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady) && overlay_obj_) {
         const int32_t room = lv_obj_get_scroll_top(overlay_obj_);
         if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? room : 40, LV_ANIM_OFF);
         return;
@@ -591,7 +607,7 @@ void SettingsScreen::on_up() {
 }
 
 void SettingsScreen::on_down() {
-    if (overlay_mode_ == Overlay::Info && overlay_obj_) {
+    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady) && overlay_obj_) {
         const int32_t room = lv_obj_get_scroll_bottom(overlay_obj_);
         if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? -room : -40, LV_ANIM_OFF);
         return;
@@ -637,8 +653,14 @@ void SettingsScreen::services_cb(lv_observer_t* observer, lv_subject_t*) {
 void SettingsScreen::request_service(const std::string& route, const std::string& intent, const std::string& fields) {
     close_overlay();
     service_route_ = route;
-    open_info("Working", {"Waiting for supervisor...", "Esc cancels this view."});
-    if (!view_model().service_request(intent, fields)) { service_route_.clear(); close_overlay(); }
+    if (route == "scan") {
+        open_info("Scanning QR code...", {"Keep the camera steady.", "Esc leaves this view; the scan continues."});
+        overlay_mode_ = Overlay::ScanBusy;
+    } else open_info("Working", {"Waiting for supervisor...", "Esc cancels this view."});
+    if (!view_model().service_request(intent, fields)) {
+        service_route_.clear(); close_overlay();
+        if (route == "scan") open_scan_ready("Supervisor unavailable; scan was not sent.");
+    }
 }
 void SettingsScreen::service_result() {
     if (service_route_.empty()) {
@@ -649,8 +671,15 @@ void SettingsScreen::service_result() {
         return;
     }
     const auto event = view_model().service_event();
+    if (event.str_at("id").empty()) return; // Unsolicited setup changes are not replies.
     const auto route = service_route_;
     service_route_.clear(); close_overlay();
+    if (route == "scan") {
+        if (event.str_at("event") == "error") open_scan_ready(event.str_at("text"));
+        else open_info("Scan complete", {event.int_at("added") == 0 ? "Channels already present." :
+            "Imported " + std::to_string(event.int_at("added")) + " channel(s)."});
+        return;
+    }
     if (event.str_at("event") == "error") { open_info("Action failed", {event.str_at("text")}); return; }
     if (route == "setup") {
         if (!flag(event, "ready")) { offered_setup_ = true; open_picker("First run: select your radio region", kRegions, "setup-region", 0); }

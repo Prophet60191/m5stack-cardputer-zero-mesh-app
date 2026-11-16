@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.4 — 2026-11-16 (release candidate)
+
+- Wait for Return on Scan QR code before starting the camera, and show Scanning
+  immediately until the matching supervisor result arrives. Ignore repeated
+  Return while busy; show completion, already-present channels or a retryable
+  failure. Remove the device/simulator note from the scan screen.
+- Correlate scan replies by request ID; dismissed/old replies cannot replace a
+  newer view. A lost connection shows an uncertain result rather than waiting
+  indefinitely. Escape leaves the view without claiming to cancel an import.
+
+Validation: native ASAN/UBSAN checks cover ready/busy/result transitions, retry,
+Escape, repeated keys, unsolicited updates, stale replies and connection loss.
+Real-font keyboard hints fit at 320x170. All 68 backend cases pass in Debian 13
+arm64, including scan reply correlation without exposing the decoded URL;
+package/install/policy checks pass. Actual-device installation is tracked
+separately in the verification record.
+
 ## 0.1.3 — 2026-11-16 (release candidate)
 
 - Group Settings by radio, channels/node, location/Internet, messaging,

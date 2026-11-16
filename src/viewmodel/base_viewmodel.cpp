@@ -667,10 +667,6 @@ void BaseViewModel::add_channel_url(const std::string& url) {
     send_intent("{\"intent\":\"channel.add\",\"url\":\"" + json::escape(url) + "\"}");
 }
 
-void BaseViewModel::scan_channel_qr() {
-    send_intent("{\"intent\":\"channel.scan\"}");
-}
-
 void BaseViewModel::set_region(const std::string& region) {
     send_intent("{\"intent\":\"region.set\",\"region\":\"" + json::escape(region) + "\"}");
 }
@@ -788,6 +784,7 @@ void BaseViewModel::apply_health(const std::string& mode, const std::string& det
 }
 bool BaseViewModel::service_request(const std::string& intent, const std::string& fields) {
     service_request_id_ = session_id_ + "service" + std::to_string(++cid_counter_);
+    service_event_ = {}; // An unsolicited setup update must not reuse an old result.
     return send_intent("{\"intent\":\"" + json::escape(intent) + "\",\"id\":\"" + service_request_id_ + "\"" + fields + "}");
 }
 void BaseViewModel::apply_service(const json::Value& event) {

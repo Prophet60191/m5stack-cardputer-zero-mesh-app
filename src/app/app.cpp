@@ -110,7 +110,7 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
         vm.apply_setup(ev);
         const auto* ready = ev.find("ready");
         if (ready && !ready->as_bool()) vm.show_settings_page();
-    } else if (type == "profiles" || type == "profile.preview" || type == "diagnostics" || type == "channel.slots") {
+    } else if (type == "profiles" || type == "profile.preview" || type == "diagnostics" || type == "channel.slots" || type == "channel.scanned") {
         vm.apply_service(ev);
     } else if (type == "_connected") {
         vm.set_connected(true);

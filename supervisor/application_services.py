@@ -245,7 +245,7 @@ class ApplicationServices:
                           math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180)
         age = self._position_age(gps)
         connected = getattr(self._iface, "isConnected", None)
-        return {"event": "diagnostics", "app": "0.1.3", "python": platform.python_version(),
+        return {"event": "diagnostics", "app": "0.1.4", "python": platform.python_version(),
                 "client": self._client_version(), "daemon": self._daemon_version(),
                 "radio": self._radio, "api_connected": bool(connected and connected.is_set()),
                 "mode": self._status()["mode"], "firewall": firewall,

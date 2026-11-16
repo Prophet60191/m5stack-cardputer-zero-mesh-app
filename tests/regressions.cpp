@@ -291,6 +291,84 @@ static void compact_layout_regression(const char* screenshot_path) {
     check_help(label_starting(messages.root(),"\xE2\x86\x91\xE2\x86\x93: pick"));
 }
 
+static void qr_scan_ui_regression(const char* screenshot_path) {
+    viewmodel::BaseViewModel vm;
+    std::string sent;
+    int scans = 0;
+    bool accept = true;
+    vm.set_command_sink([&](const std::string& value) {
+        sent = value;
+        if (value.find("channel.scan") != std::string::npos) ++scans;
+        return accept;
+    });
+    vm.set_connected(true);
+    app::AssetManager assets;
+    screen::SettingsScreen settings(vm, assets); lv_screen_load(settings.root());
+    const auto visible_hint = [&](const char* prefix) {
+        lv_obj_update_layout(settings.root());
+        auto* hint = label_starting(settings.root(), prefix); CHECK(hint);
+        lv_area_t area; lv_obj_get_coords(hint, &area);
+        CHECK(area.x1 >= 0 && area.x2 < 320 && area.y1 >= 30 && area.y2 < 170);
+        lv_point_t size; lv_text_get_size(&size, lv_label_get_text(hint), lv_obj_get_style_text_font(hint, LV_PART_MAIN), 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        CHECK(size.x <= lv_obj_get_width(hint));
+    };
+    const auto open_scan = [&] {
+        select_setting(settings, "Add a channel");
+        settings.on_enter(); settings.on_enter();
+        CHECK(labels(settings.root()).find("Return: scan") != std::string::npos);
+        CHECK(labels(settings.root()).find("simulator") == std::string::npos);
+        visible_hint("Return: scan");
+    };
+    const auto capture = [&](const char* name) {
+        if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/name).c_str(), settings.root());
+    };
+    const auto result = [&](const std::string& id, const std::string& fields) {
+        json::Value ev; CHECK(json::parse("{\"id\":\""+id+"\","+fields+"}", ev));
+        vm.apply_service(ev);
+    };
+    const auto start = [&] {
+        settings.on_enter();
+        CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
+        visible_hint("Esc: back");
+        json::Value req; CHECK(json::parse(sent, req));
+        CHECK(req.str_at("intent") == "channel.scan");
+        CHECK(!req.str_at("id").empty());
+        return req.str_at("id");
+    };
+    open_scan(); CHECK(scans == 0); capture("qr-scan-ready.png");
+    CHECK(settings.on_back()); CHECK(scans == 0);
+    open_scan(); const auto first = start(); CHECK(scans == 1); capture("qr-scanning.png");
+    json::Value setup; CHECK(json::parse(R"({"event":"setup","ready":true})", setup));
+    vm.apply_setup(setup); // An unsolicited state change cannot complete a scan.
+    for (int i = 0; i < 5; ++i) settings.on_enter();
+    CHECK(scans == 1); CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
+    result("wrong-request", R"("event":"channel.scanned","added":1)");
+    CHECK(labels(settings.root()).find("Scan complete") == std::string::npos);
+    result(first, R"("event":"error","text":"No QR code found. Aim and retry.")");
+    CHECK(labels(settings.root()).find("Return: retry") != std::string::npos); capture("qr-scan-failed.png");
+    const auto second = start(); CHECK(second != first); CHECK(scans == 2);
+    vm.apply_setup(setup); // Nor can it replay the previous cached error.
+    result(first, R"("event":"channel.scanned","added":1)"); // late old reply
+    CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
+    result(second, R"("event":"channel.scanned","added":1)");
+    CHECK(labels(settings.root()).find("Imported 1 channel(s).") != std::string::npos); capture("qr-scan-complete.png");
+    settings.on_back(); open_scan(); const auto dismissed = start();
+    settings.on_back(); open_scan();
+    result(dismissed, R"("event":"channel.scanned","added":1)");
+    CHECK(labels(settings.root()).find("Return: scan") != std::string::npos); // leave ready view alone
+    const auto duplicate = start(); result(duplicate, R"("event":"channel.scanned","added":0)");
+    CHECK(labels(settings.root()).find("Channels already present.") != std::string::npos);
+    settings.on_back(); open_scan(); accept = false; settings.on_enter();
+    CHECK(labels(settings.root()).find("scan was not sent") != std::string::npos);
+    accept = true; const auto disconnected = start(); vm.set_connected(false);
+    CHECK(labels(settings.root()).find("Connection lost") != std::string::npos);
+    result(disconnected, R"("event":"channel.scanned","added":1)");
+    CHECK(labels(settings.root()).find("Scan complete") == std::string::npos);
+    vm.set_connected(true); const auto after_reconnect = start();
+    result(after_reconnect, R"("event":"channel.scanned","added":0)");
+    CHECK(labels(settings.root()).find("Channels already present.") != std::string::npos);
+}
+
 static void services_ui_regression(const char* screenshot_path) {
     viewmodel::BaseViewModel vm;
     std::string sent;
@@ -387,6 +465,7 @@ int main(int argc, char** argv) {
     lv_init(); auto* display = lv_display_create(320, 170); CHECK(display);
     dual_channel_ui_regression(argc > 1 ? argv[1] : nullptr);
     services_ui_regression(argc > 1 ? argv[1] : nullptr);
+    qr_scan_ui_regression(argc > 1 ? argv[1] : nullptr);
     identity_confirmation_regression();
     draft_only_conversation_regression();
     compact_layout_regression(argc > 1 ? argv[1] : nullptr);

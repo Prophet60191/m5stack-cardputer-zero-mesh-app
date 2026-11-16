@@ -16,7 +16,7 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `node.list` | — | replies `nodes` |
 | `channel.list` | — | replies `channels` |
 | `channel.add` | `url` | import a channel from a Meshtastic share URL (adds as secondary) |
-| `channel.scan` | — | scan a channel QR with the camera (device only), then import it |
+| `channel.scan` | `id?` | scan a channel QR with the camera, import it, reply `channel.scanned` or `error` with the same request ID |
 | `channel.share` | `channel`, `id` | replies `channelshare` with a share URL for **that indexed channel only** |
 | `region.set` | `region` (e.g. `"US"`) | set the LoRa region |
 | `owner.set` | `name`, `short?` | set this node's name |
@@ -39,6 +39,7 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `delivery` | `cid`, `status` (`sent`\|`mesh`\|`delivered`\|`failed`), `hops?` — the ack for one of our `message.send`s |
 | `device` | `node_id`, `firmware`, `model` — our node's identity |
 | `config` | `preset`, `hop`, `position`, `gps_mode`, `mqtt`, `confirmed`, `frequency_slot`, `tx_enabled`, `id?` — the current LoRa/module config |
+| `channel.scanned` | `added`, `id?` — confirmed imported channel count; zero means already present; never includes the decoded URL |
 | `channelshare` | `channel`, `channel_id`, `name`, `url`, `id` — a Meshtastic share URL for one channel (reply to `channel.share`) |
 | `traceroute` | `node`, `channel`, `ok`, `path?` (names, you→…→dest) or `text?` (reason on failure) |
 | `notice` | `text` — a human status line (e.g. "location sent") |
@@ -51,7 +52,13 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 - **Async events are broadcast** to every connected client, so the UI stays live without polling.
 - **Public and private channels are supported.** All RF actions require an explicit valid enabled channel. DMs choose their channel explicitly; missing or invalid channels never fall back to zero.
 
-QR channel-add: the camera capture + QR decode happen in the supervisor (`channel.scan`); the decoded share URL feeds the same `channel.add` intent. The UI just triggers "scan".
+QR channel-add uses the same validated importer as `channel.add`. Selecting Scan
+QR code opens a ready view; Return sends one `channel.scan` request and immediately
+shows Scanning. Repeated Return while waiting does nothing. A matching
+`channel.scanned`/`error` finishes that view; failed scans offer Return to retry.
+Dismissed or superseded replies cannot reopen it. Escape only leaves the view;
+the supervisor operation may still complete. Capture/decode happens in memory,
+and the result event contains a count rather than the decoded secret URL.
 
 QR channel-share (`channel.share`): the supervisor builds a share URL for **only the indexed channel** (public or private; never all node channels), and the UI renders it as a scannable QR with LVGL's `lv_qrcode`. Channel keys live only on the device; the URL is generated at request time and never written to the repo.
 

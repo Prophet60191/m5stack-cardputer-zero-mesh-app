@@ -1,6 +1,6 @@
 # Independent review remediation — 2026-11-15
 
-Initial review candidate: **0.1.1**; current candidate: **0.1.3** (latest evidence below).
+Initial review candidate: **0.1.1**; current candidate: **0.1.4** (latest evidence below).
 These changes replace the earlier assumption that
 all review concerns had already been resolved. The evidence below covers the
 current source and offline package; it does not certify an installed radio.
@@ -247,3 +247,23 @@ readback passed. Launcher refresh passed. This UI change does not establish the
 previously deferred outdoor GPS/public-RF/physical-IPv6 checks.
 The operator subsequently confirmed the Settings order and the separate channel
 header/keyboard-help layout on the actual device.
+
+
+## 0.1.4 explicit QR scanning
+
+Scan QR code opens instructions with `Return: scan`; the camera does not start
+until Return. The screen immediately shows Scanning while the supervisor performs
+capture/decode and confirmed channel import. Repeated Return does nothing while
+busy. The matched result shows imported count, already-present channels or an
+error with `Return: retry`. Escape leaves the view, with the operation allowed to
+finish; disconnect reports uncertainty and asks the user to check Channels.
+The developer-only simulator note has been removed and keyboard hints use normal
+text contrast.
+
+Native ASAN/UBSAN regressions cover this flow, stale/dismissed replies, unsolicited
+setup updates, busy key repeats, send failure and disconnect/reconnect. Ready and
+busy keyboard hints are checked against real-font pixel bounds at 320x170;
+rendered examples use synthetic data. All 68 backend cases and Debian 13 arm64
+package/install/policy checks pass. Existing in-memory camera capture and import
+validation are unchanged. These offline results do not claim a new physical
+camera scan; installation verification is recorded separately when completed.

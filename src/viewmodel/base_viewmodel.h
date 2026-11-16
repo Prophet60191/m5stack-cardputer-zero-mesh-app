@@ -194,7 +194,6 @@ public:
     void radio_stop();
     bool send_message(int channel, const std::string& text, const std::string& dest = "");
     void add_channel_url(const std::string& url);
-    void scan_channel_qr();   // ask the supervisor to scan a channel QR (device only)
     void set_region(const std::string& region);
     void set_owner(const std::string& name, const std::string& short_name);
 

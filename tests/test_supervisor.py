@@ -95,6 +95,26 @@ class SupervisorTests(unittest.TestCase):
         self.s._dispatch(self.c, req)
     def send(self, **extra):
         self.dispatch(**dict(intent='message.send', channel=1, text='Synthetic test', cid='client-1', **extra))
+    def test_scan_correlates_results_without_exposing_url(self):
+        url = 'https://meshtastic.org/e/#synthetic-scan'
+        for added in (0, 1):
+            with self.subTest(added=added), patch.object(self.s, '_scan_qr', return_value=url), \
+                    patch.object(self.s, '_add_channel', return_value=added) as add:
+                self.c.events.clear()
+                self.dispatch(intent='channel.scan', id='synthetic-scan-id')
+                add.assert_called_once_with(url)
+                self.assertEqual(self.c.events[0], {'event': 'channel.scanned', 'added': added, 'id': 'synthetic-scan-id'})
+                self.assertNotIn(url, json.dumps(self.c.events))
+        for scan_value, failure in ((None, None), (None, RuntimeError('Camera unavailable or busy'))):
+            with self.subTest(failure=failure), patch.object(self.s, '_scan_qr', return_value=scan_value, side_effect=failure), \
+                    patch.object(self.s, '_add_channel') as add:
+                self.c.events.clear()
+                self.dispatch(intent='channel.scan', id='synthetic-error-id')
+                add.assert_not_called()
+                self.assertEqual(self.c.events[0]['event'], 'error')
+                self.assertEqual(self.c.events[0]['id'], 'synthetic-error-id')
+                self.assertEqual(self.c.events[0]['intent'], 'channel.scan')
+                self.assertIn('Camera' if failure else 'no QR', self.c.events[0]['text'])
     def test_public_private_channels_and_strict_unicast(self):
         for ch, dest in [(True, None), (1.5, None), ('1', None), (1, False), (1, ''), (99, '^all'), (1, '^all'), (1, '!ffffffff'), (1, '!00000000'), (1, '../node'), (7, None)]:
             with self.subTest(ch=ch, dest=dest), self.assertRaises(ValueError):

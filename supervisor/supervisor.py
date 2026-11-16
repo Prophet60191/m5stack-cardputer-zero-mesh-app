@@ -1058,7 +1058,7 @@ class Supervisor(ApplicationServices):
                 url = self._scan_qr()
                 if url:
                     added = self._add_channel(url)
-                    reply({"event": "notice", "text": f"imported {added} channel(s)"})
+                    reply({"event": "channel.scanned", "added": added})
                     self._broadcast(self._channels())
                 else:
                     reply({"event": "error", "text": "no QR code found", "intent": "channel.scan"})
