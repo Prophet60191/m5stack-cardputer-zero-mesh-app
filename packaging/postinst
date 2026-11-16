@@ -8,6 +8,6 @@ if [ "${1:-}" = configure ]; then
     if [ -d /run/systemd/system ]; then
         systemctl daemon-reload
         systemctl enable cardputerzero-mesh-firewall.service
-        systemctl start cardputerzero-mesh-firewall.service
+        systemctl restart cardputerzero-mesh-firewall.service
     fi
 fi

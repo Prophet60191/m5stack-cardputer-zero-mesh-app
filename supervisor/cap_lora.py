@@ -37,6 +37,7 @@ import contextlib
 import errno
 import fcntl
 import os
+import struct
 import time
 
 
@@ -76,6 +77,20 @@ class CapError(Exception):
         self.kind = kind
 
 
+def switch_value(value: str) -> str:
+    """Normalize the vendor LED driver's logical GPIO state.
+
+    Stock tools can leave brightness=255 although max_brightness reports 1.
+    These are binary switches: any valid 8-bit nonzero value means enabled.
+    Keep recovery records canonical and reject malformed/out-of-range data.
+    """
+    if not isinstance(value, str) or not value or any(c not in "0123456789" for c in value) or len(value) > 3:
+        raise ValueError("invalid power switch state")
+    number = int(value)
+    if number > 255: raise ValueError("invalid power switch state")
+    return "1" if number else "0"
+
+
 # --- tiny sysfs helpers ------------------------------------------------------
 def _read_text(path: str) -> str:
     with open(path) as f:
@@ -112,6 +127,35 @@ def preflight() -> None:
                            f"no read/write access to {path}. Add your user to the "
                            f"spi, gpio and i2c groups and log in again "
                            f"(sudo usermod -aG spi,gpio,i2c $USER).")
+    claimed = gpio_claims()
+    if claimed:
+        line = next(iter(claimed))
+        hint = ("NFC SPI-CS2 overlay reserves GPIO22; reboot after using NFC before starting LoRa"
+                if line == 22 and claimed[line] == "backing" else
+                f"GPIO{line} is already claimed; close the other hardware app before starting LoRa")
+        raise CapError("gpio-busy", hint)
+
+
+def gpio_claims() -> dict:
+    """Read-only GPIO character ABI v1 query on the qualified Debian image.
+
+    Never unbind an unrelated kernel driver or remove another app's overlay.
+    The hardware guardian repeats preflight after obtaining its own lease.
+    """
+    claimed = {}
+    fd = os.open(GPIO_CHIP, os.O_RDONLY | os.O_CLOEXEC)
+    try:
+        for offset in (22, 23, 26):
+            info = bytearray(72)  # struct gpioline_info: offset, flags, name, consumer
+            struct.pack_into("I", info, 0, offset)
+            fcntl.ioctl(fd, 0xC048B402, info, True)  # GPIO_GET_LINEINFO_IOCTL, no mutation
+            if struct.unpack_from("I", info, 4)[0] & 1:  # GPIOLINE_FLAG_KERNEL
+                claimed[offset] = bytes(info[40:72]).split(b"\0", 1)[0].decode("utf-8", "replace")
+    except OSError as exc:
+        raise CapError("gpio-check", "cannot verify GPIO availability on this kernel; keep radio off") from exc
+    finally:
+        os.close(fd)
+    return claimed
 
 
 def verify_expander(fd: int) -> int:
@@ -166,8 +210,8 @@ def powered_cap(*, drive_rf: bool = True):
     preflight()
 
     # Save the switches exactly as we found them, so we leave no trace.
-    power_before = _read_text(POWER_LED)
-    mux_before = _read_text(MUX_LED)
+    power_before = switch_value(_read_text(POWER_LED))
+    mux_before = switch_value(_read_text(MUX_LED))
 
     powered = False
     try:

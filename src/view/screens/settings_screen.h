@@ -24,6 +24,16 @@ public:
     bool is_composing() override;
 
 private:
+    static void services_cb(lv_observer_t*, lv_subject_t*);
+    void service_result();
+    void request_service(const std::string& route, const std::string& intent, const std::string& fields = "");
+    bool extended_picker(const std::string& pending, int choice);
+    bool extended_text(const std::string& pending, const std::string& value);
+    std::string service_route_, setup_region_, setup_kind_, channel_action_, channel_id_, profile_id_;
+    std::string channel_fields_, channel_name_;
+    int managed_channel_ = -1;
+    bool offered_setup_ = false;
+    std::vector<json::Value> service_items_;
     enum class Overlay { None, Picker, Text, Info, Canned };
 
     void build_content(lv_obj_t* content) override;
@@ -50,7 +60,9 @@ private:
     int opt_sel_ = 0;          // picker selection
     std::vector<std::string> options_;
     std::vector<int> position_channels_;
+    std::vector<std::string> position_channel_ids_;
     int public_position_channel_ = -1;
+    std::string public_position_identity_;
     std::string pending_;      // which setting the overlay edits
     bool from_canned_ = false; // a text editor opened from the Quick-messages list
     int canned_edit_index_ = -1;

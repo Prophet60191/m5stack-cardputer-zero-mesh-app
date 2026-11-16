@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.2 — 2026-11-15 (release candidate; hardware qualification in progress)
+
+- Replace repeated sudo health probes with a capability-only firewall monitor;
+  preserve exact stop causes. A device traceback confirmed timeout cleanup of an
+  elevated helper caused EPERM and idle radio shutdowns.
+- Normalize the vendor driver's 255-valued GPIO brightness during guardian
+  recovery; stranded recovery records no longer prevent subsequent starts.
+- Detect occupied LoRa GPIOs before power-on, including the NFC overlay
+  reserving GPIO22, and report the required reboot instead of a daemon assertion.
+- Handle tuning changes through planned stop/persist/reconnect and readback.
+- Add receive-only first-run setup, explicit confirmed TX control, schema/client/
+  daemon compatibility checks and dependency diagnostics.
+- Bind routing, history, drafts and retries to opaque channel identity; archive
+  replaced slots and reject stale selections before RF.
+- Add bounded private SQLite conversations/drafts/pins, no replay after restart,
+  disk-history opt-out, search and local-time quiet hours.
+- Add confirmed channel management, named private local profiles, live node/
+  telemetry/GPS ages, acknowledgment-source checks and preserved failure causes.
+- Add diagnostics with an explicit safe export whitelist; fix CSI camera capture
+  through rpicam-still and report missing decoder/camera failures.
+- Add native arm64 Debian 13 build/install/namespace validation and checksummed
+  workflow artifacts in CI, using fixed LVGL/action commits.
+
+Validation: 62 backend regressions (one Linux-only case skipped on macOS),
+real LVGL keyboard/lifetime/parser/transport checks with ASAN/UBSAN, synthetic
+320x170 renders and Debian arm64 package validation. See the implementation
+checklist for pending actual device, peer, GPS, camera and cold-power evidence.
+
 ## 0.1.1 — 2026-11-15 (release candidate)
 
 - Support public and private channels throughout startup, imports, group/DM

@@ -16,6 +16,7 @@ namespace screen {
 class MessagesScreen : public BaseScreen {
 public:
     MessagesScreen(viewmodel::BaseViewModel& view_model, app::AssetManager& assets);
+    ~MessagesScreen() override;
 
     void on_up() override;
     void on_down() override;
@@ -41,6 +42,8 @@ private:
     void cancel_compose();
     void update_hint();
     int send_channel();
+    std::string draft_key() const;
+    static void draft_changed(lv_event_t* event);
     std::string peer_name_for(const std::string& id);
     std::string channel_name(int index);          // display name for a channel index
     std::string group_name(const std::string& key);  // "# <channel>" for a group thread
@@ -79,6 +82,10 @@ private:
     int selected_ = 0;             // selection in the list / picker
     int msg_sel_ = -1;             // thread: -1 = compose row, 0..n-1 = a bubble
     bool composing_ = false;
+    bool searching_ = false;
+    std::string search_;
+    std::string dm_channel_id_;
+    std::vector<std::string> channel_picker_ids_;
     bool at_bottom_ = true;        // smart auto-scroll
     int dm_channel_ = -1;          // explicitly chosen; never a primary fallback
     int location_channel_ = -1;
@@ -87,6 +94,7 @@ private:
     MenuKind menu_kind_ = MenuKind::None;
     bool awaiting_traceroute_ = false;   // a traceroute result overlay is expected
     bool awaiting_share_ = false;        // a channel-share QR overlay is expected
+    bool share_visible_ = false;
     std::string menu_target_;      // thread key or message id the menu acts on
     int menu_sel_ = 0;
     std::vector<std::string> menu_labels_;

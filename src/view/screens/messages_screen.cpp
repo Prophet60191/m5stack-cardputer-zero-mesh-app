@@ -45,13 +45,15 @@ std::string thread_of(const viewmodel::MessageInfo& m) {
 enum {
     A_MARK_READ = 1, A_MUTE, A_CLEAR, A_DELETE_THREAD, A_INFO,
     A_MSG_DETAILS, A_MSG_QUOTE, A_MSG_RESEND, A_MSG_DELETE,
-    A_SEND_LOCATION, A_REQUEST_POSITION, A_TRACEROUTE, A_SHARE_CHANNEL, A_CHANNEL,
+    A_SEND_LOCATION, A_REQUEST_POSITION, A_TRACEROUTE, A_SHARE_CHANNEL, A_CHANNEL, A_PIN,
 };
 
 std::string status_text(int s) {
     switch (s) {
         case viewmodel::kMsgSending: return "sending\xE2\x80\xA6";  // sending…
-        case viewmodel::kMsgDelivered: return "\xE2\x9C\x93 delivered";  // ✓ delivered
+        case viewmodel::kMsgDelivered: return "Recipient ACK";  // ✓ delivered
+        case viewmodel::kMsgMesh: return "Mesh ACK";
+        case viewmodel::kMsgSent: return "Sent (unconfirmed)";
         case viewmodel::kMsgFailed: return "\xE2\x9C\x97 failed";    // ✗ failed
         default: return "";
     }
@@ -96,6 +98,8 @@ void MessagesScreen::build_content(lv_obj_t* content) {
     lv_obj_align(hint_, LV_ALIGN_LEFT_MID, 4, 0);
 
     input_ = lv_textarea_create(bar_);
+    lv_obj_add_event_cb(input_, draft_changed, LV_EVENT_VALUE_CHANGED, this);
+    lv_textarea_set_max_length(input_, 200);
     lv_textarea_set_one_line(input_, true);
     lv_textarea_set_placeholder_text(input_, "Type a message");
     lv_obj_set_size(input_, lv_pct(100), kBarHeight);
@@ -129,13 +133,17 @@ std::string MessagesScreen::channel_name(int index) {
 }
 
 std::string MessagesScreen::group_name(const std::string& key) {
-    return "# " + channel_name(viewmodel::group_thread_channel(key));
+    const int index = view_model().channel_for_thread(key);
+    if (index >= 0) return "# " + channel_name(index);
+    for (const auto& m : view_model().messages()) if (thread_of(m) == key)
+        return "Archived: " + (m.channelName.empty() ? "Default" : m.channelName) + (m.channelPrivate ? " [Private]" : " [Public]");
+    return "Archived channel";
 }
 
 void MessagesScreen::update_hint() {
     if (!hint_) return;
     if (mode_ == Mode::List) {
-        lv_label_set_text(hint_, "\xE2\x86\x91\xE2\x86\x93 pick   \xC2\xB7   Enter: open");
+        lv_label_set_text(hint_, "\xE2\x86\x91\xE2\x86\x93 pick   \xC2\xB7   /: search   Enter: open");
     } else {
         const std::string who = viewmodel::is_group_thread(thread_key_) ? group_name(thread_key_)
         : ("DM via " + (dm_channel_ < 0 ? "choose channel" : channel_name(dm_channel_)) + " to " + peer_name_);
@@ -150,15 +158,22 @@ int MessagesScreen::send_channel() {
     // A group thread carries its own channel index; never fall back to a
     // different channel. DMs have their own explicit selection.
     if (mode_ == Mode::Thread && viewmodel::is_group_thread(thread_key_)) {
-        const int idx = viewmodel::group_thread_channel(thread_key_);
+        const int idx = view_model().channel_for_thread(thread_key_);
         return view_model().channel(idx) ? idx : -1;
     }
-    return view_model().channel(dm_channel_) ? dm_channel_ : -1;
+    const auto* current = view_model().channel(dm_channel_);
+    return current && current->identity == dm_channel_id_ ? dm_channel_ : -1;
 }
 
 void MessagesScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
     auto* self = static_cast<MessagesScreen*>(lv_observer_get_user_data(observer));
-    if (self) self->rebuild();
+    if (self) {
+        if (self->share_visible_ && !self->view_model().share_channel_valid()) {
+            self->close_info();
+            self->view_model().apply_notice("Channel changed; reopen its share code");
+        }
+        self->rebuild();
+    }
 }
 
 void MessagesScreen::rebuild() {
@@ -208,7 +223,8 @@ void MessagesScreen::rebuild_list() {
     for (int i = 0; i < static_cast<int>(conv_key_.size()); ++i) {
         int best = i;
         for (int j = i + 1; j < static_cast<int>(conv_key_.size()); ++j) {
-            if (last_time[j] > last_time[best]) best = j;
+            const bool jp = view_model().pinned(conv_key_[j]), bp = view_model().pinned(conv_key_[best]);
+            if ((jp && !bp) || (jp == bp && last_time[j] > last_time[best])) best = j;
         }
         if (best != i) {
             std::swap(conv_key_[i], conv_key_[best]);
@@ -219,6 +235,14 @@ void MessagesScreen::rebuild_list() {
         }
     }
 
+    if (!search_.empty()) {
+        for (int i = static_cast<int>(conv_key_.size()) - 1; i >= 0; --i) {
+            bool match = conv_name_[i].find(search_) != std::string::npos;
+            for (const auto& m : messages) if (thread_of(m) == conv_key_[i] && m.text.find(search_) != std::string::npos) match = true;
+            if (!match) { conv_key_.erase(conv_key_.begin()+i); conv_peer_.erase(conv_peer_.begin()+i); conv_name_.erase(conv_name_.begin()+i); last_text.erase(last_text.begin()+i); last_time.erase(last_time.begin()+i); }
+        }
+    }
+    for (size_t i = 0; i < conv_key_.size(); ++i) if (view_model().pinned(conv_key_[i])) conv_name_[i] = "* " + conv_name_[i];
     const int rows = 1 + static_cast<int>(conv_key_.size());   // +1 for "New message"
     if (selected_ < 0) selected_ = 0;
     if (selected_ >= rows) selected_ = rows - 1;
@@ -389,7 +413,7 @@ void MessagesScreen::rebuild_thread() {
         // Inline signal provenance for received messages (when enabled).
         if (!m.outgoing && view_model().show_signal()) {
             std::string sig;
-            if (m.hasSnr) { char b[16]; std::snprintf(b, sizeof(b), "%.1f dB", m.snr); sig = b; }
+    if (m.hasSnr) { char b[16]; std::snprintf(b, sizeof(b), "%.1f dB", m.snr); sig = b; }
             if (m.hops >= 0) { if (!sig.empty()) sig += " \xC2\xB7 "; sig += std::to_string(m.hops) + "h"; }
             if (!sig.empty()) { if (!footer.empty()) footer += "  "; footer += sig; }
         }
@@ -467,7 +491,7 @@ void MessagesScreen::rebuild_picker() {
     // Group channels first, so an empty history can still start a broadcast on a
     // specific (named) channel; then the nodes for direct messages.
     for (const auto& c : view_model().channels()) {
-        picker_id_.push_back("ch:" + std::to_string(c.index));
+        picker_id_.push_back("ch:" + c.identity);
         picker_name_.push_back("# " + channel_name(c.index));
     }
     for (const auto& n : view_model().nodes()) {
@@ -553,7 +577,7 @@ void MessagesScreen::on_down() {
         return;
     }
     if (mode_ == Mode::List) {
-        const int rows = 1 + static_cast<int>(conv_key_.size());
+    const int rows = 1 + static_cast<int>(conv_key_.size());
         if (selected_ < rows - 1) { ++selected_; rebuild_list(); }
         return;
     }
@@ -568,6 +592,7 @@ void MessagesScreen::on_down() {
 void MessagesScreen::on_enter() {
     if (overlay_) { close_info(); return; }
     if (menu_) { menu_activate(); return; }
+    if (composing_) { commit_compose(); return; }
     if (picker_) {
         if (!picker_id_.empty() && selected_ >= 0 && selected_ < static_cast<int>(picker_id_.size())) {
             const std::string id = picker_id_[selected_];
@@ -607,6 +632,7 @@ bool MessagesScreen::on_back() {
     if (menu_) { close_menu(); return true; }
     if (composing_) { cancel_compose(); return true; }
     if (picker_) { close_picker(); return true; }
+    if (mode_ == Mode::List && !search_.empty()) { search_.clear(); rebuild_list(); return true; }
     if (mode_ == Mode::Thread) {
         if (msg_sel_ >= 0) { msg_sel_ = -1; at_bottom_ = true; rebuild_thread(); return true; }
         mode_ = Mode::List;
@@ -620,6 +646,14 @@ bool MessagesScreen::on_back() {
 
 bool MessagesScreen::on_key(uint32_t key) {
     if (composing_ || overlay_ || menu_ || picker_) return false;
+    if (mode_ == Mode::List && key == '/') {
+        searching_ = composing_ = true;
+        lv_textarea_set_placeholder_text(input_, "Search chats (case sensitive)");
+        lv_textarea_set_text(input_, search_.c_str());
+        lv_obj_add_flag(hint_, LV_OBJ_FLAG_HIDDEN); lv_obj_remove_flag(input_, LV_OBJ_FLAG_HIDDEN);
+        if (auto* g = lv_group_get_default()) { lv_group_add_obj(g, input_); lv_group_focus_obj(input_); }
+        return true;
+    }
     if (mode_ == Mode::Thread && (key == 'o' || key == 'O')) {
         open_thread_menu();
         return true;
@@ -639,7 +673,7 @@ void MessagesScreen::start_compose() {
     if (!input_ || mode_ != Mode::Thread) return;
     if (send_channel() < 0) { open_channel_picker(); return; }
     lv_textarea_set_placeholder_text(input_, (view_model().channel(send_channel())->isPrivate ? "Message [Private channel]" : "Message [Public channel]"));
-    lv_textarea_set_text(input_, "");
+    lv_textarea_set_text(input_, view_model().draft(draft_key()).c_str());
     lv_obj_add_flag(hint_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(input_, LV_OBJ_FLAG_HIDDEN);
     lv_group_t* g = lv_group_get_default();
@@ -649,23 +683,44 @@ void MessagesScreen::start_compose() {
 
 void MessagesScreen::commit_compose() {
     if (!input_) return;
-    const char* text = lv_textarea_get_text(input_);
+    const std::string value = lv_textarea_get_text(input_);
+    if (searching_) { search_ = value; searching_ = composing_ = false; cancel_compose(); rebuild_list(); return; }
+    const char* text = value.c_str();
     if (text && text[0] != '\0') {
         const std::string dest = (viewmodel::is_group_thread(thread_key_)) ? std::string() : peer_id_;
         at_bottom_ = true;
-        view_model().send_message(send_channel(), text, dest);
+        view_model().save_draft(draft_key(), value);
+        view_model().flush_drafts();
+        if (!view_model().send_message(send_channel(), text, dest)) return;
+        composing_ = false; // keep draft until the supervisor accepts the send
+        lv_textarea_set_text(input_, "");
     }
     cancel_compose();
 }
 
 void MessagesScreen::cancel_compose() {
     if (!input_) return;
+    if (composing_ && !searching_) { view_model().save_draft(draft_key(), lv_textarea_get_text(input_)); view_model().flush_drafts(); }
+    composing_ = false;
+    searching_ = false;
     lv_textarea_set_text(input_, "");
     lv_obj_add_flag(input_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(hint_, LV_OBJ_FLAG_HIDDEN);
     lv_group_t* g = lv_group_get_default();
     if (g) lv_group_remove_obj(input_);
     composing_ = false;
+}
+
+MessagesScreen::~MessagesScreen() {
+    if (composing_ && !searching_) { view_model().save_draft(draft_key(), lv_textarea_get_text(input_)); view_model().flush_drafts(); }
+}
+
+std::string MessagesScreen::draft_key() const {
+    return viewmodel::is_group_thread(thread_key_) ? thread_key_ : thread_key_ + "@" + dm_channel_id_;
+}
+void MessagesScreen::draft_changed(lv_event_t* event) {
+    auto* self = static_cast<MessagesScreen*>(lv_event_get_user_data(event));
+    if (self && self->composing_ && !self->searching_) self->view_model().save_draft(self->draft_key(), lv_textarea_get_text(self->input_));
 }
 
 // ---------------------------------------------------------------------------
@@ -703,6 +758,7 @@ std::string MessagesScreen::details_text(const viewmodel::MessageInfo& m) {
     if (m.hops >= 0) {
         s += "Hops: " + std::to_string(m.hops) + (m.hops == 0 ? " (direct)\n" : "\n");
     }
+    if (!m.reason.empty()) s += "Reason: " + m.reason + "\n";
     if (!m.relay.empty()) {
         s += "Relayed by: " + m.relay + "\n";
     }
@@ -720,6 +776,7 @@ void MessagesScreen::open_thread_menu() {
     }
     menu_labels_.push_back(view_model().is_muted(thread_key_) ? "Unmute" : "Mute");
     menu_actions_.push_back(A_MUTE);
+    menu_labels_.push_back(view_model().pinned(thread_key_) ? "Unpin chat" : "Pin chat"); menu_actions_.push_back(A_PIN);
     menu_labels_.push_back("Send my location"); menu_actions_.push_back(A_SEND_LOCATION);
     if (viewmodel::is_group_thread(thread_key_)) {
         menu_labels_.push_back("Share channel (QR)"); menu_actions_.push_back(A_SHARE_CHANNEL);
@@ -729,9 +786,7 @@ void MessagesScreen::open_thread_menu() {
         menu_labels_.push_back("Trace route"); menu_actions_.push_back(A_TRACEROUTE);
     }
     menu_labels_.push_back("Clear history"); menu_actions_.push_back(A_CLEAR);
-    if (!viewmodel::is_group_thread(thread_key_)) {
-        menu_labels_.push_back("Delete conversation"); menu_actions_.push_back(A_DELETE_THREAD);
-    }
+    menu_labels_.push_back("Delete conversation"); menu_actions_.push_back(A_DELETE_THREAD);
     menu_labels_.push_back("Conversation info"); menu_actions_.push_back(A_INFO);
     menu_sel_ = 0;
 
@@ -828,7 +883,9 @@ void MessagesScreen::open_channel_picker() {
     close_menu();
     if (view_model().channels().empty()) { open_info("DM channel", "No enabled channels. Start the radio or add a channel first."); return; }
     menu_kind_ = MenuKind::Channel;
+    channel_picker_ids_.clear();
     for (const auto& c : view_model().channels()) {
+        channel_picker_ids_.push_back(c.identity);
         menu_labels_.push_back(channel_name(c.index));
         menu_actions_.push_back(c.index);
     }
@@ -906,8 +963,10 @@ void MessagesScreen::close_menu() {
 void MessagesScreen::menu_activate() {
     if (menu_kind_ == MenuKind::Channel) {
         const int channel = menu_sel_ >= 0 && menu_sel_ < static_cast<int>(menu_actions_.size()) ? menu_actions_[menu_sel_] : -1;
+        const std::string identity = menu_sel_ >= 0 && menu_sel_ < static_cast<int>(channel_picker_ids_.size()) ? channel_picker_ids_[menu_sel_] : "";
         close_menu();
-        dm_channel_ = view_model().channel(channel) ? channel : -1;
+        dm_channel_id_ = identity;
+        dm_channel_ = view_model().channel(channel) && view_model().channel(channel)->identity == identity ? channel : -1;
         update_hint();
         return;
     }
@@ -943,6 +1002,7 @@ void MessagesScreen::menu_activate() {
         case A_MARK_READ:
             view_model().mark_thread_read(target);
             break;
+        case A_PIN: view_model().toggle_pin(target); break;
         case A_MUTE:
             view_model().toggle_mute(target);
             break;
@@ -961,7 +1021,7 @@ void MessagesScreen::menu_activate() {
         case A_INFO: {
             std::string body;
             if (viewmodel::is_group_thread(thread_key_)) {
-                const std::string cn = channel_name(viewmodel::group_thread_channel(thread_key_));
+                const std::string cn = channel_name(view_model().channel_for_thread(thread_key_));
                 body = "Group channel: " + cn + "\n"
                        "Messages here reach everyone on the " + cn + " channel.";
             } else {
@@ -1076,6 +1136,7 @@ void MessagesScreen::open_info(const std::string& title, const std::string& body
 }
 
 void MessagesScreen::close_info() {
+    share_visible_ = false;
     awaiting_share_ = false;
     awaiting_traceroute_ = false;
     view_model().cancel_channel_share();
@@ -1085,6 +1146,7 @@ void MessagesScreen::close_info() {
 
 void MessagesScreen::open_qr(const std::string& title, const std::string& url) {
     close_info();
+    share_visible_ = true;
     if (url.empty()) {
         open_info(title, "Could not build a share code.");
         return;

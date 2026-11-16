@@ -36,10 +36,10 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `channels` | `channels`: `[{index, name, role, private, position_precision}]` (role: `PRIMARY`\|`SECONDARY`) |
 | `messages` | `messages`: `[{from, fromName, to, channel, text, id, time, outgoing, status, snr?, hops?}]` (a snapshot) |
 | `message` | `message`: one `{…}` — pushed asynchronously when a text arrives (received carry `snr`/`hops`) |
-| `delivery` | `cid`, `status` (`delivered`\|`failed`), `hops?` — the ack for one of our `message.send`s |
+| `delivery` | `cid`, `status` (`sent`\|`mesh`\|`delivered`\|`failed`), `hops?` — the ack for one of our `message.send`s |
 | `device` | `node_id`, `firmware`, `model` — our node's identity |
 | `config` | `preset`, `hop`, `position`, `mqtt`, `confirmed`, `frequency_slot`, `id?` — the current LoRa/module config |
-| `channelshare` | `channel`, `name`, `url`, `id` — a Meshtastic share URL for one channel (reply to `channel.share`) |
+| `channelshare` | `channel`, `channel_id`, `name`, `url`, `id` — a Meshtastic share URL for one channel (reply to `channel.share`) |
 | `traceroute` | `node`, `channel`, `ok`, `path?` (names, you→…→dest) or `text?` (reason on failure) |
 | `notice` | `text` — a human status line (e.g. "location sent") |
 | `error` | `text`, `intent?` — an intent failed, with a plain reason (the UI shows it as a toast) |
@@ -55,7 +55,7 @@ QR channel-add: the camera capture + QR decode happen in the supervisor (`channe
 
 QR channel-share (`channel.share`): the supervisor builds a share URL for **only the indexed channel** (public or private; never all node channels), and the UI renders it as a scannable QR with LVGL's `lv_qrcode`. Channel keys live only on the device; the URL is generated at request time and never written to the repo.
 
-Acks (`wantAck`): `message.send` defaults to `wantAck:true`, so each send gets a `delivery` event (with hop count). Turning acks off in Settings sends `wantAck:false` — less airtime, but no delivery confirmation (the UI shows no pending/▼ state).
+Acks (`wantAck`): `message.send` defaults to `wantAck:true`, so each send gets a `delivery` event (with hop count). Turning acks off sends `wantAck:false`; the UI labels the result Sent (unconfirmed).
 
 ## Confirmation, history and bounds
 
@@ -70,7 +70,7 @@ snapshot replaces local history, including removals. Retention is global server
 session policy; each UI reapplies its saved preference on connection (last writer
 wins if multiple UIs choose different values). Outgoing message IDs are required;
 retrying an ID replaces that message and only the latest attempt's ACK applies.
-An empty delivery status means no ACK was requested; delivered/failed are terminal.
+Outgoing status is `sending`, `sent` (no acknowledgment requested), `mesh` (mesh ACK), `delivered` (ACK source matches the DM recipient) or `failed`. These are transport results, never read receipts. `reason` preserves the failure or uncertainty.
 Pending delivery fails after 60 seconds. `error` includes `cid` for failed sends.
 
 Channel share replies must match **both** the selected channel and request ID;
@@ -94,3 +94,59 @@ A failed position setting stops the radio and emits Unknown/error.
 include `frequency_slot`. All channels share this slot, preset and region.
 Imports accept public/unnamed or private channels, reset location/MQTT forwarding
 and leave current radio tuning unchanged even when the URL carries LoRa settings.
+
+## 0.1.2 identities, storage and application services
+
+Upgrade UI and supervisor together. Every operation that targets an existing
+channel includes `channel_id` from `channels[].identity`, in addition to its
+integer `channel`. This includes messages, position sends/requests, traces, QR
+sharing and enabling automatic location. A stale/missing identity is refused
+before RF. Each identity is an opaque local HMAC of effective name and key;
+slot/role changes preserve it while key/name changes create an archived thread.
+The HMAC secret and channel keys never enter ordinary events. A broadcast thread
+is `ch:<identity>`; old messages without identity are isolated as `ch:legacy:<slot>`
+and cannot send. DMs still require explicit channel selection; their drafts
+add `@<channel identity>` to the peer thread key. No numeric parsing of opaque
+thread IDs is permitted.
+
+Messages carry `channel_id`, saved `channel_name`, `channel_private`, and optional
+`reason`. Nodes add `position_time`, `position_age`, `satellites`,
+`channel_utilization` and `air_utilization`. Status adds `mode` (`off`,
+`receive-only`, `transmit`) and `last_rx`. Node/telemetry updates are coalesced;
+status refreshes every two seconds, node ages at least every ten seconds.
+Fresh GPS coordinates must be finite/in range with age at most 120 seconds;
+unknown/future/stale fixes cannot be sent silently. The UI waits for a fresh fix.
+
+| Intent | Args and result |
+|---|---|
+| `setup.status` | `setup`: profile readiness, region/mode, dependency versions and firewall health; greeting includes it |
+| `setup.initialize` | `region`, `kind` public/private, private `name` (1..11 UTF-8 bytes), `confirmed:true`; refuses existing preferences and initializes TX/location/MQTT Off |
+| `radio.tx` | strict boolean `enabled`; enabling also requires `antenna_confirmed:true`; actual readback online, durable profile update offline |
+| `channel.slots` | all slots including disabled/configured state, role, classification and opaque identity; no keys |
+| `channel.manage` | `confirmed:true`, `action` create/rename/rotate/disable/remove/enable; existing slot requires channel/identity, create requires kind/name; actual admin readback |
+| `profile.list` | `profiles` summaries with opaque `id`, name, region/preset/slot/count; max 16 |
+| `profile.save` | printable `name` (1..48 UTF-8 bytes); save current radio/channel settings privately |
+| `profile.preview` | `profile` ID; summary and channel names/classifications, no keys |
+| `profile.apply` | profile ID plus `confirmed:true`, radio must be Off; TX/location/MQTT forced Off; never starts RF |
+| `profile.delete` | profile ID plus `confirmed:true`; never accepts a filesystem path |
+| `diagnostics.get/export` | whitelisted health/version/counts, no chats/keys/IDs/coordinates; export writes fixed private `diagnostics-export.json` in the radio state directory |
+| `thread.state` | `thread`, `state:{draft,pinned}`; draft at most 200 UTF-8 bytes, max 256 saved states; broadcasts `threads` |
+| `thread.delete` | forget thread state; use `message.clear` separately for messages |
+| `history.set` | strict boolean `enabled`; disabling deletes saved messages/drafts and retains the current RAM session; broadcasts `threads` |
+
+Greeting always includes history and `threads`, even with the radio Off.
+History/drafts live in private bounded SQLite storage in the radio state directory;
+there is no replay queue. After a restart, pending sends become failed with an
+explicit interrupted-acknowledgment reason. Draft writes are debounced; a process
+crash can lose the last 650 ms of edits. Confirmed supervisor acceptance clears the
+matching draft; rejected sends preserve it. Quiet hours are UI preferences in
+its private INI, using device local time and supporting windows across midnight.
+
+Changes to region, modem preset or frequency slot use a planned stop/persist/start
+cycle, followed by actual readback. Firmware-initiated tuning reboots are not
+misclassified as unexpected radio loss. Other disconnections preserve the actual
+failure reason and power down through the guardian.
+
+`state.sync {id}` is a serialized persistence barrier and replies `state.synced`. The UI flushes drafts before graceful exit and waits up to two seconds for this barrier; an unavailable/busy supervisor can still prevent the final save.
+
+Channel share replies validate the original opaque identity as well as request/slot; changing the active channel closes an already visible QR. Automatic-location pickers retain the identity shown when opened and reject changed slots at either confirmation step. Retries resolve their original identity after a slot move instead of targeting a replacement.

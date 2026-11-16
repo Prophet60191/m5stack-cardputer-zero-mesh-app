@@ -5,7 +5,7 @@ Wants=network-pre.target
 After=local-fs.target
 
 [Service]
-Type=oneshot
+Type=simple
 User=cz-mesh-firewall
 Group=cz-mesh-firewall
 AmbientCapabilities=CAP_NET_ADMIN
@@ -15,8 +15,12 @@ ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 RestrictAddressFamilies=AF_NETLINK
-ExecStart=/usr/lib/cardputerzero-mesh/firewall-setup.sh ensure
-RemainAfterExit=yes
+RuntimeDirectory=cardputerzero-mesh-firewall
+RuntimeDirectoryMode=0755
+ExecStartPre=/usr/lib/cardputerzero-mesh/firewall-setup.sh ensure
+ExecStart=/usr/lib/cardputerzero-mesh/firewall-setup.sh monitor
+Restart=on-failure
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target

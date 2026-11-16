@@ -52,6 +52,9 @@ import threading
 import tempfile
 import time
 from pathlib import Path
+from state_store import StateStore
+from radio_settings import RadioSettings, atomic_write
+from application_services import ApplicationServices
 
 
 HERE = Path(__file__).resolve().parent
@@ -120,7 +123,7 @@ def thread_key(msg: dict) -> str:
     a public-channel broadcast never lands in a private channel's thread."""
     to = msg.get("to", "")
     if to in ("broadcast", "", None):
-        return f"ch:{int(msg.get('channel', 0))}"
+        return "ch:" + str(msg.get("channel_id") or ("legacy:" + str(msg.get("channel", -1))))
     peer = msg.get("to") if msg.get("outgoing") else msg.get("from")
     return f"dm:{peer}"
 
@@ -190,7 +193,7 @@ class Client:
             pass
 
 
-class Supervisor:
+class Supervisor(ApplicationServices):
     def __init__(self) -> None:
         self._lock = threading.RLock()          # guards clients, state, messages, iface
         self._life_lock = threading.RLock()      # serializes radio start/stop as a whole
@@ -209,6 +212,26 @@ class Supervisor:
         if not stat.S_ISDIR(state.st_mode) or state.st_uid != os.getuid():
             raise PermissionError("radio state must be an owned, real directory")
         self._state_dir.chmod(0o700)
+        # Own durable state before recovering transactions or rewriting pending
+        # sends. A second process must not mutate a live owner's database before
+        # it reaches the separate runtime/socket ownership check in run().
+        self._state_lease = open(self._state_dir / "state.lock", "a",
+                                 opener=lambda path, flags: os.open(path, flags | os.O_NOFOLLOW, 0o600))
+        try:
+            fcntl.flock(self._state_lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            self._state_lease.close()
+            raise RuntimeError("a supervisor already owns the radio state") from None
+        self._settings = RadioSettings(self._state_dir)
+        self._store = StateStore(self._state_dir)
+        self._messages = self._store.load_messages()
+        for message in self._messages:
+            if message.get("status") == "sending":
+                message.update(status="failed", reason="Restarted before acknowledgment; not replayed")
+        self._store.replace_messages(self._messages)
+        self._threads = self._store.load_threads()
+        self._nodes_dirty = threading.Event()
+        self._last_rx = 0
         self._stop = threading.Event()
         self._work = queue.Queue(maxsize=16)
         self._trace_slots = threading.BoundedSemaphore(2)
@@ -318,14 +341,8 @@ class Supervisor:
             return False
 
     def _check_firewall(self):
-        helper = Path("/usr/lib/cardputerzero-mesh/firewall-setup.sh")
-        if not helper.is_file() or helper.stat().st_uid != 0 or helper.stat().st_mode & 0o022:
-            raise RuntimeError("install the root-owned mesh firewall helper first")
-        result = subprocess.run(["/usr/bin/sudo", "-n", str(helper), "check"],
-                                timeout=5, capture_output=True, text=True)
-        if result.returncode:
-            reason = bounded_text(result.stderr.strip(), 200)
-            raise RuntimeError("radio firewall check failed: " + (reason or "verification refused"))
+        import firewall
+        return firewall.health_status()
 
     # --- JSON line I/O (never touches a socket under self._lock) --------------
     def _send(self, client: Client, obj: dict) -> None:
@@ -349,6 +366,8 @@ class Supervisor:
             except Exception:
                 pass
         s = {"event": "status", "radio": self._radio, "region": region, "owner": owner}
+        s["mode"] = ("transmit" if self._iface.localNode.localConfig.lora.tx_enabled else "receive-only") if self._iface is not None else "off"
+        s["last_rx"] = self._last_rx
         if self._port:
             s["port"] = self._port
         if self._detail:
@@ -378,6 +397,11 @@ class Supervisor:
                     "voltage": finite_number(dm.get("voltage")),
                     "lat": finite_number(pos.get("latitude")),
                     "lon": finite_number(pos.get("longitude")),
+                    "position_time": finite_number(pos.get("time")),
+                    "position_age": self._position_age(pos),
+                    "satellites": finite_number(pos.get("satsInView")),
+                    "channel_utilization": finite_number(dm.get("channelUtilization")),
+                    "air_utilization": finite_number(dm.get("airUtilTx")),
                 })
         return {"event": "nodes", "nodes": nodes}
 
@@ -390,7 +414,8 @@ class Supervisor:
                     continue
                 chans.append({"index": ch.index, "name": ch.settings.name,
                               "role": Role.Name(ch.role), "private": self._private_channel(ch),
-                              "position_precision": ch.settings.module_settings.position_precision})
+                              "position_precision": ch.settings.module_settings.position_precision,
+                              "identity": self._settings.identity(ch, self._iface.localNode.localConfig.lora)})
         return {"event": "channels", "channels": chans}
 
     def _messages_payload(self, channel=None) -> dict:
@@ -404,6 +429,7 @@ class Supervisor:
         # Client.send only enqueues: no blocking network write occurs here.
         with self._lock:
             payload = self._messages_payload(channel)
+            self._store.replace_messages(self._messages)
             if request is not None:
                 payload["id"] = request
             if client is None:
@@ -433,17 +459,26 @@ class Supervisor:
             pass
         return {"event": "config", "preset": preset, "hop": lora.hop_limit,
                 "position": pos, "mqtt": mqtt, "confirmed": self._config_confirmed,
-                "frequency_slot": lora.channel_num}
+                "frequency_slot": lora.channel_num, "tx_enabled": lora.tx_enabled}
+
+    def _thread_state(self):
+        return {"event": "threads", "threads": self._threads,
+                "history_enabled": self._store.preference("history.enabled", True)}
 
     # --- history store (authoritative) ---------------------------------------
     def _trim_history(self):
         counts = {}
         kept = []
+        encoded_bytes = 0
         for m in reversed(self._messages):
             key = thread_key(m)
             counts[key] = counts.get(key, 0) + 1
             if self._retention == 0 or counts[key] <= self._retention:
+                size = len(json.dumps(m, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()) + 1
+                if encoded_bytes + size > 1024 * 1024:
+                    break  # a reconnect snapshot must fit even with escaped controls
                 kept.append(m)
+                encoded_bytes += size
             if len(kept) == MAX_MESSAGES:
                 break
         self._messages = list(reversed(kept))
@@ -461,21 +496,25 @@ class Supervisor:
             before = {(m.get("from"), m.get("id")) for m in self._messages}
             self._messages.append(msg)
             self._trim_history()
+            self._store.replace_messages(self._messages)
             removed = before - {(m.get("from"), m.get("id")) for m in self._messages}
         if removed:
             self._publish_history()
 
-    def _delivery(self, cid, attempt, status, hops=None):
+    def _delivery(self, cid, attempt, status, hops=None, reason=""):
         with self._lock:
             if self._attempts.get(cid) != attempt:
                 return  # late ACK from an older retry
             for m in self._messages:
                 if m.get("outgoing") and m.get("id") == cid:
                     m["status"] = status
+                    m["reason"] = reason
                     if hops is not None:
                         m["hops"] = max(hops, 0)
             self._attempts.pop(cid, None)
             ev = {"event": "delivery", "cid": cid, "status": status}
+            ev["reason"] = reason
+            self._store.replace_messages(self._messages)
             if hops is not None:
                 ev["hops"] = max(hops, 0)
             self._broadcast(ev)
@@ -498,7 +537,10 @@ class Supervisor:
             try:
                 self._check_firewall()  # fail closed BEFORE power or daemon startup
                 self._check_system_daemon()
+                self._check_daemon_compatibility()
                 self._check_persisted_profile()
+                import cap_lora
+                cap_lora.preflight()
                 self._launch_daemon()
                 self._connect_mesh()
                 # Startup snapshots were read from the daemon, not edited cache.
@@ -534,12 +576,15 @@ class Supervisor:
         with self._lock:
             attempts = list(self._attempts.items())
         for cid, attempt in attempts:
-            self._delivery(cid, attempt, "failed")
+            self._delivery(cid, attempt, "failed", reason="Radio stopped before acknowledgment")
         if iface is not None:
             try:
                 from pubsub import pub
                 pub.unsubscribe(self._on_receive_text, "meshtastic.receive.text")
                 pub.unsubscribe(self._on_receive_position, "meshtastic.receive.position")
+                pub.unsubscribe(self._on_node_update, "meshtastic.node.updated")
+                pub.unsubscribe(self._on_node_update, "meshtastic.receive.telemetry")
+                pub.unsubscribe(self._on_connection_lost, "meshtastic.connection.lost")
             except Exception:
                 pass
             try:
@@ -573,26 +618,38 @@ class Supervisor:
 
     def _watch_daemon(self, owned_daemon) -> None:
         """If meshtasticd dies while we think we're online, surface it and power down."""
+        ticks = 0
         while not self._stop.is_set():
-            d = self._daemon
-            if d is None or d is not owned_daemon or self._radio != "online":
-                return
-            try:
-                self._check_firewall()
-                if d.poll() is not None:
-                    raise RuntimeError("radio daemon exited")
-            except Exception:
-                with self._life_lock:
-                    if self._daemon is not owned_daemon:
-                        return
-                    self._teardown()
-                    self._set_radio("error", "radio stopped: daemon or firewall unavailable")
-                return
-            with self._lock:
-                expired = [(cid, token) for cid, token in self._attempts.items()
-                           if time.monotonic() - token[1] > 60]
-            for cid, token in expired:
-                self._delivery(cid, token, "failed")
+            with self._life_lock:
+                d = self._daemon
+                if d is None or d is not owned_daemon or self._radio != "online":
+                    return
+                try:
+                    self._check_firewall()
+                    connected = getattr(self._iface, "isConnected", None)
+                    if connected is not None and not connected.is_set():
+                        raise RuntimeError("radio API disconnected")
+                    if d.poll() is not None:
+                        raise RuntimeError(f"radio guardian exited with status {d.returncode}")
+                except Exception as exc:
+                    reason = bounded_text(f"{type(exc).__name__}: {exc}", 280)
+                    print("radio health failure: " + reason, flush=True)
+                    with self._life_lock:
+                        if self._daemon is not owned_daemon:
+                            return
+                        self._teardown()
+                        self._set_radio("error", "radio stopped: " + reason)
+                    return
+                with self._lock:
+                    expired = [(cid, token) for cid, token in self._attempts.items()
+                               if time.monotonic() - token[1] > 60]
+                for cid, token in expired:
+                    self._delivery(cid, token, "failed", reason="No acknowledgment before timeout")
+                if self._nodes_dirty.is_set() or ticks % 5 == 0:
+                    self._nodes_dirty.clear()
+                    self._broadcast(self._nodes())
+                self._broadcast(self._status())
+                ticks += 1
             self._stop.wait(2)
 
     def _launch_daemon(self) -> None:
@@ -629,9 +686,13 @@ class Supervisor:
         self._iface = TCPInterface(hostname="127.0.0.1", portNumber=self._port, timeout=8)
         pub.subscribe(self._on_receive_text, "meshtastic.receive.text")
         pub.subscribe(self._on_receive_position, "meshtastic.receive.position")
+        pub.subscribe(self._on_node_update, "meshtastic.node.updated")
+        pub.subscribe(self._on_node_update, "meshtastic.receive.telemetry")
+        pub.subscribe(self._on_connection_lost, "meshtastic.connection.lost")
 
     # --- incoming messages ---------------------------------------------------
     def _on_receive_text(self, packet, interface):  # meshtastic thread
+        if interface is not self._iface: return
         try:
             d = packet.get("decoded", {})
             text = d.get("text")
@@ -652,19 +713,45 @@ class Supervisor:
                 "time": packet.get("rxTime") or int(time.time()),
                 "outgoing": False,
                 "status": "",
+                "channel_id": self._channel_identity(packet.get("channel", 0)),
+                "channel_name": next((ch.settings.name for ch in interface.localNode.channels if ch.index == packet.get("channel", 0)), ""),
+                "channel_private": any(self._private_channel(ch) for ch in interface.localNode.channels if ch.index == packet.get("channel", 0)),
                 "snr": snr,
                 "hops": hops,
             }
             self._record(msg)
             self._broadcast({"event": "message", "message": msg})
+            self._last_rx = int(time.time())
+            self._nodes_dirty.set()
         except Exception:
             pass
 
     def _on_receive_position(self, packet, interface):  # meshtastic thread
+        if interface is not self._iface: return
+        self._last_rx = int(time.time())
+        self._nodes_dirty.set()
+
+    def _on_node_update(self, interface, node=None, packet=None):
+        if interface is self._iface:
+            self._last_rx = int(time.time())
+            self._nodes_dirty.set()
+
+    def _on_connection_lost(self, interface):
+        if interface is self._iface and not self._stop.is_set():
+            try: self._submit(lambda: self.radio_stop_with_error("Radio API connection lost; start again to reconnect") if self._iface is interface else None)
+            except queue.Full: self._nodes_dirty.set()
+
+    def radio_stop_with_error(self, reason):
+        with self._life_lock:
+            self._teardown()
+            self._set_radio("error", reason)
+
+    def _channel_identity(self, index):
         try:
-            self._broadcast(self._nodes())
-        except Exception:
-            pass
+            node = self._iface.localNode
+            ch = next(c for c in node.channels if c.index == index and c.role)
+            return self._settings.identity(ch, node.localConfig.lora)
+        except (AttributeError, StopIteration): return ""
 
     def _name_for(self, num: int) -> str:
         if self._iface is None:
@@ -711,6 +798,62 @@ class Supervisor:
         try:
             if intent == "status":
                 reply(self._status())
+            elif intent == "state.sync":
+                # Serialized barrier: all preceding intents from this stream,
+                # including committed draft writes, have completed.
+                reply({"event": "state.synced"})
+            elif intent == "setup.status":
+                reply(self._setup_payload())
+            elif intent == "setup.initialize":
+                self._initialize_setup(req)
+                reply(self._setup_payload())
+            elif intent == "radio.tx":
+                self._set_transmit(req)
+                self._broadcast(self._status())
+                if self._iface is not None: self._broadcast(self._config_payload())
+                reply(self._setup_payload())
+            elif intent == "diagnostics.get":
+                reply(self._diagnostics())
+            elif intent == "diagnostics.export":
+                reply(self._export_diagnostics())
+                reply({"event": "notice", "text": "Saved private diagnostics-export.json (no chats, keys, IDs or coordinates)"})
+            elif intent == "profile.list":
+                reply({"event": "profiles", "profiles": self._settings.list_profiles()})
+            elif intent == "profile.save":
+                self._profile_save(req.get("name"))
+                reply({"event": "profiles", "profiles": self._settings.list_profiles()})
+            elif intent == "profile.preview":
+                reply(self._profile_preview(req.get("profile")))
+            elif intent == "profile.apply":
+                self._profile_apply(req)
+                reply(self._setup_payload())
+                self._broadcast({"event": "channels", "channels": []})
+            elif intent == "profile.delete":
+                if req.get("confirmed") is not True: raise ValueError("confirm deleting this saved mesh profile")
+                self._settings.delete_profile(req.get("profile"))
+                reply({"event": "profiles", "profiles": self._settings.list_profiles()})
+            elif intent == "channel.slots":
+                reply(self._channel_slots())
+            elif intent == "channel.manage":
+                self._channel_manage(req)
+                reply(self._channel_slots())
+            elif intent == "thread.state":
+                state = req.get("state")
+                self._store.set_thread(req.get("thread"), state)
+                self._threads[req["thread"]] = {"draft": state.get("draft", ""), "pinned": state.get("pinned", False)}
+                self._broadcast(self._thread_state())
+            elif intent == "thread.delete":
+                self._store.delete_thread(req.get("thread"))
+                for key in list(self._threads):
+                    if key == req["thread"] or key.startswith(req["thread"] + "@"):
+                        self._threads.pop(key)
+                self._broadcast(self._thread_state())
+            elif intent == "history.set":
+                value = req.get("enabled")
+                if type(value) is not bool: raise ValueError("history preference must be boolean")
+                self._store.set_preference("history.enabled", value)
+                if value: self._store.replace_messages(self._messages)
+                reply(self._thread_state())
             elif intent == "radio.start":
                 self.radio_start()
                 reply({"event": "notice", "text": "starting radio"})
@@ -737,11 +880,14 @@ class Supervisor:
                 want_ack = req.get("wantAck", True)
                 if type(want_ack) is not bool:
                     raise ValueError("wantAck must be boolean")
-                self._require_channel(ch, dest)
+                self._validate_target(req, dest)
 
                 msg = {"from": "self", "fromName": "me", "to": dest or "broadcast",
                        "channel": ch, "text": text, "time": int(time.time()),
                        "outgoing": True, "id": cid, "status": "sending" if want_ack else ""}
+                msg["channel_id"] = self._channel_identity(ch)
+                msg["channel_name"] = self._iface.localNode.channels[ch].settings.name
+                msg["channel_private"] = self._private_channel(self._iface.localNode.channels[ch])
                 self._record(msg, attempt)
                 # Publish the initial state BEFORE the library can invoke an
                 # ACK callback. Otherwise a delayed initial echo can overwrite
@@ -755,15 +901,28 @@ class Supervisor:
                     err = routing["errorReason"]
                     hs, hl = resp.get("hopStart"), resp.get("hopLimit")
                     hops = hs - hl if isinstance(hs, int) and isinstance(hl, int) else None
-                    self._delivery(cid, attempt, "delivered" if err in ("NONE", 0) else "failed", hops)
+                    ok = err in ("NONE", 0)
+                    from meshtastic.protobuf import mesh_pb2
+                    try: code = mesh_pb2.Routing.Error.Name(err) if type(err) is int else str(err)
+                    except ValueError: code = str(err)
+                    reasons = {"NO_ROUTE": "No route to destination", "GOT_NAK": "Negative acknowledgment",
+                               "TIMEOUT": "Routing acknowledgment timed out", "NO_INTERFACE": "Radio interface unavailable",
+                               "MAX_RETRANSMIT": "Retries exhausted", "NO_CHANNEL": "Channel unavailable",
+                               "TOO_LARGE": "Message too large", "NO_RESPONSE": "Destination did not respond",
+                               "DUTY_CYCLE_LIMIT": "Regional duty-cycle limit reached", "NOT_AUTHORIZED": "Not authorized",
+                               "PKI_FAILED": "Direct-message key verification failed", "PKI_UNKNOWN_PUBKEY": "Peer public key unknown",
+                               "RATE_LIMIT_EXCEEDED": "Radio rate limit reached", "PKI_SEND_FAIL_PUBLIC_KEY": "Peer public key unavailable"}
+                    recipient = dest and resp.get("from") == int(dest[1:], 16)
+                    reason = ("Recipient not confirmed" if ok and dest and not recipient else "") if ok else reasons.get(code, "Routing failure: " + code[:64])
+                    self._delivery(cid, attempt, ("delivered" if recipient else "mesh") if ok else "failed", hops, reason)
                 try:
                     self._iface.sendText(text, destinationId=(dest or "^all"), wantAck=want_ack,
                                          channelIndex=ch, onResponse=(onAckNak if want_ack else None))
                 except Exception:
-                    self._delivery(cid, attempt, "failed")
+                    self._delivery(cid, attempt, "failed", reason="Radio API rejected the send")
                     raise
                 if not want_ack:
-                    self._delivery(cid, attempt, "")
+                    self._delivery(cid, attempt, "sent", reason="Sent without requesting acknowledgment")
                 reply({"event": "notice", "text": "sent"})
             elif intent == "message.clear":
                 key = str(req["thread"])
@@ -793,10 +952,10 @@ class Supervisor:
                 self._require_online()
                 ch = req["channel"]
                 dest = req.get("dest")
-                self._require_channel(ch, dest)
+                self._validate_target(req, dest)
                 if not self._private_channel(self._iface.localNode.channels[ch]) and req.get("public_confirmed") is not True:
                     raise ValueError("confirm sending precise coordinates on a public channel")
-                lat, lon = self._my_position()
+                lat, lon = self._my_position(req.get("stale_confirmed") is True)
                 if lat is None or lon is None:
                     reply({"event": "error", "text": "no position fix yet", "intent": intent})
                 else:
@@ -806,19 +965,22 @@ class Supervisor:
                     msg = {"from": "self", "fromName": "me", "to": dest or "broadcast",
                            "channel": ch, "text": text, "time": int(time.time()),
                            "outgoing": True, "id": "pos:" + uuid.uuid4().hex, "status": ""}
+                    msg["channel_id"] = self._channel_identity(ch)
+                    msg["channel_name"] = self._iface.localNode.channels[ch].settings.name
+                    msg["channel_private"] = self._private_channel(self._iface.localNode.channels[ch])
                     self._record(msg)
                     reply({"event": "notice", "text": "location sent"})
                     self._broadcast({"event": "message", "message": msg})
             elif intent == "position.request":
                 self._require_online()
                 ch = req["channel"]
-                self._require_channel(ch, req["node"])
+                self._validate_target(req, req["node"])
                 self._iface.sendPosition(destinationId=req["node"], wantResponse=True, channelIndex=ch)
                 reply({"event": "notice", "text": "position requested"})
             elif intent == "traceroute":
                 self._require_online()
                 node, ch = req["node"], req["channel"]
-                self._require_channel(ch, node)
+                self._validate_target(req, node)
                 if not self._trace_slots.acquire(blocking=False):
                     raise RuntimeError("two traces already running")
                 threading.Thread(target=self._trace_worker, args=(self._iface, node, ch, rid), daemon=True).start()
@@ -826,13 +988,14 @@ class Supervisor:
             elif intent == "channel.share":
                 self._require_online()
                 ch = req["channel"]
-                self._require_channel(ch, None)
+                self._validate_target(req, transmit=False)
                 name = self._iface.localNode.channels[ch].settings.name
                 reply({"event": "channelshare", "channel": ch, "name": name,
+                       "channel_id": self._channel_identity(ch),
                        "url": self._channel_share_url(ch)})
             elif intent == "region.set":
                 self._require_online()
-                self._set_region(str(req["region"]))
+                self._restart_with_config("lora.region", str(req["region"]))
                 reply({"event": "notice", "text": f"region set to {req['region']}"})
                 self._broadcast(self._status())
             elif intent == "owner.set":
@@ -845,7 +1008,12 @@ class Supervisor:
             elif intent == "config.set":
                 self._require_online()
                 self._config_confirmed = False
-                self._set_config(str(req["path"]), req["value"], req.get("channel"), req.get("public_confirmed", False))
+                if req["path"] in ("lora.modem_preset", "lora.channel_num"):
+                    self._restart_with_config(req["path"], req["value"])
+                else:
+                    if req["path"] == "position.enabled" and req["value"] is True:
+                        self._validate_target(req, transmit=False)
+                    self._set_config(str(req["path"]), req["value"], req.get("channel"), req.get("public_confirmed", False))
                 expected = self._config_fingerprint()
                 self._verify_config()
                 if self._config_fingerprint() != expected:
@@ -880,15 +1048,25 @@ class Supervisor:
             if intent.startswith("config."):
                 self._config_confirmed = False
                 self._broadcast({"event": "config.unknown"})
-                if intent == "config.set" and req.get("path") == "position.enabled":
+                if intent == "config.set" and req.get("path") in ("position.enabled", "mqtt.enabled"):
                     with self._life_lock:
                         self._teardown()
-                        self._set_radio("error", "position sharing was not confirmed; radio stopped")
+                        self._set_radio("error", "privacy setting was not confirmed; radio stopped")
             reply({"event": "error", "text": str(exc)[:256], "intent": intent, "cid": req.get("cid")})
 
     def _require_online(self) -> None:
         if self._iface is None or self._radio != "online":
             raise RuntimeError("radio is not on")
+
+    def _validate_target(self, req, dest=None, *, transmit=True):
+        ch = req["channel"]
+        self._require_channel(ch, dest)
+        identity = req.get("channel_id")
+        if not isinstance(identity, str) or identity != self._channel_identity(ch):
+            raise ValueError("channel changed or client is outdated; reopen the conversation")
+        if transmit and not self._iface.localNode.localConfig.lora.tx_enabled:
+            raise ValueError("radio is receive-only; explicitly enable transmission first")
+        return ch
 
     @staticmethod
     def _valid_channel_key(key):
@@ -900,7 +1078,7 @@ class Supervisor:
         # key are public. A custom PSK is only private while its owner keeps it so.
         key = bytes(ch.settings.psk)
         default = bytes.fromhex("d4f1bb3a20290759f0bcffabcf4e6901")
-        return bool(ch.role) and len(key) in (16, 32) and any(key) and not (
+        return len(key) in (16, 32) and any(key) and not (
             len(key) == 16 and key[:15] == default[:15])
 
     def _require_channel(self, ch: int, dest) -> None:
@@ -930,7 +1108,7 @@ class Supervisor:
                 raise ValueError("invalid channel key or name (maximum 11 UTF-8 bytes)")
         node = self._iface.localNode
         identities = {(ch.settings.name, bytes(ch.settings.psk)) for ch in node.channels if ch.role}
-        free = [ch for ch in node.channels if not ch.role and ch.index != 0]
+        free = [ch for ch in node.channels if not ch.role and ch.index != 0 and not ch.HasField("settings")]
         pending = []
         for settings in cs.settings:
             identity = (settings.name, bytes(settings.psk))
@@ -961,14 +1139,29 @@ class Supervisor:
             raise
         return len(pending)
 
-    def _my_position(self):
+    @staticmethod
+    def _position_age(pos):
+        stamp = finite_number(pos.get("time"))
+        if stamp is None: return None
+        age = time.time() - stamp
+        return int(age) if 0 <= age <= 365 * 86400 else None
+
+    def _my_position(self, allow_stale=False):
         try:
             info = self._iface.getMyNodeInfo() or {}
             pos = info.get("position", {}) or {}
             lat, lon = pos.get("latitude"), pos.get("longitude")
             if lat is not None and lon is not None:
+                lat, lon = finite_number(lat), finite_number(lon)
+                if lat is None or lon is None or not -90 <= lat <= 90 or not -180 <= lon <= 180:
+                    raise ValueError("GPS coordinates are invalid")
+                age = self._position_age(pos)
+                if (age is None or age > 120) and not allow_stale:
+                    raise ValueError("GPS fix is stale or its age is unknown; wait for a fresh fix before sending")
                 return float(lat), float(lon)
-        except Exception:
+        except ValueError:
+            raise
+        except (AttributeError, TypeError):
             pass
         return None, None
 
@@ -1033,6 +1226,32 @@ class Supervisor:
         lora = self._iface.localNode.localConfig.lora
         lora.region = config_pb2.Config.LoRaConfig.RegionCode.Value(region)
         self._iface.localNode.writeConfig("lora")
+
+    def _restart_with_config(self, path, value):
+        # Firmware schedules a reboot for tuning changes. Stop our owned daemon
+        # first, persist a validated pair, then reconnect and verify actual state.
+        # An expected reboot must not race the unexpected-disconnect watchdog.
+        config, channels = self._capture_preferences()
+        lora = config.lora
+        if path == "lora.region":
+            lora.region = lora.RegionCode.Value(str(value))
+            if not lora.region: raise ValueError("select a region")
+        elif path == "lora.modem_preset":
+            lora.modem_preset = lora.ModemPreset.Value(str(value))
+            lora.use_preset = True
+        elif path == "lora.channel_num":
+            if type(value) is not int or not 0 <= value <= 255: raise ValueError("frequency slot must be 0..255")
+            lora.channel_num = value
+        else: raise ValueError("unsupported restart setting")
+        expected = lora.SerializeToString()
+        self.radio_stop()
+        self._settings.apply(config, channels)
+        self._set_radio("off", "Settings saved; reconnecting radio")
+        self.radio_start()
+        self._require_online()
+        if self._iface.localNode.localConfig.lora.SerializeToString() != expected:
+            self.radio_stop_with_error("radio tuning readback differs from requested settings")
+            raise ValueError("radio tuning was not confirmed")
 
     def _position_sharing_on(self) -> bool:
         """Position is actually shared only when a channel carries non-zero
@@ -1116,7 +1335,7 @@ class Supervisor:
 
     def _set_config(self, path: str, value, channel=None, public_confirmed=False) -> None:
         node = self._iface.localNode
-        if path in ("position.enabled", "mqtt.enabled") and type(value) is not bool:
+        if path in ("position.enabled", "mqtt.enabled", "lora.tx_enabled") and type(value) is not bool:
             raise ValueError("privacy settings require boolean values")
         if path == "lora.modem_preset":
             node.localConfig.lora.use_preset = True
@@ -1133,6 +1352,10 @@ class Supervisor:
                 raise ValueError("frequency slot must be 0..255 (0 = Auto)")
             node.localConfig.lora.channel_num = value
             node.writeConfig("lora")
+        elif path == "lora.tx_enabled":
+            if value and not node.localConfig.lora.region: raise ValueError("choose a region first")
+            node.localConfig.lora.tx_enabled = value
+            node.writeConfig("lora")
         elif path == "position.enabled":
             if type(public_confirmed) is not bool:
                 raise ValueError("public position confirmation must be boolean")
@@ -1147,11 +1370,15 @@ class Supervisor:
         """A blocked camera must not strand the serialized radio worker."""
         try:
             result = subprocess.run([sys.executable, str(HERE / "qr_scan.py")],
-                                    capture_output=True, text=True, timeout=10)
+                                    capture_output=True, text=True, timeout=12)
             value = result.stdout.strip()
-            return value if result.returncode == 0 and len(value) <= 4096 else None
-        except (OSError, subprocess.TimeoutExpired):
-            return None
+            if result.returncode != 0:
+                raise RuntimeError("Camera scan unavailable: " + bounded_text(result.stderr.strip(), 180))
+            return value if len(value) <= 4096 else None
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Camera scan timed out; close other camera apps and retry") from None
+        except OSError:
+            raise RuntimeError("Camera scanner could not start") from None
 
     # --- socket server -------------------------------------------------------
     def _drop_client(self, client: Client) -> None:
@@ -1191,6 +1418,9 @@ class Supervisor:
         with self._life_lock:
             # Greet with a complete snapshot so a reconnecting UI is fully populated.
             client.send(self._status())
+            client.send(self._thread_state())
+            self._publish_history(client)
+            client.send(self._setup_payload())
             if self._iface is not None and self._radio == "online":
                 try:
                     client.send(self._device_payload())
@@ -1291,6 +1521,9 @@ class Supervisor:
                 clients = list(self._clients)
             for client in clients:
                 client.close()
+            self._worker.join(timeout=12)
+            if not self._worker.is_alive(): self._store.close()
+            self._state_lease.close()
             srv.close()
             if path.exists():
                 path.unlink()

@@ -10,7 +10,6 @@ TimeoutStopSec=15
 Restart=on-failure
 RestartSec=3
 UMask=0077
-# Keep this user service outside a user namespace and without seccomp options
-# that imply NoNewPrivileges: its fixed, root-owned sudo firewall check must
-# retain host root ownership/credentials. Root-owned system files remain
-# protected by normal DAC; all radio work still runs as the logged-in user.
+# The app reads a fresh verdict from the separate capability-only firewall
+# service. It never launches a privileged helper during normal operation.
+NoNewPrivileges=true

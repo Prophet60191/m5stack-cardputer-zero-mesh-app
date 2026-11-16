@@ -73,7 +73,7 @@ cd build/cp0-native
 cpack -G DEB -C Release
 ```
 
-Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.1_rev1_arm64.deb`.
+Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.2_rev1_arm64.deb`.
 The package contains the UI, assets, launcher, supervisor/guardian sources, both
 licenses, user service, capability-limited firewall boot service, and fixed sudo
 check policy. The launcher starts the supervisor; it does not automatically start
@@ -120,3 +120,19 @@ assets/         fonts, images, audio
 cmake/          device packaging + toolchains
 docs/           this documentation
 ```
+
+## Automated Debian arm64 artifact
+
+The `debian-arm64` GitHub Actions job runs on a native `ubuntu-24.04-arm`
+runner. It builds a Debian 13 container, then builds/installs/tests the package
+with networking disabled in an isolated namespace. LVGL is fetched at the fixed
+9.5.0 commit; the radio client is pinned to 2.7.11. The job validates ELF
+library dependencies, sudoers, units, the capability-only firewall monitor and
+backend regressions. It uploads the `.deb`, `SHA256SUMS` and `SOURCE_COMMIT` as a
+workflow artifact, without publishing a binary release or starting RF.
+
+These artifacts are candidates. Hardware qualification still requires the
+operator's antenna, intended peer, GPS sky view, camera target and actual power
+cycle; CI cannot establish those results. The qualified daemon is meshtasticd
+2.7.26 (preference schema 24); a different daemon/client version fails before Cap
+power-on until explicitly qualified in source and tests.

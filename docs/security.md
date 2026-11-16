@@ -19,11 +19,11 @@ and writer run off the LVGL thread; only `poll()` invokes UI handlers.
 
 `meshtasticd` binds all interfaces. A dedicated nftables `inet cz_mesh` table
 drops TCP 47400 on every ingress interface except `lo`, including IPv6. The
-package enables a boot service to establish it. That short-lived service runs
+package enables a boot service to establish it. That monitor service runs
 as `cz-mesh-firewall` with only CAP_NET_ADMIN; the app and supervisor run as the
-logged-in user. A root-owned helper accepts only fixed `ensure`, `check`, and
+logged-in user. A root-owned helper accepts only fixed `ensure`, `check`, `monitor`, and
 `remove` actions. The app user's sudo grant permits **only `check`**. Startup
-fails before powering hardware if the rule is absent/changed or the helper
+fails before powering hardware if the rule is absent/changed or its trusted health record
 cannot verify it; the watchdog rechecks while online. A privileged administrator
 can still change networking or remove rules between checks. Loopback clients
 can access the unauthenticated daemon API; this is not isolation from local users.
@@ -136,3 +136,41 @@ re-enabled; subsequent saves use the new app-specific path.
 
 See [review-remediation.md](review-remediation.md) for the regression evidence and
 remaining device qualification. Code tests are not proof of RF or reboot behavior.
+
+## 0.1.2 operational safeguards
+
+The app no longer runs a sudo health check every two seconds. A separate system
+service runs as `cz-mesh-firewall`, with only CAP_NET_ADMIN, and checks its exact
+nftables table. It atomically publishes a verdict in its owned runtime directory.
+The supervisor validates owner/type/mode, boot identity, true verdict and an age
+of at most seven seconds before power-on and while running. Stale/missing/false
+verdicts stop the radio. The fixed sudo check remains a manual diagnostic command.
+The normal supervisor user unit can use NoNewPrivileges.
+
+This addresses an observed device failure: `subprocess.run` timed out while
+waiting for sudo, then attempted to kill an elevated process it could not signal.
+That generated EPERM and a generic radio Error even though a subsequent firewall
+check succeeded. A boot capability service removes that privileged child-process
+lifecycle from the application; health verification still fails closed.
+
+Fresh setup generates a private key locally or selects the known public default,
+with TX, automatic location and MQTT Off. Explicit TX enabling requires antenna
+confirmation; software cannot detect the antenna. Saved mesh profiles contain
+keys and are private local files, never diagnostic exports. Applying a profile
+requires radio Off and resets TX/location/MQTT consent. The supported daemon/client
+versions are checked before Cap power, because a schema mismatch can make firmware
+replace stored preferences with factory defaults.
+
+Conversation storage is 0600 SQLite in the owned 0700 state directory, with WAL,
+FULL synchronous commits and a 2,000-message global bound. Drafts/pins have a
+256-thread bound. It is not encrypted at rest; a user with device/root access can
+read it. Disabling saved history deletes disk messages/drafts and suppresses
+future writes; RAM history remains until shutdown. Deletion is logical, not a
+promise of forensic erasure from flash, WAL, filesystem snapshots or backups.
+No message is automatically resent after restart.
+
+Opaque local channel identities bind routing to effective name/key rather than
+slot. Reused slots archive old conversations and cannot silently retarget retries,
+drafts or an open DM selection. Diagnostic export is built from an explicit
+whitelist and excludes raw logs, channel/owner names, IDs, keys, URLs, coordinates,
+message text and filesystem paths. Do not substitute raw runtime logs for it.

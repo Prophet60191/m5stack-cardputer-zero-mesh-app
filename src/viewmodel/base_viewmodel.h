@@ -9,6 +9,7 @@
 #include "subjects.h"
 #include "base_model.h"
 #include "mesh_data.h"
+#include "json.h"
 
 #include "lvgl.h"
 
@@ -84,7 +85,30 @@ public:
     void set_channels(std::vector<ChannelInfo> channels);
     void set_messages(std::vector<MessageInfo> messages);
     void add_message(MessageInfo message);
-    void set_delivery(const std::string& id, int status, int hops = -1);   // update an outgoing bubble
+    void set_delivery(const std::string& id, int status, int hops = -1, const std::string& reason = "");
+    int channel_for_thread(const std::string& key) const;
+    std::string channel_fields(int index) const;
+    void apply_health(const std::string& mode, const std::string& detail);
+    const std::string& radio_mode() const { return radio_mode_; }
+    const std::string& radio_detail() const { return radio_detail_; }
+    lv_subject_t* services_subject() { return services_version_.native(); }
+    bool service_request(const std::string& intent, const std::string& fields = "");
+    void apply_service(const json::Value& event);
+    const json::Value& service_event() const { return service_event_; }
+    const json::Value& setup() const { return setup_; }
+    void apply_setup(const json::Value& event);
+    void apply_threads(const json::Value& event);
+    std::string draft(const std::string& key) const;
+    void save_draft(const std::string& key, const std::string& text);
+    void flush_drafts();
+    bool pinned(const std::string& key) const;
+    void toggle_pin(const std::string& key);
+    bool history_enabled() const { return history_enabled_; }
+    void set_quiet_hours(int start, int end);
+    void load_quiet_hours(int start, int end) { quiet_start_ = start; quiet_end_ = end; }
+    int quiet_start() const { return quiet_start_; }
+    int quiet_end() const { return quiet_end_; }
+    bool quiet_now() const;
 
     // --- per-thread state (app-local) ----------------------------------------
     int unread_count(const std::string& key) const;
@@ -132,6 +156,7 @@ public:
     const std::string& channel_share_name() const { return channel_share_name_; }
     void cancel_channel_share() { share_request_.clear(); }
     const std::string& share_request_id() const { return share_request_; }
+    bool share_channel_valid() const;
 
     // Results of those actions, surfaced to the Messages screen.
     lv_subject_t* traceroute_subject();       // bumped when a traceroute returns
@@ -140,7 +165,7 @@ public:
     const std::string& channel_share_url() const { return channel_share_url_; }
     void apply_traceroute(bool ok, const std::string& text, const std::string& node, const std::string& request);
     void cancel_traceroute() { trace_request_.clear(); }
-    void apply_channel_share(int channel, const std::string& name, const std::string& url, const std::string& request);
+    void apply_channel_share(int channel, const std::string& name, const std::string& url, const std::string& request, const std::string& identity = "");
 
     // A one-line notice/error from the supervisor, shown as a toast.
     lv_subject_t* notice_subject();
@@ -164,7 +189,7 @@ public:
     void set_command_sink(std::function<bool(const std::string&)> sink);
     void radio_start();
     void radio_stop();
-    void send_message(int channel, const std::string& text, const std::string& dest = "");
+    bool send_message(int channel, const std::string& text, const std::string& dest = "");
     void add_channel_url(const std::string& url);
     void scan_channel_qr();   // ask the supervisor to scan a channel QR (device only)
     void set_region(const std::string& region);
@@ -203,6 +228,18 @@ public:
     const std::string& dm_target_name() const { return dm_target_name_; }
 
 private:
+    std::string radio_mode_, radio_detail_;
+    reactive::IntSubject services_version_{0};
+    json::Value service_event_, setup_;
+    std::string service_request_id_;
+    std::map<std::string, std::string> drafts_;
+    std::map<std::string, std::string> sent_draft_keys_;
+    std::set<std::string> dirty_drafts_;
+    long long draft_deadline_ = 0;
+    std::set<std::string> pinned_;
+    bool history_enabled_ = true;
+    int quiet_start_ = -1, quiet_end_ = -1;
+    void send_thread_state(const std::string& key);
     void publish_all();
     bool send_intent(const std::string& line);
 
@@ -261,6 +298,7 @@ private:
     std::string channel_share_name_;
     std::string share_request_;
     int share_channel_ = -1;
+    std::string share_identity_;
     std::string last_notice_;
     std::function<void()> on_persist_;
     void persist();

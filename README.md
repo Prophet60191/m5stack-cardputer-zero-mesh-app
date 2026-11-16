@@ -31,7 +31,7 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.1, a release candidate** with public/private channel
+The current source is **0.1.2, a release candidate** with public/private channel
 support and fixes from an independent security and robustness review. Native UI,
 sanitizer, backend and Debian arm64 package checks pass. Live public-mesh delivery,
 full cold-boot and other remaining device checks are documented in the
@@ -53,8 +53,11 @@ These are native LVGL renders using synthetic data, not personal messages or dev
 
 - **Public and private channels** — clearly labeled group conversations and explicit DM channel selection; no silent channel fallback.
 
-- **Threaded messaging** — a conversation per channel and per node, with delivery status (sending / delivered
-  with hop count / failed) and **resend** for the ones the mesh drops.
+- **Threaded messaging** — a conversation per channel and per node, with mesh versus recipient acknowledgments, unconfirmed sends and failure reasons and **resend** for the ones the mesh drops.
+- **First-run setup** — select a region and public/private primary channel; initialize receive-only, then explicitly enable TX with antenna confirmation. Requires the qualified meshtasticd 2.7.26 build and client 2.7.11.
+- **Durable chats** — bounded private SQLite history, identity-bound drafts, pinned chats, case-sensitive conversation search (`/`), and local-time quiet hours. Saved history can be disabled and erased.
+- **Channel manager and mesh profiles** — create/rename/rotate/enable/disable/remove channels with actual readback; preview and apply named local profiles while Off. Profile application leaves TX, location and MQTT Off.
+- **Diagnostics** — current connection, firewall, versions and GPS age; optional sanitized export excludes keys, chats, IDs and coordinates.
 - **Quick messages** — one-key canned replies ("OK", "On my way", "Need help"&hellip;), editable in Settings.
 - **Nodes & Map** — who's on the mesh, signal, battery, last-heard, distance; a you-centred radar map.
 - **Mesh-native tools** — share your **location**, request a node's position, **trace the route** a packet
@@ -106,7 +109,7 @@ Two cooperating processes with a clean boundary — the UI never touches the rad
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.1_rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.2_rev1_arm64.deb
 sudo apt install meshtasticd      # or the official daemon .deb for your Debian image
 sudo usermod -aG cardputerzero-mesh "$(id -un)"
 ```
@@ -123,12 +126,23 @@ python3 -m venv "${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv"
 "${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv/bin/pip" install 'meshtastic==2.7.11'
 ```
 
-Camera QR scanning is optional. Install `python3-opencv`, `python3-pyzbar` and
-`libzbar0` from Debian, and create/update the radio venv with
-`python3 -m venv --system-site-packages <venv-path>` so its scanner can import
-those system packages. Pasting a private share URL works without camera support.
+Camera QR scanning is optional. The built-in CSI camera uses the fixed
+`rpicam-still`/libcamera capture program; it does not open the raw CSI video node
+as a webcam. On Debian 13, install `python3-pil` and `libzbar0t64` from Debian,
+and install `pyzbar==0.1.9` in the radio venv:
 
-**3. Attach the antenna and launch Mesh from the grid.** The launcher starts the
+```bash
+sudo apt install python3-pil libzbar0t64
+"${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv/bin/pip" install 'pyzbar==0.1.9'
+```
+
+Create/update the venv with `python3 -m venv --system-site-packages <venv-path>`
+so it can import the system Pillow package. `python3-opencv` is needed only for a
+USB/V4L2 webcam fallback. Pasting a private share URL works without a camera.
+
+**3. Attach the antenna and launch Mesh from the grid.** On an empty state directory, first-run setup creates a receive-only profile. Choose your permitted region and public or newly generated private primary channel. Existing profiles are preserved. Use Settings → Transmit mode to enable TX deliberately. A private group needs its selected-channel QR shared with the intended peer.
+
+The launcher starts the
 user supervisor service; radio startup stays an explicit action unless you enable
 auto-start. Closing the UI leaves the supervisor running; stop the radio or the
 user service before swapping the Cap. The firewall must pass verification before power-on. Check setup with:
@@ -211,3 +225,11 @@ See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 ---
 
 <p align="center"><sub>Built for the M5Stack CardputerZero • <a href="https://github.com/Prophet60191">github.com/Prophet60191</a></sub></p>
+
+## Radio resource conflicts
+
+If startup reports that the NFC SPI-CS2 overlay reserves GPIO22, close the NFC
+app and cold-restart the device before using LoRa. The official NFC app uses
+GPIO22 as SPI-CS2 and documents that its runtime overlay stays until reboot;
+LoRa uses that pin as BUSY. Mesh checks ownership before power-on and does not
+unbind another app's kernel driver. See the [upstream NFC hardware notes](https://github.com/CardputerZero/Cap-CC1101-NFC#hardware).

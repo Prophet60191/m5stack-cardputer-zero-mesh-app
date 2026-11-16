@@ -346,6 +346,8 @@ void NodesScreen::open_detail() {
     const long now = static_cast<long>(std::time(nullptr));
     add_field("Last heard", n.isSelf ? "this device"
                                      : (n.lastHeard > 0 ? relative_time(now - n.lastHeard) : "unknown"));
+    if (n.channelUtilization >= 0) add_field("Channel busy", std::to_string(static_cast<int>(n.channelUtilization)) + "%");
+    if (n.airUtilization >= 0) add_field("TX airtime", std::to_string(n.airUtilization) + "%");
     add_field("Route", hops_text(n.hops).empty() ? "unknown" : hops_text(n.hops));
     if (n.hasBattery) {
         char bat[32];
@@ -358,6 +360,8 @@ void NodesScreen::open_detail() {
         char pos[48];
         std::snprintf(pos, sizeof(pos), "%.4f, %.4f", n.lat, n.lon);
         add_field("Position", pos);
+        add_field("Fix age", n.positionTime > 0 && now >= n.positionTime ? std::to_string(now-n.positionTime) + "s" + (now-n.positionTime > 120 ? " (stale)" : "") : "Unknown");
+        add_field("Satellites", n.satellites < 0 ? "Unknown" : std::to_string(n.satellites));
         // Distance from our own node, if we have a position.
         const viewmodel::NodeInfo* me = nullptr;
         for (const auto& x : view_model().nodes()) {

@@ -40,11 +40,14 @@ def child_death_binding():
 
 
 def restore(saved: Path) -> None:
+    if saved.stat().st_size > 1024: raise ValueError("invalid power recovery record")
     values = json.loads(saved.read_text())
-    if values.get("power") not in ("0", "1") or values.get("mux") not in ("0", "1"):
+    if not isinstance(values, dict):
         raise ValueError("invalid power recovery record")
-    cap_lora._write_text(cap_lora.MUX_LED, values["mux"])
-    cap_lora._write_text(cap_lora.POWER_LED, values["power"])
+    power = cap_lora.switch_value(values.get("power"))
+    mux = cap_lora.switch_value(values.get("mux"))
+    cap_lora._write_text(cap_lora.MUX_LED, mux)
+    cap_lora._write_text(cap_lora.POWER_LED, power)
     saved.unlink()
 
 
@@ -70,8 +73,8 @@ def run(command: list[str], runtime: Path, control_fd: int = 0) -> int:
             restore(saved)
         cap_lora.preflight()
         with open(saved, "w", opener=lambda path, flags: os.open(path, flags, 0o600)) as record:
-            json.dump({"power": cap_lora._read_text(cap_lora.POWER_LED),
-                       "mux": cap_lora._read_text(cap_lora.MUX_LED)}, record)
+            json.dump({"power": cap_lora.switch_value(cap_lora._read_text(cap_lora.POWER_LED)),
+                       "mux": cap_lora.switch_value(cap_lora._read_text(cap_lora.MUX_LED))}, record)
             record.flush()
             os.fsync(record.fileno())
         stopped = threading.Event()

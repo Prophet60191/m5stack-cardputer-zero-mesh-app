@@ -14,7 +14,8 @@ cmake -S /src -B "$mesh_build" -G Ninja -DUSE_DESKTOP=OFF -DCM0_SDK_ROOT=/ \
 cmake --build "$mesh_build" -j 8
 cd "$mesh_build"
 cpack -G DEB
-package=dist/cardputerzero-mesh_0.1.1_rev1_arm64.deb
+mesh_version=$(python3 -c 'import json; print(json.load(open("/src/app-builder.json"))["version"])')
+package="dist/cardputerzero-mesh_${mesh_version}_rev1_arm64.deb"
 dpkg-deb --info "$package"
 dpkg-deb --contents "$package" > package-contents.txt
 # Some minimized images exclude docs by default; include them for validation.
@@ -37,5 +38,36 @@ if python3 /usr/lib/cardputerzero-mesh/firewall.py check; then
     echo 'FAIL: permissive rule was accepted' >&2
     exit 1
 fi
+python3 /usr/lib/cardputerzero-mesh/firewall.py ensure
+install -d -o cz-mesh-firewall -g cz-mesh-firewall -m 0755 /run/cardputerzero-mesh-firewall
+setpriv --reuid=cz-mesh-firewall --regid=cz-mesh-firewall --clear-groups \
+    --inh-caps=+net_admin --ambient-caps=+net_admin \
+    /usr/lib/cardputerzero-mesh/firewall-setup.sh monitor &
+mesh_monitor=$!
+trap 'kill "$mesh_monitor" 2>/dev/null || true; wait "$mesh_monitor" || true' EXIT
+python3 - <<'PY'
+import sys,time
+sys.path.insert(0, '/usr/lib/cardputerzero-mesh')
+import firewall
+for _ in range(30):
+    try:
+        assert firewall.health_status()['ok']
+        break
+    except RuntimeError: time.sleep(.1)
+else: raise SystemExit('monitor did not publish a trusted healthy verdict')
+PY
+nft insert rule inet cz_mesh input accept
+sleep 3
+python3 - <<'PY'
+import sys
+sys.path.insert(0, '/usr/lib/cardputerzero-mesh')
+import firewall
+try: firewall.health_status()
+except RuntimeError: pass
+else: raise SystemExit('monitor accepted a permissive firewall')
+PY
+kill "$mesh_monitor"
+wait "$mesh_monitor"
+trap - EXIT
 python3 /usr/lib/cardputerzero-mesh/firewall.py ensure
 python -m unittest discover -s /src/tests -p 'test_*.py' -v

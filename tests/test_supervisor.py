@@ -29,6 +29,8 @@ class Client:
 class Node:
     def __init__(self):
         self.localConfig = localonly_pb2.LocalConfig()
+        self.localConfig.lora.tx_enabled = True
+        self.localConfig.lora.region = 1
         self.moduleConfig = localonly_pb2.LocalModuleConfig()
         self.channels = [channel_pb2.Channel(index=i) for i in range(8)]
         self.channels[0].role = channel_pb2.Channel.PRIMARY
@@ -85,8 +87,11 @@ class SupervisorTests(unittest.TestCase):
     def tearDown(self):
         self.s._stop.set()
         self.s._worker.join(1)
+        self.s._store.close()
+        self.s._state_lease.close()
         self.tmp.cleanup()
     def dispatch(self, **req):
+        if "channel" in req and "channel_id" not in req: req["channel_id"] = self.s._channel_identity(req["channel"])
         self.s._dispatch(self.c, req)
     def send(self, **extra):
         self.dispatch(**dict(intent='message.send', channel=1, text='Synthetic test', cid='client-1', **extra))
@@ -199,11 +204,11 @@ class SupervisorTests(unittest.TestCase):
         old({'decoded': {'routing': {'errorReason': 'NONE'}}})
         self.assertEqual(self.s._messages[0]['status'], 'sending')
         new({'decoded': {'routing': {'errorReason': 'NONE'}}})
-        self.assertEqual(self.s._messages_payload()['messages'][0]['status'], 'delivered')
+        self.assertEqual(self.s._messages_payload()['messages'][0]['status'], 'mesh')
     def test_immediate_ack_does_not_get_overwritten(self):
         self.s._iface.immediate = True
         self.send()
-        self.assertEqual(self.s._messages[0]['status'], 'delivered')
+        self.assertEqual(self.s._messages[0]['status'], 'mesh')
         order = [e['event'] for e in self.c.events if e['event'] in ('message', 'delivery')]
         self.assertEqual(order, ['message', 'delivery'])
     def test_snapshot_queueing_cannot_race_a_delivery(self):
@@ -228,11 +233,11 @@ class SupervisorTests(unittest.TestCase):
         worker.join(2); self.assertFalse(worker.is_alive())
         self.assertEqual([e['event'] for e in self.c.events], ['messages', 'delivery'])
         self.assertEqual(self.c.events[0]['messages'][0]['status'], 'sending')
-        self.assertEqual(self.s._messages[0]['status'], 'delivered')
+        self.assertEqual(self.s._messages[0]['status'], 'mesh')
 
     def test_no_ack_and_send_failure(self):
         self.send(wantAck=False)
-        self.assertEqual(self.s._messages[0]['status'], '')
+        self.assertEqual(self.s._messages[0]['status'], 'sent')
         self.s._iface.fail = True
         self.send()
         self.assertEqual(self.s._messages[0]['status'], 'failed')
@@ -246,7 +251,7 @@ class SupervisorTests(unittest.TestCase):
         self.dispatch(intent='message.retention', cap=2)
         self.assertEqual(len(self.s._messages), 6)
         self.assertEqual(self.c.events[-2]['event'], 'messages')
-        self.dispatch(intent='message.clear', thread='ch:1')
+        self.dispatch(intent='message.clear', thread='ch:legacy:1')
         self.assertEqual(len(self.s._messages), 4)
     def test_global_history_and_attempt_bounds(self):
         for i in range(mod.MAX_MESSAGES + 5):
@@ -388,7 +393,10 @@ class SupervisorTests(unittest.TestCase):
     def test_frequency_slot_validation_and_readback(self):
         for value in [-1, 256, True, '20', 1.5]:
             with self.assertRaises(ValueError): self.s._set_config('lora.channel_num', value)
-        self.dispatch(intent='config.set', path='lora.channel_num', value=20, id='slot')
+        def restart(path, value):
+            self.s._set_config(path, value)
+        with patch.object(self.s, '_restart_with_config', side_effect=restart):
+            self.dispatch(intent='config.set', path='lora.channel_num', value=20, id='slot')
         self.assertTrue(self.s._config_confirmed)
         self.assertEqual(self.c.events[-1]['frequency_slot'], 20)
     def test_socket_bad_json_recovers_and_deep_input_disconnects(self):

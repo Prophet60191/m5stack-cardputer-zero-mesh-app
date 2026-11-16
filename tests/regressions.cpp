@@ -93,7 +93,7 @@ static void dual_channel_ui_regression(const char* screenshot_path) {
     std::string sent;
     vm.set_command_sink([&](const std::string& s) { sent = s; return true; });
     vm.set_connected(true); vm.apply_status("online", "US", "Demo");
-    vm.set_channels({{0, "Public", false, "PRIMARY"}, {1, "Private A", true, "SECONDARY"}, {2, "Private B", true, "SECONDARY"}});
+    vm.set_channels({{0, "Public", false, "PRIMARY", 0, "synthetic-public"}, {1, "Private A", true, "SECONDARY", 0, "synthetic-private"}, {2, "Private B", true, "SECONDARY", 0, "synthetic-other"}});
     viewmodel::NodeInfo peer; peer.id = "!11111111"; peer.name = std::string(80, 'P'); vm.set_nodes({peer});
     app::AssetManager assets;
     screen::MessagesScreen screen(vm, assets); lv_screen_load(screen.root());
@@ -113,11 +113,11 @@ static void dual_channel_ui_regression(const char* screenshot_path) {
     };
     write(0, "");
     const auto before = sent;
-    screen.on_key('o'); screen.on_down(); screen.on_enter(); // public precise location
+    screen.on_key('o'); screen.on_down(); screen.on_down(); screen.on_enter(); // public precise location
     CHECK(labels(screen.root()).find("Precise location") != std::string::npos);
     capture("public-location-confirm.png", screen.root());
     screen.on_enter(); CHECK(sent == before); // default Cancel
-    screen.on_key('o'); screen.on_down(); screen.on_enter(); screen.on_down(); screen.on_enter();
+    screen.on_key('o'); screen.on_down(); screen.on_down(); screen.on_enter(); screen.on_down(); screen.on_enter();
     json::Value v; CHECK(json::parse(sent, v)); CHECK(v.str_at("intent") == "position.send");
     CHECK(v.int_at("channel") == 0); CHECK(v.find("public_confirmed")->as_bool());
     CHECK(screen.on_back()); screen.on_enter(); screen.on_down(); screen.on_enter();
@@ -129,17 +129,17 @@ static void dual_channel_ui_regression(const char* screenshot_path) {
     const auto before_dm = sent;
     screen.on_down(); screen.on_enter(); CHECK(sent == before_dm); // choose private A
     write(1, peer.id);
-    screen.on_key('o'); screen.on_down(); screen.on_down(); screen.on_enter(); screen.on_enter(); // choose public DM
+    screen.on_key('o'); screen.on_down(); screen.on_down(); screen.on_down(); screen.on_enter(); screen.on_enter(); // choose public DM
     write(0, peer.id);
     CHECK(labels(screen.root()).find("DM via 0: Public [Public]") != std::string::npos);
     capture("public-dm-long-name.png", screen.root());
     const auto before_removed = sent;
-    vm.set_channels({{1, "Private A", true, "SECONDARY"}});
+    vm.set_channels({{1, "Private A", true, "SECONDARY", 0, "synthetic-private"}});
     screen.on_enter(); CHECK(sent == before_removed); // removed public channel cannot fall back to private
     CHECK(labels(screen.root()).find("DM via channel") != std::string::npos);
     CHECK(screen.on_back());
 
-    vm.set_channels({{0, "Public", false, "PRIMARY"}, {1, "Private A", true, "SECONDARY"}});
+    vm.set_channels({{0, "Public", false, "PRIMARY", 0, "synthetic-public"}, {1, "Private A", true, "SECONDARY", 0, "synthetic-private"}});
     vm.apply_config("LONG_FAST", 3, false, false, "", 20);
     screen::SettingsScreen settings(vm, assets); lv_screen_load(settings.root());
     for (int i = 0; i < 6; ++i) settings.on_down();
@@ -152,13 +152,37 @@ static void dual_channel_ui_regression(const char* screenshot_path) {
     CHECK(json::parse(sent, v)); CHECK(v.str_at("path") == "position.enabled");
     CHECK(v.int_at("channel") == 0); CHECK(v.find("public_confirmed")->as_bool());
     const auto request = v.str_at("id");
-    vm.set_channels({{0, "Public", false, "PRIMARY", 15}, {1, "Private A", true, "SECONDARY"}});
+    vm.set_channels({{0, "Public", false, "PRIMARY", 15, "synthetic-public"}, {1, "Private A", true, "SECONDARY", 0, "synthetic-private"}});
     vm.apply_config("LONG_FAST", 3, true, false, request, 20);
     CHECK(labels(settings.root()).find("Public: 0") != std::string::npos);
     for (int i = 6; i < 17; ++i) settings.on_down();
     settings.on_enter(); auto* slot = textarea(settings.root()); CHECK(slot);
     lv_textarea_set_text(slot, "21"); settings.on_enter();
     CHECK(json::parse(sent, v)); CHECK(v.str_at("path") == "lora.channel_num"); CHECK(v.int_at("value") == 21);
+}
+
+static void identity_confirmation_regression() {
+    viewmodel::BaseViewModel vm; std::string sent;
+    vm.set_command_sink([&](const std::string& value) {sent=value;return true;});
+    vm.set_connected(true);vm.apply_status("online","US","Synthetic");
+    vm.set_channels({{1,"Original",true,"SECONDARY",0,"old-id"}});
+    vm.request_channel_share(1);const auto request=vm.share_request_id();
+    vm.set_channels({{1,"Replacement",true,"SECONDARY",0,"new-id"}});
+    vm.apply_channel_share(1,"Original","synthetic-url",request,"old-id");CHECK(vm.channel_share_url().empty());
+    vm.set_channels({{1,"Original",true,"SECONDARY",0,"old-id"}});
+    vm.request_channel_share(1);vm.apply_channel_share(1,"Original","synthetic-url",vm.share_request_id(),"old-id");
+    CHECK(vm.channel_share_url()=="synthetic-url");
+    vm.set_channels({{2,"Original",true,"SECONDARY",0,"old-id"}});CHECK(vm.channel_share_url().empty());
+    viewmodel::MessageInfo m;m.id="synthetic-retry";m.from="self";m.to="broadcast";m.text="Synthetic";m.channel=1;m.channelIdentity="old-id";m.outgoing=true;
+    vm.set_messages({m});vm.resend_message(m.id);json::Value event;CHECK(json::parse(sent,event));CHECK(event.int_at("channel")==2);CHECK(event.str_at("channel_id")=="old-id");
+    vm.set_channels({{0,"Original",false,"PRIMARY",0,"public-old"}});vm.apply_config("LONG_FAST",3,false,false);
+    app::AssetManager assets;screen::SettingsScreen settings(vm,assets);lv_screen_load(settings.root());
+    for(int i=0;i<6;++i)settings.on_down();settings.on_enter(); // position channel picker
+    vm.set_channels({{0,"Replacement",false,"PRIMARY",0,"public-new"}});
+    const auto before=sent;settings.on_enter();CHECK(sent==before);CHECK(vm.last_notice().find("Channel changed")!=std::string::npos);
+    settings.on_enter();settings.on_enter(); // choose current public channel -> confirmation
+    vm.set_channels({{0,"Another",false,"PRIMARY",0,"public-third"}});
+    settings.on_down();settings.on_enter();CHECK(sent==before);CHECK(vm.last_notice().find("Channel changed")!=std::string::npos);
 }
 
 static void save_png(const char* path, lv_obj_t* root) {
@@ -168,6 +192,66 @@ static void save_png(const char* path, lv_obj_t* root) {
     image.width = shot->header.w; image.height = shot->header.h; image.format = PNG_FORMAT_BGRA;
     CHECK(png_image_write_to_file(&image, path, false, shot->data, shot->header.stride, nullptr));
     lv_draw_buf_destroy(shot);
+}
+
+static void services_ui_regression(const char* screenshot_path) {
+    viewmodel::BaseViewModel vm;
+    std::string sent;
+    vm.set_command_sink([&](const std::string& value) { sent = value; return true; });
+    vm.set_connected(true);
+    app::AssetManager assets;
+    screen::SettingsScreen settings(vm, assets); lv_screen_load(settings.root());
+    json::Value event;
+    CHECK(json::parse(R"({"event":"setup","ready":false,"mode":"not configured"})", event));
+    vm.apply_setup(event);
+    const auto capture = [&](const char* name, lv_obj_t* root) { if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/name).c_str(), root); };
+    capture("first-run-region.png", settings.root());
+    CHECK(labels(settings.root()).find("First run") != std::string::npos);
+    settings.on_enter(); settings.on_enter(); // region US, private
+    auto* text = textarea(settings.root()); CHECK(text);
+    lv_textarea_set_text(text,"Synthetic"); settings.on_enter();
+    CHECK(labels(settings.root()).find("RX only") != std::string::npos);
+    capture("first-run-confirm.png", settings.root());
+    const auto before = sent; settings.on_enter(); CHECK(sent == before); // Cancel
+    for (int i=0; i<18; ++i) settings.on_down();
+    settings.on_enter(); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="setup.status");
+    const auto request=event.str_at("id");
+    CHECK(json::parse("{\"event\":\"setup\",\"id\":\""+request+"\",\"ready\":true,\"mode\":\"receive-only\",\"region\":\"US\",\"firewall\":true}",event));
+    vm.apply_setup(event); CHECK(labels(settings.root()).find("Setup ready")!=std::string::npos);
+    settings.on_back(); settings.on_down(); settings.on_enter(); // TX
+    CHECK(labels(settings.root()).find("Antenna")!=std::string::npos);
+    settings.on_enter(); CHECK(sent.find("setup.status")!=std::string::npos); // Cancel stays off
+    settings.on_enter(); settings.on_down(); settings.on_enter();
+    CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="radio.tx"); CHECK(event.find("antenna_confirmed")->as_bool());
+    settings.on_back(); // dismiss waiting; stale response may not replace new overlay
+    settings.on_down(); settings.on_enter(); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="channel.slots");
+    auto slot_request=event.str_at("id");
+    CHECK(json::parse("{\"event\":\"channel.slots\",\"id\":\""+slot_request+"\",\"channels\":[{\"index\":1,\"identity\":\"synthetic-id\",\"name\":\"Synthetic\",\"private\":true,\"role\":\"SECONDARY\"}]}",event));
+    vm.apply_service(event);
+    capture("channel-manager.png", settings.root());
+    settings.on_down(); settings.on_down(); settings.on_enter(); // existing slot
+    capture("channel-edit.png", settings.root());
+    settings.on_down(); settings.on_down(); settings.on_enter(); // rotate
+    settings.on_down(); settings.on_enter();
+    CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="channel.manage"); CHECK(event.str_at("channel_id")=="synthetic-id"); CHECK(event.str_at("action")=="rotate");
+    settings.on_back();
+    vm.set_channels({{1,"Original",true,"SECONDARY",0,"group-old"}});
+    viewmodel::MessageInfo m; m.from="self"; m.id="synthetic"; m.to="broadcast"; m.outgoing=true; m.channel=1; m.channelIdentity="group-old"; m.channelName="Original"; m.channelPrivate=true; m.text="Needle";
+    vm.set_messages({m}); vm.save_draft("ch:group-old","Unsent secret"); vm.flush_drafts();
+    vm.set_channels({{1,"Replacement",false,"SECONDARY",0,"group-new"}});
+    CHECK(vm.channel_for_thread("ch:group-old")==-1);
+    const auto before_retry=sent; vm.resend_message(m.id); CHECK(sent==before_retry);
+    screen::MessagesScreen messages(vm,assets); lv_screen_load(messages.root());
+    messages.on_down(); messages.on_enter();
+    CHECK(labels(messages.root()).find("Archived: Original")!=std::string::npos);
+    capture("archived-channel.png", messages.root());
+    const auto before_compose=sent; messages.on_enter(); CHECK(sent==before_compose);
+    CHECK(messages.on_back());
+    CHECK(messages.on_key('/')); text=textarea(messages.root()); CHECK(text);
+    lv_textarea_set_text(text,"absent"); messages.on_enter(); CHECK(labels(messages.root()).find("Archived: Original")==std::string::npos);
+    CHECK(messages.on_back()); CHECK(labels(messages.root()).find("Archived: Original")!=std::string::npos);
+    vm.toggle_pin("ch:group-old"); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="thread.state"); CHECK(vm.pinned("ch:group-old"));
+    vm.set_quiet_hours(0,1439); CHECK(vm.quiet_start()==0); vm.set_quiet_hours(-1,-1); CHECK(!vm.quiet_now());
 }
 
 static void settings_file_regression() {
@@ -205,6 +289,8 @@ int main(int argc, char** argv) {
     platform::SupervisorClientTest::partial_frame();
     lv_init(); auto* display = lv_display_create(320, 170); CHECK(display);
     dual_channel_ui_regression(argc > 1 ? argv[1] : nullptr);
+    services_ui_regression(argc > 1 ? argv[1] : nullptr);
+    identity_confirmation_regression();
     {
         viewmodel::BaseViewModel vm;
         std::string sent;
@@ -213,7 +299,7 @@ int main(int argc, char** argv) {
         CHECK(!lv_subject_get_int(vm.position_subject()));
         vm.set_connected(true); CHECK(sent.find("message.retention") != std::string::npos);
         vm.apply_status("online", "UNSET", "Demo");
-        vm.set_channels({{0, "Public", false, "PRIMARY"}, {1, "Field One", true, "SECONDARY"}, {2, "Field Two", true, "SECONDARY"}});
+        vm.set_channels({{0, "Public", false, "PRIMARY", 0, "synthetic-public"}, {1, "Field One", true, "SECONDARY", 0, "synthetic-private"}, {2, "Field Two", true, "SECONDARY", 0, "synthetic-other"}});
         CHECK(vm.channel(0) && !vm.channel(0)->isPrivate); CHECK(vm.channel(1)->isPrivate); CHECK(!vm.channel(7));
         vm.apply_config("MEDIUM_FAST", 3, true, false);
         vm.set_position_sharing(false); CHECK(std::string(vm.config_state()) == "pending");
@@ -234,7 +320,7 @@ int main(int argc, char** argv) {
         CHECK(vm.messages().size() == 2000);
         vm.set_messages({}); CHECK(vm.total_unread() == 0);
         viewmodel::MessageInfo m; m.id = "demo-1"; m.from = "!11111111"; m.fromName = "Field One";
-        m.to = "broadcast"; m.channel = 2; m.time = 1; m.text = "Radio check. All clear.";
+        m.to = "broadcast"; m.channel = 2; m.channelIdentity = "synthetic-other"; m.time = 1; m.text = "Radio check. All clear.";
         vm.add_message(m); vm.add_message(m); CHECK(vm.messages().size() == 1);
         vm.apply_status("online", "UNSET", "Demo");
         app::AssetManager assets;
@@ -252,7 +338,7 @@ int main(int argc, char** argv) {
         screen.on_down(); screen.on_enter();  // open group 2
         CHECK(labels(screen.root()).find("Field Two") != std::string::npos);
         if (argc > 1) save_png(argv[1], screen.root());
-        screen.on_key('o'); screen.on_down(); screen.on_down(); screen.on_enter();
+        screen.on_key('o'); screen.on_down(); screen.on_down(); screen.on_down(); screen.on_enter();
         CHECK(json::parse(sent, v)); CHECK(v.str_at("intent") == "channel.share"); CHECK(v.int_at("channel") == 2);
         id = v.str_at("id");
         CHECK(screen.on_back());  // cancel pending share overlay

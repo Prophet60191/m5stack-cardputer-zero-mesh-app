@@ -29,6 +29,10 @@ struct NodeInfo {
     bool hasPos = false;
     double lat = 0.0;
     double lon = 0.0;
+    long positionTime = 0;
+    int satellites = -1;
+    double channelUtilization = -1;
+    double airUtilization = -1;
 };
 
 struct ChannelInfo {
@@ -37,6 +41,7 @@ struct ChannelInfo {
     bool isPrivate = false;
     std::string role;   // "PRIMARY" | "SECONDARY"
     int positionPrecision = 0;
+    std::string identity;
 };
 
 struct MessageInfo {
@@ -54,19 +59,25 @@ struct MessageInfo {
     bool hasSnr = false;
     int hops = -1;           // hops away (-1 = unknown / direct)
     std::string relay;       // id of the node that relayed it to us (optional)
+    std::string channelIdentity;
+    std::string channelName;
+    bool channelPrivate = false;
+    std::string reason;
 };
 
 // Delivery status values for MessageInfo::status.
 inline constexpr int kMsgSending = 1;
 inline constexpr int kMsgDelivered = 2;
 inline constexpr int kMsgFailed = 3;
+inline constexpr int kMsgMesh = 4;
+inline constexpr int kMsgSent = 5;
 
 // The one canonical thread key for a message. Broadcasts are keyed by CHANNEL
-// ("ch:<index>") so a public-channel broadcast can never share a thread with a
-// private channel (and a reply can never be routed to the wrong channel);
+// ("ch:<opaque identity>") so a replaced slot can never inherit another group's
+// history or route a reply to the replacement channel;
 // direct messages are "dm:<peer-id>". Defined in exactly one place.
 inline std::string thread_key_of(const MessageInfo& m) {
-    if (m.to == "broadcast" || m.to.empty()) return std::string("ch:") + std::to_string(m.channel);
+    if (m.to == "broadcast" || m.to.empty()) return "ch:" + (m.channelIdentity.empty() ? "legacy:" + std::to_string(m.channel) : m.channelIdentity);
     return std::string("dm:") + (m.outgoing ? m.to : m.from);
 }
 
@@ -76,9 +87,5 @@ inline bool is_group_thread(const std::string& key) {
 }
 
 // The channel index a group thread key names (-1 if not a group thread).
-inline int group_thread_channel(const std::string& key) {
-    if (!is_group_thread(key)) return -1;
-    return std::atoi(key.c_str() + 3);
-}
 
 }  // namespace viewmodel

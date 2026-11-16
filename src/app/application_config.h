@@ -22,6 +22,8 @@ struct ApplicationConfig {
     int retention_cap = 0;       // max messages kept per thread (0 = keep all)
     bool mute_all = false;       // suppress all message notifications
     bool want_ack = true;        // request delivery acks when sending
+    int quiet_start = -1; // local minutes since midnight; -1 disables
+    int quiet_end = -1;
     bool auto_start = false;     // start the radio when the app launches
 
     std::vector<std::string> canned;     // quick messages

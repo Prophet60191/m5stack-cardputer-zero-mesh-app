@@ -273,6 +273,7 @@ void BaseViewModel::set_channels(std::vector<ChannelInfo> channels) {
         return ch.index < 0 || ch.index > 7 || (ch.role != "PRIMARY" && ch.role != "SECONDARY") || !indices.insert(ch.index).second;
     }), channels.end());
     channels_ = std::move(channels);
+    if (!share_channel_valid()) { cancel_channel_share(); channel_share_url_.clear(); }
     channels_version_subject_.set(channels_version_subject_.value() + 1);
 }
 
@@ -285,6 +286,13 @@ void BaseViewModel::set_messages(std::vector<MessageInfo> messages) {
 }
 
 void BaseViewModel::add_message(MessageInfo message) {
+    if (message.outgoing) {
+        const auto it = sent_draft_keys_.find(message.id);
+        if (it != sent_draft_keys_.end()) {
+            if (draft(it->second) == message.text) { save_draft(it->second, ""); flush_drafts(); }
+            sent_draft_keys_.erase(it);
+        }
+    }
     for (auto& m : messages_) {
         if (!message.id.empty() && m.id == message.id && m.from == message.from) {
             m = std::move(message);
@@ -303,7 +311,7 @@ void BaseViewModel::add_message(MessageInfo message) {
     // Bump unread BEFORE the version change: the version change triggers the
     // thread view to re-render and mark the visible thread read, which must see
     // (and clear) this increment, or an already-visible message stays unread.
-    if (incoming && !is_muted(key) && !mute_all_) {
+    if (incoming && !is_muted(key) && !mute_all_ && !quiet_now()) {
         unread_[key] += 1;
         unread_version_subject_.set(unread_version_subject_.value() + 1);
         incoming_message_subject_.set(incoming_message_subject_.value() + 1);
@@ -349,20 +357,20 @@ bool BaseViewModel::emit_message_send(int channel, const std::string& text,
     if (!dest.empty()) {
         line += ",\"dest\":\"" + json::escape(dest) + "\"";
     }
-    line += "}";
+    line += channel_fields(channel) + "}";
     return send_intent(line);
 }
 
-void BaseViewModel::send_message(int channel, const std::string& text, const std::string& dest) {
+bool BaseViewModel::send_message(int channel, const std::string& text, const std::string& dest) {
     if (text.empty() || text.size() > 200) {
         apply_notice("Messages must contain 1..200 UTF-8 bytes");
-        return;
+        return false;
     }
+    if (!this->channel(channel) || this->channel(channel)->identity.empty()) { apply_notice("Channel unavailable; reopen the conversation"); return false; }
     const std::string cid = session_id_ + std::to_string(++cid_counter_);
     const bool accepted = emit_message_send(channel, text, dest, cid);
 
-    // Local echo (the supervisor does not echo our own sends; delivery arrives
-    // later as a "delivery" event keyed by this cid).
+    // Local echo is replaced by authoritative supervisor acceptance/delivery.
     MessageInfo m;
     m.from = "self";
     m.fromName = "me";
@@ -370,18 +378,27 @@ void BaseViewModel::send_message(int channel, const std::string& text, const std
     m.text = text;
     m.id = cid;
     m.channel = channel;
+    m.channelIdentity = this->channel(channel)->identity;
+    m.channelName = this->channel(channel)->name;
+    m.channelPrivate = this->channel(channel)->isPrivate;
     m.outgoing = true;
     m.status = !accepted ? kMsgFailed : (want_ack_ ? kMsgSending : 0);   // no ack requested -> no pending state
     m.time = static_cast<long>(std::time(nullptr));
     add_message(std::move(m));
+    if (accepted) {
+        if (sent_draft_keys_.size() >= 2000) sent_draft_keys_.erase(sent_draft_keys_.begin());
+        sent_draft_keys_[cid] = dest.empty() ? "ch:" + this->channel(channel)->identity : "dm:" + dest + "@" + this->channel(channel)->identity;
+    }
+    return accepted;
 }
 
-void BaseViewModel::set_delivery(const std::string& id, int status, int hops) {
+void BaseViewModel::set_delivery(const std::string& id, int status, int hops, const std::string& reason) {
     if (id.empty()) return;
     bool changed = false;
     for (auto& m : messages_) {
         if (m.outgoing && m.id == id) {
             m.status = status;
+            m.reason = reason;
             if (hops >= 0) m.hops = hops;
             changed = true;
         }
@@ -436,7 +453,14 @@ void BaseViewModel::clear_thread(const std::string& key) {
 
 void BaseViewModel::delete_thread(const std::string& key) {
     clear_thread(key);
+    for (auto it = drafts_.begin(); it != drafts_.end();) {
+        if (it->first == key || it->first.rfind(key + "@", 0) == 0) { dirty_drafts_.erase(it->first); it = drafts_.erase(it); }
+        else ++it;
+    }
+    pinned_.erase(key);
+    send_intent("{\"intent\":\"thread.delete\",\"thread\":\"" + json::escape(key) + "\"}");
     muted_.erase(key);   // forget everything local about the conversation
+    persist();
 }
 
 void BaseViewModel::delete_message(const std::string& id) {
@@ -454,6 +478,10 @@ void BaseViewModel::delete_message(const std::string& id) {
 void BaseViewModel::resend_message(const std::string& id) {
     for (auto& m : messages_) {
         if (m.outgoing && m.id == id) {
+            const ChannelInfo* current = nullptr;
+            for (const auto& candidate : channels_) if (candidate.identity == m.channelIdentity && !m.channelIdentity.empty()) { current = &candidate; break; }
+            if (!current) { apply_notice("Original channel changed; retry cancelled"); return; }
+            m.channel = current->index;
             m.status = kMsgSending;
             const std::string dest = (m.to == "broadcast" || m.to.empty()) ? std::string() : m.to;
             if (!emit_message_send(m.channel, m.text, dest, m.id)) m.status = kMsgFailed;   // same cid -> updates this bubble
@@ -515,13 +543,14 @@ void BaseViewModel::set_want_ack(bool on) {
 void BaseViewModel::send_position(int channel, const std::string& dest, bool public_confirmed) {
     std::string line = "{\"intent\":\"position.send\",\"channel\":" + std::to_string(channel);
     if (!dest.empty()) line += ",\"dest\":\"" + json::escape(dest) + "\"";
+    line += channel_fields(channel);
     line += std::string(",\"public_confirmed\":") + (public_confirmed ? "true}" : "false}");
     send_intent(line);
 }
 
 void BaseViewModel::request_position(const std::string& node_id, int channel) {
     if (node_id.empty()) return;
-    send_intent("{\"intent\":\"position.request\",\"node\":\"" + json::escape(node_id) + "\",\"channel\":" + std::to_string(channel) + "}");
+    send_intent("{\"intent\":\"position.request\",\"node\":\"" + json::escape(node_id) + "\",\"channel\":" + std::to_string(channel) + channel_fields(channel) + "}");
 }
 
 void BaseViewModel::traceroute(const std::string& node_id, int channel) {
@@ -530,7 +559,7 @@ void BaseViewModel::traceroute(const std::string& node_id, int channel) {
     trace_request_ = session_id_ + "trace" + std::to_string(++cid_counter_);
     if (!send_intent("{\"intent\":\"traceroute\",\"node\":\"" + json::escape(node_id) +
                     "\",\"id\":\"" + trace_request_ + "\",\"channel\":" +
-                    std::to_string(channel) + "}")) cancel_traceroute();
+                    std::to_string(channel) + channel_fields(channel) + "}")) cancel_traceroute();
 }
 
 const ChannelInfo* BaseViewModel::channel(int index) const {
@@ -546,9 +575,16 @@ std::string BaseViewModel::channel_label(int index) const {
 
 void BaseViewModel::request_channel_share(int channel) {
     share_channel_ = channel;
+    const auto* selected = this->channel(channel);
+    share_identity_ = selected ? selected->identity : "";
     share_request_ = session_id_ + "share" + std::to_string(++cid_counter_);
     if (!send_intent("{\"intent\":\"channel.share\",\"channel\":" + std::to_string(channel) +
-                    ",\"id\":\"" + share_request_ + "\"}")) cancel_channel_share();
+                    ",\"id\":\"" + share_request_ + "\"" + channel_fields(channel) + "}")) cancel_channel_share();
+}
+
+bool BaseViewModel::share_channel_valid() const {
+    const auto* selected = channel(share_channel_);
+    return selected && !share_identity_.empty() && selected->identity == share_identity_;
 }
 
 void BaseViewModel::apply_traceroute(bool ok, const std::string& text, const std::string& node, const std::string& request) {
@@ -559,8 +595,9 @@ void BaseViewModel::apply_traceroute(bool ok, const std::string& text, const std
 }
 
 void BaseViewModel::apply_channel_share(int channel, const std::string& name,
-                                        const std::string& url, const std::string& request) {
+                                        const std::string& url, const std::string& request, const std::string& identity) {
     if (share_request_.empty() || request != share_request_ || channel != share_channel_) return;
+    if (identity != share_identity_ || !share_channel_valid()) return;
     share_request_.clear();
     channel_share_name_ = name;
     channel_share_url_ = url;
@@ -658,6 +695,7 @@ void BaseViewModel::config_unknown() {
 
 void BaseViewModel::tick() {
     const auto now = std::chrono::steady_clock::now().time_since_epoch();
+    if (!dirty_drafts_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() >= draft_deadline_) flush_drafts();
     if (!config_request_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() > config_deadline_) {
         config_unknown();
         apply_notice("Radio confirmation timed out; settings unknown");
@@ -691,7 +729,7 @@ void BaseViewModel::set_frequency_slot(int slot) {
 
 void BaseViewModel::set_position_sharing(bool on, int channel, bool public_confirmed) {
     send_config(std::string("\"path\":\"position.enabled\",\"value\":") + (on ? "true" : "false") +
-                ",\"channel\":" + std::to_string(channel) + ",\"public_confirmed\":" + (public_confirmed ? "true" : "false"));
+                ",\"channel\":" + std::to_string(channel) + channel_fields(channel) + ",\"public_confirmed\":" + (public_confirmed ? "true" : "false"));
 }
 
 void BaseViewModel::set_mqtt(bool on) {
@@ -727,6 +765,79 @@ void BaseViewModel::apply_config(const std::string& preset, int hop, bool positi
     position_subject_.set(position);
     mqtt_subject_.set(mqtt);
     config_state_.set("confirmed");
+}
+
+
+int BaseViewModel::channel_for_thread(const std::string& key) const {
+    for (const auto& ch : channels_) if (!ch.identity.empty() && key == "ch:" + ch.identity) return ch.index;
+    return -1;
+}
+std::string BaseViewModel::channel_fields(int index) const {
+    const auto* ch = channel(index);
+    return ",\"channel_id\":\"" + json::escape(ch ? ch->identity : "") + "\"";
+}
+void BaseViewModel::apply_health(const std::string& mode, const std::string& detail) {
+    radio_mode_ = mode; radio_detail_ = detail;
+}
+bool BaseViewModel::service_request(const std::string& intent, const std::string& fields) {
+    service_request_id_ = session_id_ + "service" + std::to_string(++cid_counter_);
+    return send_intent("{\"intent\":\"" + json::escape(intent) + "\",\"id\":\"" + service_request_id_ + "\"" + fields + "}");
+}
+void BaseViewModel::apply_service(const json::Value& event) {
+    if (event.str_at("id") != service_request_id_) return;
+    service_event_ = event;
+    services_version_.set(services_version_.value() + 1);
+}
+void BaseViewModel::apply_setup(const json::Value& event) {
+    setup_ = event;
+    if (event.str_at("id").empty()) services_version_.set(services_version_.value() + 1);
+    else apply_service(event);
+}
+void BaseViewModel::apply_threads(const json::Value& event) {
+    const auto local = drafts_;
+    drafts_.clear(); pinned_.clear();
+    if (const auto* states = event.find("threads")) for (const auto& [key, value] : states->obj) {
+        drafts_[key] = value.str_at("draft");
+        if (const auto* pin = value.find("pinned"); pin && pin->as_bool()) pinned_.insert(key);
+    }
+    if (const auto* v = event.find("history_enabled")) history_enabled_ = v->as_bool();
+    for (const auto& key : dirty_drafts_) { const auto it = local.find(key); if (it != local.end()) drafts_[key] = it->second; }
+    messages_version_subject_.set(messages_version_subject_.value() + 1);
+}
+std::string BaseViewModel::draft(const std::string& key) const {
+    const auto it = drafts_.find(key); return it == drafts_.end() ? "" : it->second;
+}
+bool BaseViewModel::pinned(const std::string& key) const { return pinned_.count(key); }
+void BaseViewModel::send_thread_state(const std::string& key) {
+    send_intent("{\"intent\":\"thread.state\",\"thread\":\"" + json::escape(key) +
+        "\",\"state\":{\"draft\":\"" + json::escape(draft(key)) + "\",\"pinned\":" + (pinned(key) ? "true" : "false") + "}}");
+}
+void BaseViewModel::save_draft(const std::string& key, const std::string& text) {
+    if (text.size() > 200 || drafts_[key] == text) return;
+    drafts_[key] = text;
+    dirty_drafts_.insert(key);
+    draft_deadline_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() + 650;
+}
+void BaseViewModel::flush_drafts() {
+    auto pending = dirty_drafts_;
+    dirty_drafts_.clear();
+    for (const auto& key : pending) send_thread_state(key);
+}
+void BaseViewModel::toggle_pin(const std::string& key) {
+    if (pinned(key)) pinned_.erase(key); else pinned_.insert(key);
+    send_thread_state(key);
+    messages_version_subject_.set(messages_version_subject_.value() + 1);
+}
+void BaseViewModel::set_quiet_hours(int start, int end) {
+    if (start < -1 || start > 1439 || end < -1 || end > 1439) return;
+    quiet_start_ = start; quiet_end_ = end; persist();
+}
+bool BaseViewModel::quiet_now() const {
+    if (quiet_start_ < 0 || quiet_end_ < 0) return false;
+    const auto now = std::time(nullptr); std::tm local{};
+    if (!localtime_r(&now, &local)) return false;
+    const int minute = local.tm_hour * 60 + local.tm_min;
+    return quiet_start_ <= quiet_end_ ? minute >= quiet_start_ && minute < quiet_end_ : minute >= quiet_start_ || minute < quiet_end_;
 }
 
 } // namespace viewmodel

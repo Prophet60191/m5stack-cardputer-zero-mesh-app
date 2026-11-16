@@ -12,6 +12,47 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ninja-build libpng-dev libjpeg-dev libfmt-dev libsdl2-dev libfreetype-dev zlib1g-dev
       - run: python3 -m venv .venv && .venv/bin/pip install cmake==3.31.6 meshtastic==2.7.11
       - run: .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
-      - run: .venv/bin/cmake -S . -B build/ci -G Ninja -DUSE_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS='-fsanitize=address,undefined' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'
+      - name: Fetch qualified LVGL source
+        run: |
+          git init --quiet "$RUNNER_TEMP/lvgl"
+          git -C "$RUNNER_TEMP/lvgl" fetch --depth 1 https://github.com/lvgl/lvgl.git 85aa60d18b3d5e5588d7b247abf90198f07c8a63
+          git -C "$RUNNER_TEMP/lvgl" checkout --detach FETCH_HEAD
+      - run: .venv/bin/cmake -S . -B build/ci -G Ninja -DFETCHCONTENT_SOURCE_DIR_LVGL="$RUNNER_TEMP/lvgl" -DUSE_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS='-fsanitize=address,undefined' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'
       - run: .venv/bin/cmake --build build/ci -j 2
       - run: ASAN_OPTIONS=detect_leaks=0 .venv/bin/ctest --test-dir build/ci --output-on-failure
+  debian-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Fetch qualified LVGL source
+        run: |
+          git init --quiet "$RUNNER_TEMP/lvgl"
+          git -C "$RUNNER_TEMP/lvgl" fetch --depth 1 https://github.com/lvgl/lvgl.git 85aa60d18b3d5e5588d7b247abf90198f07c8a63
+          git -C "$RUNNER_TEMP/lvgl" checkout --detach FETCH_HEAD
+      - name: Build matching Debian 13 arm64 environment
+        run: docker build -t cz-mesh-arm64 -f tests/Dockerfile .
+      - name: Build, install and validate package in an isolated namespace
+        run: |
+          mkdir -p "$RUNNER_TEMP/cz-build"
+          docker run --rm --network none --cap-add NET_ADMIN \
+            -e CZ_MESH_ISOLATED_TEST=1 \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v "$RUNNER_TEMP/lvgl:/lvgl:ro" \
+            -v "$RUNNER_TEMP/cz-build:/work" \
+            cz-mesh-arm64 sh /src/tests/linux-package-check.sh
+      - name: Record checksums and corresponding source
+        run: |
+          cd "$RUNNER_TEMP/cz-build/linux/dist"
+          sha256sum *.deb > SHA256SUMS
+          printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cardputerzero-mesh-debian13-arm64
+          path: |
+            ${{ runner.temp }}/cz-build/linux/dist/*.deb
+            ${{ runner.temp }}/cz-build/linux/dist/SHA256SUMS
+            ${{ runner.temp }}/cz-build/linux/dist/SOURCE_COMMIT
+          if-no-files-found: error

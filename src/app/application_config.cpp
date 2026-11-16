@@ -88,6 +88,13 @@ bool load_application_config(const std::string& path,
                 if (parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size())
                     config.retention_cap = std::clamp(cap, 0, 2000);
             }
+            else if (key == "quiet_start" || key == "quiet_end") {
+                const auto value = trim(line.substr(sep + 1)); int minute = -1;
+                auto parsed = std::from_chars(value.data(), value.data() + value.size(), minute);
+                if (parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size() && minute >= -1 && minute < 1440) {
+                    if (key == "quiet_start") config.quiet_start = minute; else config.quiet_end = minute;
+                }
+            }
             else if (key == "mute_all") config.mute_all = to_bool(line.substr(sep + 1));
             else if (key == "want_ack") config.want_ack = to_bool(line.substr(sep + 1));
             else if (key == "auto_start") config.auto_start = to_bool(line.substr(sep + 1));
@@ -118,6 +125,7 @@ bool save_application_config(const std::string& path,
     out << "[application]\n";
     out << "dark_mode=" << (config.dark_mode ? "yes" : "no") << "\n\n";
     out << "[messaging]\n";
+    out << "quiet_start=" << config.quiet_start << "\nquiet_end=" << config.quiet_end << "\n";
     out << "show_signal=" << (config.show_signal ? "yes" : "no") << "\n";
     out << "retention=" << std::clamp(config.retention_cap, 0, 2000) << "\n";
     out << "mute_all=" << (config.mute_all ? "yes" : "no") << "\n";

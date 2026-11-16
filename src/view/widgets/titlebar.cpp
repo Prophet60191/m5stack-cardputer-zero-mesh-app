@@ -80,7 +80,7 @@ void TitleBar::build() {
     lv_obj_clear_flag(radio_dot_, LV_OBJ_FLAG_SCROLLABLE);
 
     state_label_ = lv_label_create(left);
-    lv_label_bind_text(state_label_, view_model_.radio_state_subject(), nullptr);
+
     lv_obj_set_style_text_font(state_label_, text_font, 0);
     reactive::bind_theme(state_label_, view_model_.dark_mode_subject(), reactive::ThemeRole::Text);
 
@@ -138,6 +138,7 @@ void TitleBar::update_radio_dot() {
         else if (std::strcmp(state, "starting") == 0) color = colors.warning;
         else if (std::strcmp(state, "error") == 0) color = colors.error;
     }
+    lv_label_set_text(state_label_, state && std::strcmp(state, "online") == 0 ? (view_model_.radio_mode() == "receive-only" ? "RX" : "TX/RX") : (state ? state : "unknown"));
     lv_obj_set_style_bg_opa(radio_dot_, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(radio_dot_, color, 0);
 }

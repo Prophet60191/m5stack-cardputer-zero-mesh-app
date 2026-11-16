@@ -6,6 +6,7 @@
 
 #include "app.h"
 #include <cmath>
+#include <chrono>
 
 #include "application_config.h"
 #include "asset_manager.h"
@@ -84,10 +85,16 @@ viewmodel::MessageInfo parse_message(const json::Value& m) {
         if (h->type == json::Value::Num) info.hops = h->as_int32(-1);
     }
     info.relay = m.str_at("relay");
+    info.channelIdentity = m.str_at("channel_id");
+    info.channelName = m.str_at("channel_name");
+    if (const auto* v = m.find("channel_private")) info.channelPrivate = v->as_bool();
+    info.reason = m.str_at("reason");
     const std::string st = m.str_at("status");
     if (st == "sending") info.status = viewmodel::kMsgSending;
     else if (st == "delivered") info.status = viewmodel::kMsgDelivered;
     else if (st == "failed") info.status = viewmodel::kMsgFailed;
+    else if (st == "mesh") info.status = viewmodel::kMsgMesh;
+    else if (st == "sent") info.status = viewmodel::kMsgSent;
     return info;
 }
 
@@ -97,7 +104,15 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
                             platform::SupervisorClient& client,
                             const json::Value& ev) {
     const std::string type = ev.str_at("event");
-    if (type == "_connected") {
+    if (type == "threads") {
+        vm.apply_threads(ev);
+    } else if (type == "setup") {
+        vm.apply_setup(ev);
+        const auto* ready = ev.find("ready");
+        if (ready && !ready->as_bool()) vm.show_settings_page();
+    } else if (type == "profiles" || type == "profile.preview" || type == "diagnostics" || type == "channel.slots") {
+        vm.apply_service(ev);
+    } else if (type == "_connected") {
         vm.set_connected(true);
         client.send_line("{\"intent\":\"status\"}");
         client.send_line("{\"intent\":\"node.list\"}");
@@ -112,6 +127,9 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
     } else if (type == "_disconnected") {
         vm.set_connected(false);
     } else if (type == "status") {
+        if (ev.str_at("radio") == "error" && !ev.str_at("detail").empty() && vm.radio_detail() != ev.str_at("detail"))
+            vm.apply_notice(ev.str_at("detail"));
+        vm.apply_health(ev.str_at("mode"), ev.str_at("detail"));
         vm.apply_status(ev.str_at("radio", "off"), ev.str_at("region", "UNSET"), ev.str_at("owner"));
     } else if (type == "nodes") {
         std::vector<viewmodel::NodeInfo> nodes;
@@ -125,6 +143,10 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
                     if (s->type == json::Value::Num) { info.snr = s->num; info.hasSnr = true; }
                 }
                 info.lastHeard = n.int_at("lastHeard");
+                info.positionTime = n.int_at("position_time");
+                info.satellites = n.int_at("satellites", -1);
+                if (const auto* v = n.find("channel_utilization"); v && v->type == json::Value::Num) info.channelUtilization = v->num;
+                if (const auto* v = n.find("air_utilization"); v && v->type == json::Value::Num) info.airUtilization = v->num;
                 if (const json::Value* h = n.find("hops")) {
                     if (h->type == json::Value::Num) info.hops = h->as_int32(-1);
                 }
@@ -154,6 +176,7 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
                 info.index = static_cast<int>(c.int_at("index"));
                 info.name = c.str_at("name");
                 info.role = c.str_at("role");
+                info.identity = c.str_at("identity");
                 if (const auto* v = c.find("private")) info.isPrivate = v->as_bool();
                 info.positionPrecision = static_cast<int>(c.int_at("position_precision"));
                 chans.push_back(std::move(info));
@@ -179,7 +202,7 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
         if (const json::Value* h = ev.find("hops")) {
             if (h->type == json::Value::Num) hops = h->as_int32(-1);
         }
-        vm.set_delivery(cid, st == "failed" ? viewmodel::kMsgFailed : (st == "delivered" ? viewmodel::kMsgDelivered : 0), hops);
+        vm.set_delivery(cid, st == "failed" ? viewmodel::kMsgFailed : (st == "delivered" ? viewmodel::kMsgDelivered : (st == "mesh" ? viewmodel::kMsgMesh : (st == "sent" ? viewmodel::kMsgSent : 0))), hops, ev.str_at("reason"));
     } else if (type == "traceroute") {
         bool ok = false;
         if (const json::Value* o = ev.find("ok")) ok = o->as_bool();
@@ -196,9 +219,12 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
         }
         vm.apply_traceroute(ok, text, ev.str_at("node"), ev.str_at("id"));
     } else if (type == "channelshare") {
-        vm.apply_channel_share(static_cast<int>(ev.int_at("channel", -1)), ev.str_at("name"), ev.str_at("url"), ev.str_at("id"));
+        vm.apply_channel_share(static_cast<int>(ev.int_at("channel", -1)), ev.str_at("name"), ev.str_at("url"), ev.str_at("id"), ev.str_at("channel_id"));
+    } else if (type == "notice") {
+        vm.apply_notice(ev.str_at("text"));
     } else if (type == "error") {
-        if (!ev.str_at("cid").empty()) vm.set_delivery(ev.str_at("cid"), viewmodel::kMsgFailed);
+        vm.apply_service(ev);
+        if (!ev.str_at("cid").empty()) vm.set_delivery(ev.str_at("cid"), viewmodel::kMsgFailed, -1, ev.str_at("text"));
         if (ev.str_at("intent").rfind("config.", 0) == 0) vm.config_unknown();
         vm.apply_notice(ev.str_at("text"));
     } else if (type == "device") {
@@ -516,6 +542,7 @@ int Application::run() {
             view_model.load_messaging_prefs(config.show_signal, config.retention_cap,
                                             config.mute_all, config.want_ack);
             view_model.load_auto_start(config.auto_start && !legacy_preferences);
+            view_model.load_quiet_hours(config.quiet_start, config.quiet_end);
             view_model.load_canned(config.canned);
             view_model.load_muted(config.muted);
             view_model.load_favorites(config.favorites);
@@ -536,6 +563,8 @@ int Application::run() {
         cfg.mute_all = view_model.mute_all();
         cfg.want_ack = view_model.want_ack();
         cfg.auto_start = view_model.auto_start();
+        cfg.quiet_start = view_model.quiet_start();
+        cfg.quiet_end = view_model.quiet_end();
         cfg.canned = view_model.canned_messages();
         for (const auto& k : view_model.muted_threads()) cfg.muted.push_back(k);
         cfg.favorites = view_model.favorites();
@@ -574,8 +603,11 @@ int Application::run() {
     // Synthetic sample data so the screens can be designed in the simulator (no
     // supervisor there). These identities, call-signs and coordinates are made up
     // and must never reference a real node, person, or location.
+    view_model.apply_health("transmit", "");
     view_model.apply_status("online", "US", "Nomad");
     view_model.apply_device("!10000001", "2.7.26", "CardputerZero");
+    view_model.set_channels({{0, "Public", false, "PRIMARY", 0, "synthetic-public"},
+                             {1, "Field", true, "SECONDARY", 0, "synthetic-private"}});
     view_model.apply_config("MEDIUM_FAST", 3, true, false);
     const long node_now = static_cast<long>(std::time(nullptr));
     // id, name, short, snr, hasSnr, lastHeard, hops, isSelf, favorite, hasBattery, battery, voltage, hasPos, lat, lon
@@ -602,6 +634,12 @@ int Application::run() {
     };
     long sample_t = static_cast<long>(std::time(nullptr)) - static_cast<long>(samples.size()) * 180;
     for (auto& m : samples) {
+        if (const auto* channel = view_model.channel(m.channel)) {
+            m.channelIdentity = channel->identity;
+            m.channelName = channel->name;
+            m.channelPrivate = channel->isPrivate;
+        }
+        if (m.to == "broadcast" && m.status == viewmodel::kMsgDelivered) m.status = viewmodel::kMsgMesh;
         m.time = sample_t;
         sample_t += 180;
     }
@@ -610,8 +648,10 @@ int Application::run() {
 
     // The supervisor owns the radio; the UI talks to it over a local socket.
     platform::SupervisorClient supervisor;
+    bool state_synced = false;
     view_model.set_command_sink([&supervisor](const std::string& line) { return supervisor.send_line(line); });
-    supervisor.start([&view_model, &supervisor](const json::Value& ev) {
+    supervisor.start([&view_model, &supervisor, &state_synced](const json::Value& ev) {
+        if (ev.str_at("event") == "state.synced" && ev.str_at("id") == "quit-sync") state_synced = true;
         apply_supervisor_event(view_model, supervisor, ev);
     });
 
@@ -636,6 +676,19 @@ int Application::run() {
         lv_delay_ms(5);
     }
 
+    if (screen_manager.is_composing()) screen_manager.key_back();
+    view_model.flush_drafts();
+    if (supervisor.connected() && supervisor.send_line("{\"intent\":\"state.sync\",\"id\":\"quit-sync\"}")) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (!state_synced && supervisor.connected() && std::chrono::steady_clock::now() < deadline) {
+            supervisor.poll();
+            lv_delay_ms(5);
+        }
+        if (!state_synced) LOG_WARN("Draft synchronization did not finish before exit");
+    }
+    // Screens can flush draft state from their destructors. Disconnect the
+    // callback before the transport is destroyed (reverse local-object order).
+    view_model.set_command_sink({});
     supervisor.stop();
 
     if (quit_observer) {
