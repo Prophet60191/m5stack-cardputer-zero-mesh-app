@@ -18,6 +18,7 @@ namespace screen {
 namespace {
 
 constexpr int kBarHeight = 22;
+constexpr int kContextHeight = 20;
 constexpr const char* kDot = "   \xC2\xB7   ";
 
 void fmt(const char* pattern, char* buf, std::size_t n, long t) {
@@ -87,6 +88,16 @@ void MessagesScreen::build_content(lv_obj_t* content) {
     const lv_font_t* font = assets().load_standard_font(12, app::StandardFontWeight::Regular);
     if (!font) font = &lv_font_montserrat_12;
 
+    context_ = lv_label_create(content);
+    const lv_font_t* context_font = assets().load_standard_font(11, app::StandardFontWeight::Regular);
+    lv_obj_set_style_text_font(context_, context_font ? context_font : font, 0);
+    lv_obj_set_style_text_color(context_, colors.primary, 0);
+    lv_obj_set_size(context_, view::kScreenWidth - 8, kContextHeight);
+    lv_obj_set_style_pad_top(context_, 3, 0);
+    lv_label_set_long_mode(context_, LV_LABEL_LONG_DOT);
+    lv_obj_align(context_, LV_ALIGN_TOP_LEFT, 4, 0);
+    lv_obj_add_flag(context_, LV_OBJ_FLAG_HIDDEN);
+
     bar_ = lv_obj_create(content);
     lv_obj_remove_style_all(bar_);
     lv_obj_set_size(bar_, lv_pct(100), kBarHeight);
@@ -95,7 +106,9 @@ void MessagesScreen::build_content(lv_obj_t* content) {
 
     hint_ = lv_label_create(bar_);
     lv_obj_set_style_text_font(hint_, font, 0);
-    lv_obj_set_style_text_color(hint_, colors.text_disabled, 0);
+    lv_obj_set_style_text_color(hint_, colors.text, 0);
+    lv_obj_set_width(hint_, view::kScreenWidth - 8);
+    lv_label_set_long_mode(hint_, LV_LABEL_LONG_CLIP);
     lv_obj_align(hint_, LV_ALIGN_LEFT_MID, 4, 0);
 
     input_ = lv_textarea_create(bar_);
@@ -142,16 +155,25 @@ std::string MessagesScreen::group_name(const std::string& key) {
 }
 
 void MessagesScreen::update_hint() {
-    if (!hint_) return;
+    if (!hint_ || !context_) return;
+    const bool thread = mode_ == Mode::Thread;
+    if (thread) lv_obj_remove_flag(context_, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(context_, LV_OBJ_FLAG_HIDDEN);
+    const int top = thread ? kContextHeight : 0;
+    lv_obj_set_height(body_, view::kScreenHeight - view::kTitleBarHeight - kBarHeight - top);
+    lv_obj_align(body_, LV_ALIGN_TOP_MID, 0, top);
     if (mode_ == Mode::List) {
-        lv_label_set_text(hint_, "\xE2\x86\x91\xE2\x86\x93 pick   \xC2\xB7   /: search   Enter: open");
+        lv_label_set_text(context_, "");
+        lv_label_set_text(hint_, "\xE2\x86\x91\xE2\x86\x93: pick  /: search  Enter: open");
     } else {
+        const int active = send_channel();
         const std::string who = viewmodel::is_group_thread(thread_key_) ? group_name(thread_key_)
-        : ("DM via " + (dm_channel_ < 0 ? "choose channel" : channel_name(dm_channel_)) + " to " + peer_name_);
+        : ("DM via " + (active < 0 ? "choose channel" : channel_name(active)) + " to " + peer_name_);
+        lv_label_set_text(context_, who.c_str());
         const char* keys = (msg_sel_ >= 0)
-            ? "Enter: actions \xC2\xB7 o: options"
-            : "Enter: write \xC2\xB7 q: quick \xC2\xB7 o: options";
-        lv_label_set_text(hint_, (who + " \xC2\xB7 " + keys).c_str());
+            ? "Enter: actions  o: options"
+            : "Enter: write  q: quick  o: options";
+        lv_label_set_text(hint_, keys);
     }
 }
 
@@ -337,6 +359,7 @@ void MessagesScreen::rebuild_thread() {
         if (thread_of(m) == thread_key_) ++count;
     }
     if (msg_sel_ >= count) msg_sel_ = count - 1;
+    update_hint();
 
     bool any = false;
     long prev_day = 0;

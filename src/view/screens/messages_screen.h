@@ -68,6 +68,7 @@ private:
     static void channel_share_cb(lv_observer_t* observer, lv_subject_t* subject);
 
     lv_obj_t* body_ = nullptr;     // list or thread renders here
+    lv_obj_t* context_ = nullptr;  // fixed channel/peer header, outside scrolling messages
     lv_obj_t* bar_ = nullptr;      // bottom compose bar
     lv_obj_t* hint_ = nullptr;
     lv_obj_t* input_ = nullptr;

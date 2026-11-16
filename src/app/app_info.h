@@ -8,9 +8,9 @@ namespace app {
 
 // CMake project version is also used by the Debian package.
 #ifndef APP_VERSION
-#define APP_VERSION "0.1.2"
+#define APP_VERSION "0.1.3"
 #endif
 inline constexpr const char* kAppVersion = "v" APP_VERSION;
-inline constexpr const char* kRepoUrl = "https://github.com/Prophet60191";
+inline constexpr const char* kRepoUrl = "https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app";
 
 }  // namespace app

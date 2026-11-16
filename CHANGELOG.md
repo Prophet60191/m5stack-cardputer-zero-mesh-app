@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3 — 2026-11-16 (release candidate)
+
+- Group Settings by radio, channels/node, location/Internet, messaging,
+  notifications and application setup, keeping Radio first. Stable action keys
+  are independent of the display order; group headers are not navigation stops.
+- Keep the active conversation/channel in a fixed header above messages. Reserve
+  the footer for keyboard help and compose input, including with long peer names.
+  Channel identity/classification remains visible while composing and scrolling.
+- Support keyboard scrolling through long Settings information screens; About
+  links directly to this app's repository.
+- Refresh message-action help when selection changes, and show that a changed DM
+  channel needs choosing again instead of labeling its replacement as the route.
+
 ## 0.1.2 — 2026-11-15 (release candidate; hardware qualification in progress)
 
 - Replace repeated sudo health probes with a capability-only firewall monitor;

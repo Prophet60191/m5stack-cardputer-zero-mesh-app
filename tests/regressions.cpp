@@ -86,6 +86,34 @@ static lv_obj_t* textarea(lv_obj_t* obj) {
     return nullptr;
 }
 
+// Navigate by the visible selected item, so layout changes cannot retarget a
+// privacy/radio regression to a different action at an old numeric offset.
+static std::string selected_setting(lv_obj_t* root) {
+    if (lv_obj_get_style_border_width(root, LV_PART_MAIN) == 3 && lv_obj_get_child_count(root)) {
+        auto* label = lv_obj_get_child(root, 0);
+        if (lv_obj_check_type(label, &lv_label_class)) return lv_label_get_text(label);
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(root); ++i) {
+        const auto name = selected_setting(lv_obj_get_child(root, i));
+        if (!name.empty()) return name;
+    }
+    return "";
+}
+static void select_setting(screen::SettingsScreen& screen, const std::string& name) {
+    for (int i = 0; i < 30; ++i) screen.on_up();
+    for (int i = 0; i < 26; ++i) {
+        if (selected_setting(screen.root()) == name) return;
+        screen.on_down();
+    }
+    CHECK(false);
+}
+static lv_obj_t* label_starting(lv_obj_t* root, const std::string& prefix) {
+    if (lv_obj_check_type(root, &lv_label_class) && std::string(lv_label_get_text(root)).rfind(prefix, 0) == 0) return root;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(root); ++i)
+        if (auto* found = label_starting(lv_obj_get_child(root, i), prefix)) return found;
+    return nullptr;
+}
+
 static void save_png(const char* path, lv_obj_t* root);
 
 static void dual_channel_ui_regression(const char* screenshot_path) {
@@ -142,7 +170,7 @@ static void dual_channel_ui_regression(const char* screenshot_path) {
     vm.set_channels({{0, "Public", false, "PRIMARY", 0, "synthetic-public"}, {1, "Private A", true, "SECONDARY", 0, "synthetic-private"}});
     vm.apply_config("LONG_FAST", 3, false, false, "", 20);
     screen::SettingsScreen settings(vm, assets); lv_screen_load(settings.root());
-    for (int i = 0; i < 6; ++i) settings.on_down();
+    select_setting(settings, "Share position");
     const auto before_location = sent;
     settings.on_enter(); settings.on_enter(); // public channel -> confirmation
     CHECK(labels(settings.root()).find("Public location") != std::string::npos);
@@ -155,7 +183,7 @@ static void dual_channel_ui_regression(const char* screenshot_path) {
     vm.set_channels({{0, "Public", false, "PRIMARY", 15, "synthetic-public"}, {1, "Private A", true, "SECONDARY", 0, "synthetic-private"}});
     vm.apply_config("LONG_FAST", 3, true, false, request, 20);
     CHECK(labels(settings.root()).find("Public: 0") != std::string::npos);
-    for (int i = 6; i < 17; ++i) settings.on_down();
+    select_setting(settings, "Frequency slot");
     settings.on_enter(); auto* slot = textarea(settings.root()); CHECK(slot);
     lv_textarea_set_text(slot, "21"); settings.on_enter();
     CHECK(json::parse(sent, v)); CHECK(v.str_at("path") == "lora.channel_num"); CHECK(v.int_at("value") == 21);
@@ -189,7 +217,7 @@ static void identity_confirmation_regression() {
     vm.set_messages({m});vm.resend_message(m.id);json::Value event;CHECK(json::parse(sent,event));CHECK(event.int_at("channel")==2);CHECK(event.str_at("channel_id")=="old-id");
     vm.set_channels({{0,"Original",false,"PRIMARY",0,"public-old"}});vm.apply_config("LONG_FAST",3,false,false);
     app::AssetManager assets;screen::SettingsScreen settings(vm,assets);lv_screen_load(settings.root());
-    for(int i=0;i<6;++i)settings.on_down();settings.on_enter(); // position channel picker
+    select_setting(settings, "Share position");settings.on_enter(); // position channel picker
     vm.set_channels({{0,"Replacement",false,"PRIMARY",0,"public-new"}});
     const auto before=sent;settings.on_enter();CHECK(sent==before);CHECK(vm.last_notice().find("Channel changed")!=std::string::npos);
     settings.on_enter();settings.on_enter(); // choose current public channel -> confirmation
@@ -204,6 +232,63 @@ static void save_png(const char* path, lv_obj_t* root) {
     image.width = shot->header.w; image.height = shot->header.h; image.format = PNG_FORMAT_BGRA;
     CHECK(png_image_write_to_file(&image, path, false, shot->data, shot->header.stride, nullptr));
     lv_draw_buf_destroy(shot);
+}
+
+static void compact_layout_regression(const char* screenshot_path) {
+    viewmodel::BaseViewModel vm;
+    vm.set_command_sink([](const std::string&) { return true; });
+    vm.set_connected(true); vm.apply_status("online", "US", "Synthetic");
+    vm.apply_health("transmit", "");
+    vm.set_channels({{1,"Field Alpha",true,"SECONDARY",0,"layout-channel"}});
+    vm.apply_config("MEDIUM_FAST",3,false,false,"",45,"DISABLED");
+    app::AssetManager assets;
+    screen::SettingsScreen settings(vm,assets); lv_screen_load(settings.root());
+    const char* order[] = {"Radio", "Transmit mode", "Auto-start radio", "Region", "Modem preset", "Frequency slot", "Hop limit",
+        "Mesh profiles", "Channel manager", "Add a channel", "Channels", "Node name", "GPS receiver", "Share position", "Internet (MQTT)",
+        "Quick messages", "Message acks", "Signal on messages", "Save conversations", "Keep per chat", "Mute all", "Quiet hours",
+        "Theme", "First-run setup", "Diagnostics", "About"};
+    for (const auto* name : order) { CHECK(selected_setting(settings.root()) == name); settings.on_down(); }
+    CHECK(selected_setting(settings.root()) == "About");
+    settings.on_down(); CHECK(selected_setting(settings.root()) == "About");
+    for (int i=0;i<30;++i) settings.on_up(); CHECK(selected_setting(settings.root()) == "Radio");
+    select_setting(settings,"About");settings.on_enter();lv_obj_update_layout(settings.root());
+    auto* version=label_starting(settings.root(),"Version:  ");CHECK(version);
+    auto* info=lv_obj_get_parent(version);CHECK(lv_obj_get_scroll_bottom(info)>0);
+    settings.on_down();CHECK(lv_obj_get_scroll_top(info)>0);
+    settings.on_up();CHECK(lv_obj_get_scroll_top(info)==0);
+    CHECK(settings.on_back());select_setting(settings,"Radio");
+    if (screenshot_path) {
+        const auto dir=std::filesystem::path(screenshot_path).parent_path();
+        save_png((dir/"settings-radio.png").c_str(),settings.root());
+        for (const auto* name : {"Mesh profiles","GPS receiver","Quick messages","Mute all","Theme"}) {
+            select_setting(settings,name);save_png((dir/(std::string("settings-")+name+".png")).c_str(),settings.root());
+        }
+    }
+    viewmodel::NodeInfo peer;peer.id="!12345678";peer.name=std::string(80,'P');vm.set_nodes({peer});
+    vm.set_dm_target(peer.id,peer.name);
+    viewmodel::MessageInfo message;message.id="layout-message";message.from=peer.id;message.to="!87654321";message.text="Synthetic layout check";message.channel=1;message.channelIdentity="layout-channel";
+    vm.set_messages({message});
+    screen::MessagesScreen messages(vm,assets);lv_screen_load(messages.root());messages.on_enter(); // choose DM channel
+    lv_obj_update_layout(messages.root());
+    auto* context=label_starting(messages.root(),"DM via 1: Field Alpha [Private]");CHECK(context);
+    auto* help=label_starting(messages.root(),"Enter: write");CHECK(help);
+    const auto check_help = [&](lv_obj_t* label) {
+        CHECK(label);
+        lv_obj_update_layout(messages.root());lv_area_t area;lv_obj_get_coords(label,&area);
+        lv_point_t size;lv_text_get_size(&size,lv_label_get_text(label),lv_obj_get_style_text_font(label,LV_PART_MAIN),0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);
+        CHECK(size.x<=lv_obj_get_width(label));CHECK(area.x1>=0 && area.x2<320);CHECK(area.y1>=148 && area.y2<170);
+    };
+    check_help(help);lv_area_t context_before;lv_obj_get_coords(context,&context_before);CHECK(context_before.y1>=30 && context_before.y2<51);
+    if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/"dm-header-help.png").c_str(),messages.root());
+    messages.on_up();check_help(label_starting(messages.root(),"Enter: actions"));
+    lv_area_t context_after;lv_obj_get_coords(context,&context_after);CHECK(context_after.y1==context_before.y1);
+    messages.on_back();messages.on_enter();CHECK(messages.is_composing());CHECK(!lv_obj_has_flag(context,LV_OBJ_FLAG_HIDDEN));
+    if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/"dm-header-compose.png").c_str(),messages.root());
+    vm.set_channels({{1,"Replacement",false,"PRIMARY",0,"replacement-channel"}});
+    CHECK(labels(messages.root()).find("DM via choose channel")!=std::string::npos);
+    messages.on_back();messages.on_back();lv_obj_update_layout(messages.root());
+    CHECK(lv_obj_has_flag(context,LV_OBJ_FLAG_HIDDEN));
+    check_help(label_starting(messages.root(),"\xE2\x86\x91\xE2\x86\x93: pick"));
 }
 
 static void services_ui_regression(const char* screenshot_path) {
@@ -225,18 +310,18 @@ static void services_ui_regression(const char* screenshot_path) {
     CHECK(labels(settings.root()).find("RX only") != std::string::npos);
     capture("first-run-confirm.png", settings.root());
     const auto before = sent; settings.on_enter(); CHECK(sent == before); // Cancel
-    for (int i=0; i<18; ++i) settings.on_down();
+    select_setting(settings, "First-run setup");
     settings.on_enter(); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="setup.status");
     const auto request=event.str_at("id");
     CHECK(json::parse("{\"event\":\"setup\",\"id\":\""+request+"\",\"ready\":true,\"mode\":\"receive-only\",\"region\":\"US\",\"firewall\":true}",event));
     vm.apply_setup(event); CHECK(labels(settings.root()).find("Setup ready")!=std::string::npos);
-    settings.on_back(); settings.on_down(); settings.on_enter(); // TX
+    settings.on_back(); select_setting(settings, "Transmit mode"); settings.on_enter(); // TX
     CHECK(labels(settings.root()).find("Antenna")!=std::string::npos);
     settings.on_enter(); CHECK(sent.find("setup.status")!=std::string::npos); // Cancel stays off
     settings.on_enter(); settings.on_down(); settings.on_enter();
     CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="radio.tx"); CHECK(event.find("antenna_confirmed")->as_bool());
     settings.on_back(); // dismiss waiting; stale response may not replace new overlay
-    settings.on_down(); settings.on_enter(); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="channel.slots");
+    select_setting(settings, "Channel manager"); settings.on_enter(); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="channel.slots");
     auto slot_request=event.str_at("id");
     CHECK(json::parse("{\"event\":\"channel.slots\",\"id\":\""+slot_request+"\",\"channels\":[{\"index\":1,\"identity\":\"synthetic-id\",\"name\":\"Synthetic\",\"private\":true,\"role\":\"SECONDARY\"}]}",event));
     vm.apply_service(event);
@@ -304,6 +389,7 @@ int main(int argc, char** argv) {
     services_ui_regression(argc > 1 ? argv[1] : nullptr);
     identity_confirmation_regression();
     draft_only_conversation_regression();
+    compact_layout_regression(argc > 1 ? argv[1] : nullptr);
     {
         viewmodel::BaseViewModel vm;
         std::string sent;

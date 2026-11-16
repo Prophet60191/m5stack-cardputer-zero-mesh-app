@@ -1,6 +1,6 @@
 # Independent review remediation — 2026-11-15
 
-Initial review candidate: **0.1.1**; current candidate: **0.1.2** (latest evidence below).
+Initial review candidate: **0.1.1**; current candidate: **0.1.3** (latest evidence below).
 These changes replace the earlier assumption that
 all review concerns had already been resolved. The evidence below covers the
 current source and offline package; it does not certify an installed radio.
@@ -151,7 +151,7 @@ public-channel traffic or personal profile changes are part of these tests.
 
 ## Publication state
 
-The 0.1.2 source remains a release candidate. The GitHub source and companion
+The 0.1.3 source remains a release candidate. The GitHub source and companion
 guide include the review fixes and both channel types; the historical v0.1.0
 release notes point to this candidate and its qualification limits. Publication
 does not certify live public RF delivery or the remaining hardware checks, and
@@ -222,3 +222,22 @@ original keys/tuning/TX/GPS settings were confirmed. Radio online and firewall
 health readback passed. ADB/hotplug were disabled and inactive again over SSH;
 no temporary source override remains. This follow-up does not change the radio
 lifecycle qualified above, and is not represented as another 30-minute run.
+
+
+## 0.1.3 settings and conversation layout
+
+Settings retains Radio first and groups related radio, channel/node, location/
+Internet, messaging, notification and application options. Action identifiers are
+independent of visual row order. Headings are not selectable; tests walk all 26
+entries, both selection bounds and existing privacy/configuration actions.
+Long information screens support keyboard scrolling and Escape.
+
+Conversations keep channel/peer context in a fixed header above the scrolling
+messages and use the footer solely for keyboard help or compose input. Long peer
+names are ellipsized after the channel/classification. The route is revalidated
+for display when a DM selection changes. Native tests measure actual font/text
+and object bounds at320x170, including selection, composing and return to the list.
+ASAN/UBSAN and all67 backend tests in the Debian arm64 package gate pass. Current
+screenshots are synthetic renders. Device deployment verification follows separately;
+this UI change does not establish the previously deferred outdoor GPS/public-RF/
+physical-IPv6 checks.

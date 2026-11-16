@@ -18,13 +18,41 @@
 namespace screen {
 namespace {
 
-const char* const kRows[] = {
-    "Radio", "Region", "Modem preset", "Hop limit", "Add a channel", "Node name",
-    "Share position", "Internet (MQTT)", "Auto-start radio", "Theme", "Channels", "About",
-    "Quick messages", "Signal on messages", "Keep per chat", "Mute all", "Message acks",
-    "Frequency slot", "First-run setup", "Transmit mode", "Channel manager", "Mesh profiles", "Diagnostics", "Save conversations", "Quiet hours", "GPS receiver",
+// Stable action keys are independent of the visible menu order.
+enum SettingKey {
+    S_Radio, S_Region, S_ModemPreset, S_HopLimit, S_AddChannel, S_NodeName, S_SharePosition, S_Mqtt, S_AutoStart, S_Theme, S_Channels, S_About, S_QuickMessages, S_ShowSignal, S_Retention, S_MuteAll, S_MessageAcks, S_FrequencySlot, S_FirstRun, S_TransmitMode, S_ChannelManager, S_MeshProfiles, S_Diagnostics, S_SaveConversations, S_QuietHours, S_GpsReceiver
 };
-constexpr int kRowCount = 26;
+struct SettingRow { SettingKey key; const char* label; const char* section; };
+constexpr SettingRow kRows[] = {
+    {S_Radio, "Radio", ""},
+    {S_TransmitMode, "Transmit mode", ""},
+    {S_AutoStart, "Auto-start radio", ""},
+    {S_Region, "Region", ""},
+    {S_ModemPreset, "Modem preset", ""},
+    {S_FrequencySlot, "Frequency slot", ""},
+    {S_HopLimit, "Hop limit", ""},
+    {S_MeshProfiles, "Mesh profiles", "Channels & node"},
+    {S_ChannelManager, "Channel manager", ""},
+    {S_AddChannel, "Add a channel", ""},
+    {S_Channels, "Channels", ""},
+    {S_NodeName, "Node name", ""},
+    {S_GpsReceiver, "GPS receiver", "Location & Internet"},
+    {S_SharePosition, "Share position", ""},
+    {S_Mqtt, "Internet (MQTT)", ""},
+    {S_QuickMessages, "Quick messages", "Messages"},
+    {S_MessageAcks, "Message acks", ""},
+    {S_ShowSignal, "Signal on messages", ""},
+    {S_SaveConversations, "Save conversations", ""},
+    {S_Retention, "Keep per chat", ""},
+    {S_MuteAll, "Mute all", "Notifications"},
+    {S_QuietHours, "Quiet hours", ""},
+    {S_Theme, "Theme", "App & setup"},
+    {S_FirstRun, "First-run setup", ""},
+    {S_Diagnostics, "Diagnostics", ""},
+    {S_About, "About", ""},
+};
+constexpr int kRowCount = sizeof(kRows) / sizeof(kRows[0]);
+static_assert(kRows[0].key == S_Radio, "Radio stays first");
 
 const std::vector<std::string> kRegions = {
     "US", "EU_868", "EU_433", "ANZ", "NZ_865", "KR", "TW", "JP", "SG_923", "TH", "MY_919", "PH_915",
@@ -86,39 +114,39 @@ void SettingsScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*
 }
 
 std::string SettingsScreen::value_for(int row) {
-    if (row == 2 || row == 3 || row == 6 || row == 7 || row == 17 || row == 25) {
+    if (row == S_ModemPreset || row == S_HopLimit || row == S_SharePosition || row == S_Mqtt || row == S_FrequencySlot || row == S_GpsReceiver) {
         const std::string state = view_model().config_state();
         if (state != "confirmed") return state == "pending" ? "Pending..." : "Unknown";
     }
     switch (row) {
-        case 0: return s_of(view_model().radio_state_subject()) + " " + view_model().radio_mode();
-        case 18: return view_model().setup().str_at("mode");
-        case 19: return view_model().radio_mode();
-        case 23: return view_model().history_enabled() ? "On" : "Off";
-        case 24: return view_model().quiet_start() < 0 ? "Off" : "Scheduled";
-        case 25: return s_of(view_model().gps_mode_subject());
-        case 1: return s_of(view_model().region_subject());
-        case 2: return s_of(view_model().modem_preset_subject());
-        case 3: return std::to_string(lv_subject_get_int(view_model().hop_limit_subject()));
-        case 4: return "";
-        case 5: return s_of(view_model().owner_subject());
-        case 6:
+        case S_Radio: return s_of(view_model().radio_state_subject()) + " " + view_model().radio_mode();
+        case S_FirstRun: return view_model().setup().str_at("mode");
+        case S_TransmitMode: return view_model().radio_mode();
+        case S_SaveConversations: return view_model().history_enabled() ? "On" : "Off";
+        case S_QuietHours: return view_model().quiet_start() < 0 ? "Off" : "Scheduled";
+        case S_GpsReceiver: return s_of(view_model().gps_mode_subject());
+        case S_Region: return s_of(view_model().region_subject());
+        case S_ModemPreset: return s_of(view_model().modem_preset_subject());
+        case S_HopLimit: return std::to_string(lv_subject_get_int(view_model().hop_limit_subject()));
+        case S_AddChannel: return "";
+        case S_NodeName: return s_of(view_model().owner_subject());
+        case S_SharePosition:
             if (!lv_subject_get_int(view_model().position_subject())) return "Off";
             for (const auto& ch : view_model().channels()) if (ch.positionPrecision > 0)
                 return std::string(ch.isPrivate ? "Private: " : "Public: ") + std::to_string(ch.index);
             return "On";
-        case 7: return lv_subject_get_int(view_model().mqtt_subject()) ? "On" : "Off";
-        case 8: return lv_subject_get_int(view_model().autostart_subject()) ? "On" : "Off";
-        case 9: return view_model().is_dark_mode() ? "Dark" : "Light";
-        case 10: return std::to_string(view_model().channels().size());
-        case 11: return "";
-        case 12: return std::to_string(view_model().canned_messages().size());
-        case 13: return view_model().show_signal() ? "On" : "Off";
-        case 14: return view_model().retention_cap() == 0 ? "All"
+        case S_Mqtt: return lv_subject_get_int(view_model().mqtt_subject()) ? "On" : "Off";
+        case S_AutoStart: return lv_subject_get_int(view_model().autostart_subject()) ? "On" : "Off";
+        case S_Theme: return view_model().is_dark_mode() ? "Dark" : "Light";
+        case S_Channels: return std::to_string(view_model().channels().size());
+        case S_About: return "";
+        case S_QuickMessages: return std::to_string(view_model().canned_messages().size());
+        case S_ShowSignal: return view_model().show_signal() ? "On" : "Off";
+        case S_Retention: return view_model().retention_cap() == 0 ? "All"
                                                           : std::to_string(view_model().retention_cap());
-        case 15: return view_model().mute_all() ? "On" : "Off";
-        case 16: return view_model().want_ack() ? "On" : "Off";
-        case 17: {
+        case S_MuteAll: return view_model().mute_all() ? "On" : "Off";
+        case S_MessageAcks: return view_model().want_ack() ? "On" : "Off";
+        case S_FrequencySlot: {
             const int slot = lv_subject_get_int(view_model().frequency_slot_subject());
             return slot == 0 ? "Auto" : std::to_string(slot);
         }
@@ -134,6 +162,15 @@ void SettingsScreen::rebuild() {
 
     lv_obj_t* sel_row = nullptr;
     for (int i = 0; i < kRowCount; ++i) {
+        if (kRows[i].section[0]) {
+            auto* section = lv_label_create(list_);
+            lv_label_set_text(section, kRows[i].section);
+            const lv_font_t* small = assets().load_standard_font(11, app::StandardFontWeight::Regular);
+            lv_obj_set_style_text_font(section, small ? small : &lv_font_montserrat_12, 0);
+            lv_obj_set_style_text_color(section, colors.primary, 0);
+            lv_obj_set_style_pad_top(section, 7, 0);
+            lv_obj_set_style_pad_left(section, 6, 0);
+        }
         auto* row = lv_obj_create(list_);
         lv_obj_remove_style_all(row);
         lv_obj_set_width(row, lv_pct(100));
@@ -153,11 +190,11 @@ void SettingsScreen::rebuild() {
             sel_row = row;
         }
         auto* label = lv_label_create(row);
-        lv_label_set_text(label, kRows[i]);
+        lv_label_set_text(label, kRows[i].label);
         lv_obj_set_style_text_font(label, font, 0);
         lv_obj_set_style_text_color(label, colors.text, 0);
 
-        const std::string value = value_for(i);
+        const std::string value = value_for(kRows[i].key);
         auto* val = lv_label_create(row);
         lv_label_set_text(val, value.c_str());
         lv_obj_set_style_text_font(val, font, 0);
@@ -168,36 +205,36 @@ void SettingsScreen::rebuild() {
 }
 
 void SettingsScreen::row_action(int row) {
-    if (row == 25) { open_picker("GPS receiver; sharing is a separate setting", {"Cancel", "Enable GPS receiver", "Disable GPS receiver"}, "gps", 0); return; }
-    if (row == 18) { request_service("setup", "setup.status"); return; }
-    if (row == 19) { open_picker("Antenna attached? Region: " + (view_model().radio_mode() == "off" ? view_model().setup().str_at("region", "Unknown") : s_of(view_model().region_subject())), {"Cancel", "Enable transmission", "Receive only"}, "tx", 0); return; }
-    if (row == 20) { request_service("slots", "channel.slots"); return; }
-    if (row == 21) { request_service("profiles", "profile.list"); return; }
-    if (row == 22) { open_picker("Diagnostics", {"View current health", "Export sanitized health"}, "diagnostics", 0); return; }
-    if (row == 23) { open_picker("Disk history (private, not encrypted)", {"Cancel", view_model().history_enabled() ? "Erase saved history; RAM only" : "Save current and future chats"}, "history", 0); return; }
-    if (row == 24) { open_picker("Quiet hours (device local time)", {"Off", "22:00-07:00", "Custom times"}, "quiet", 0); return; }
-    if (row == 17) {
+    if (row == S_GpsReceiver) { open_picker("GPS receiver; sharing is a separate setting", {"Cancel", "Enable GPS receiver", "Disable GPS receiver"}, "gps", 0); return; }
+    if (row == S_FirstRun) { request_service("setup", "setup.status"); return; }
+    if (row == S_TransmitMode) { open_picker("Antenna attached? Region: " + (view_model().radio_mode() == "off" ? view_model().setup().str_at("region", "Unknown") : s_of(view_model().region_subject())), {"Cancel", "Enable transmission", "Receive only"}, "tx", 0); return; }
+    if (row == S_ChannelManager) { request_service("slots", "channel.slots"); return; }
+    if (row == S_MeshProfiles) { request_service("profiles", "profile.list"); return; }
+    if (row == S_Diagnostics) { open_picker("Diagnostics", {"View current health", "Export sanitized health"}, "diagnostics", 0); return; }
+    if (row == S_SaveConversations) { open_picker("Disk history (private, not encrypted)", {"Cancel", view_model().history_enabled() ? "Erase saved history; RAM only" : "Save current and future chats"}, "history", 0); return; }
+    if (row == S_QuietHours) { open_picker("Quiet hours (device local time)", {"Off", "22:00-07:00", "Custom times"}, "quiet", 0); return; }
+    if (row == S_FrequencySlot) {
         if (std::string(view_model().config_state()) != "confirmed") { view_model().apply_notice("Wait for confirmed radio settings"); return; }
         open_text("Frequency slot (0=Auto)", std::to_string(lv_subject_get_int(view_model().frequency_slot_subject())), "frequency-slot");
         return;
     }
     switch (row) {
-        case 0: {  // Radio toggle
+        case S_Radio: {  // Radio toggle
             if (s_of(view_model().radio_state_subject()) == "online") view_model().radio_stop();
             else view_model().radio_start();
             break;
         }
-        case 1: open_picker("Region", kRegions, "region", index_of(kRegions, s_of(view_model().region_subject()))); break;
-        case 2: open_picker("Modem preset", kPresets, "preset", index_of(kPresets, s_of(view_model().modem_preset_subject()))); break;
-        case 3: {
+        case S_Region: open_picker("Region", kRegions, "region", index_of(kRegions, s_of(view_model().region_subject()))); break;
+        case S_ModemPreset: open_picker("Modem preset", kPresets, "preset", index_of(kPresets, s_of(view_model().modem_preset_subject()))); break;
+        case S_HopLimit: {
             std::vector<std::string> hops;
             for (int h = 1; h <= 7; ++h) hops.push_back(std::to_string(h));
             open_picker("Hop limit", hops, "hop", lv_subject_get_int(view_model().hop_limit_subject()) - 1);
             break;
         }
-        case 4: open_picker("Add a channel", {"Scan QR code", "Paste share URL"}, "addmenu", 0); break;
-        case 5: open_text("Node name", s_of(view_model().owner_subject()), "name"); break;
-        case 6: {
+        case S_AddChannel: open_picker("Add a channel", {"Scan QR code", "Paste share URL"}, "addmenu", 0); break;
+        case S_NodeName: open_text("Node name", s_of(view_model().owner_subject()), "name"); break;
+        case S_SharePosition: {
             if (std::string(view_model().config_state()) != "confirmed") {
                 view_model().apply_notice("Wait for confirmed radio settings");
                 break;
@@ -218,10 +255,10 @@ void SettingsScreen::row_action(int row) {
             }
             break;
         }
-        case 7: view_model().set_mqtt(!lv_subject_get_int(view_model().mqtt_subject())); break;
-        case 8: view_model().set_auto_start(!lv_subject_get_int(view_model().autostart_subject())); break;
-        case 9: view_model().toggle_dark_mode(); break;
-        case 10: {
+        case S_Mqtt: view_model().set_mqtt(!lv_subject_get_int(view_model().mqtt_subject())); break;
+        case S_AutoStart: view_model().set_auto_start(!lv_subject_get_int(view_model().autostart_subject())); break;
+        case S_Theme: view_model().toggle_dark_mode(); break;
+        case S_Channels: {
             std::vector<std::string> rows;
             for (const auto& c : view_model().channels()) {
                 rows.push_back(view_model().channel_label(c.index) + " " + c.role +
@@ -231,7 +268,7 @@ void SettingsScreen::row_action(int row) {
             open_info("Channels", rows);
             break;
         }
-        case 11: {
+        case S_About: {
             open_info("About", {
                 std::string("Version:  ") + app::kAppVersion,
                 std::string("Source:  ") + app::kRepoUrl,
@@ -243,17 +280,17 @@ void SettingsScreen::row_action(int row) {
             });
             break;
         }
-        case 12: open_canned(); break;
-        case 13: view_model().set_show_signal(!view_model().show_signal()); rebuild(); break;
-        case 14: {
+        case S_QuickMessages: open_canned(); break;
+        case S_ShowSignal: view_model().set_show_signal(!view_model().show_signal()); rebuild(); break;
+        case S_Retention: {
             const int cap = view_model().retention_cap();
             int initial = 0;
             if (cap == 50) initial = 1; else if (cap == 100) initial = 2; else if (cap == 200) initial = 3;
             open_picker("Keep per chat", {"All", "50", "100", "200"}, "retention", initial);
             break;
         }
-        case 15: view_model().set_mute_all(!view_model().mute_all()); rebuild(); break;
-        case 16: view_model().set_want_ack(!view_model().want_ack()); rebuild(); break;
+        case S_MuteAll: view_model().set_mute_all(!view_model().mute_all()); rebuild(); break;
+        case S_MessageAcks: view_model().set_want_ack(!view_model().want_ack()); rebuild(); break;
         default: break;
     }
 }
@@ -540,6 +577,11 @@ void SettingsScreen::apply_overlay() {
 
 // --- navigation -------------------------------------------------------------
 void SettingsScreen::on_up() {
+    if (overlay_mode_ == Overlay::Info && overlay_obj_) {
+        const int32_t room = lv_obj_get_scroll_top(overlay_obj_);
+        if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? room : 40, LV_ANIM_OFF);
+        return;
+    }
     if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
         if (opt_sel_ > 0) { --opt_sel_; rebuild_picker(); }
         return;
@@ -549,6 +591,11 @@ void SettingsScreen::on_up() {
 }
 
 void SettingsScreen::on_down() {
+    if (overlay_mode_ == Overlay::Info && overlay_obj_) {
+        const int32_t room = lv_obj_get_scroll_bottom(overlay_obj_);
+        if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? -room : -40, LV_ANIM_OFF);
+        return;
+    }
     if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
         if (opt_sel_ < static_cast<int>(options_.size()) - 1) { ++opt_sel_; rebuild_picker(); }
         return;
@@ -559,7 +606,7 @@ void SettingsScreen::on_down() {
 
 void SettingsScreen::on_enter() {
     if (overlay_mode_ != Overlay::None) { apply_overlay(); return; }
-    row_action(selected_);
+    row_action(kRows[selected_].key);
 }
 
 bool SettingsScreen::on_back() {
