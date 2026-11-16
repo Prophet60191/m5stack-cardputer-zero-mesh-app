@@ -13,6 +13,13 @@
 - Refresh message-action help when selection changes, and show that a changed DM
   channel needs choosing again instead of labeling its replacement as the route.
 
+Validation: native ASAN/UBSAN passes all 26 settings navigation targets, existing
+privacy/configuration actions, real-font footer bounds and compose/scroll/list
+transitions. Both CI jobs pass, including 67 backend cases and Debian arm64
+package/install checks. The exact CI artifact is installed on the development
+device; all ten runtime hashes, saved messages, current keys/settings, radio
+online and firewall health were verified. No additional RF messages were sent.
+
 ## 0.1.2 — 2026-11-15 (release candidate; hardware qualification in progress)
 
 - Replace repeated sudo health probes with a capability-only firewall monitor;
