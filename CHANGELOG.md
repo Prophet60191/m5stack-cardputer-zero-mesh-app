@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5 — 2026-11-16 (release candidate)
+
+- Outline the selected message bubble in red instead of green, using the theme's
+  red color in light and dark mode. Keep the rounded two-pixel selection line.
+
+Validation: existing native ASAN/UBSAN checks and Debian 13 arm64 build/install/
+policy checks pass, including all 68 backend cases. Synthetic selection renders
+cover light and dark mode; device installation is recorded separately.
+
 ## 0.1.4 — 2026-11-16 (release candidate)
 
 - Wait for Return on Scan QR code before starting the camera, and show Scanning

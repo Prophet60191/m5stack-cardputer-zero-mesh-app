@@ -281,6 +281,17 @@ static void compact_layout_regression(const char* screenshot_path) {
     check_help(help);lv_area_t context_before;lv_obj_get_coords(context,&context_before);CHECK(context_before.y1>=30 && context_before.y2<51);
     if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/"dm-header-help.png").c_str(),messages.root());
     messages.on_up();check_help(label_starting(messages.root(),"Enter: actions"));
+    if (screenshot_path) {
+        const auto dir = std::filesystem::path(screenshot_path).parent_path();
+        save_png((dir/"message-selected-light.png").c_str(),messages.root());
+        vm.set_dark_mode(true);
+        {
+            screen::MessagesScreen dark_messages(vm,assets);
+            dark_messages.on_enter(); dark_messages.on_up();
+            save_png((dir/"message-selected-dark.png").c_str(),dark_messages.root());
+        }
+        vm.set_dark_mode(false);
+    }
     lv_area_t context_after;lv_obj_get_coords(context,&context_after);CHECK(context_after.y1==context_before.y1);
     messages.on_back();messages.on_enter();CHECK(messages.is_composing());CHECK(!lv_obj_has_flag(context,LV_OBJ_FLAG_HIDDEN));
     if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/"dm-header-compose.png").c_str(),messages.root());

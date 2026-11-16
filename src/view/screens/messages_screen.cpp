@@ -416,7 +416,7 @@ void MessagesScreen::rebuild_thread() {
         lv_obj_set_style_bg_color(bubble, m.outgoing ? colors.primary : colors.button, 0);
         if (selected) {
             lv_obj_set_style_outline_width(bubble, 2, 0);
-            lv_obj_set_style_outline_color(bubble, colors.primary, 0);
+            lv_obj_set_style_outline_color(bubble, colors.error, 0);
             lv_obj_set_style_outline_pad(bubble, 2, 0);
             lv_obj_set_style_outline_opa(bubble, LV_OPA_COVER, 0);
         }
