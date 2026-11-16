@@ -45,14 +45,16 @@ jobs:
             cz-mesh-arm64 sh /src/tests/linux-package-check.sh
       - name: Record checksums and corresponding source
         run: |
-          cd "$RUNNER_TEMP/cz-build/linux/dist"
+          mkdir -p "$RUNNER_TEMP/cz-artifact"
+          cp "$RUNNER_TEMP/cz-build/linux/dist/"*.deb "$RUNNER_TEMP/cz-artifact/"
+          cd "$RUNNER_TEMP/cz-artifact"
           sha256sum *.deb > SHA256SUMS
           printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cardputerzero-mesh-debian13-arm64
           path: |
-            ${{ runner.temp }}/cz-build/linux/dist/*.deb
-            ${{ runner.temp }}/cz-build/linux/dist/SHA256SUMS
-            ${{ runner.temp }}/cz-build/linux/dist/SOURCE_COMMIT
+            ${{ runner.temp }}/cz-artifact/*.deb
+            ${{ runner.temp }}/cz-artifact/SHA256SUMS
+            ${{ runner.temp }}/cz-artifact/SOURCE_COMMIT
           if-no-files-found: error
