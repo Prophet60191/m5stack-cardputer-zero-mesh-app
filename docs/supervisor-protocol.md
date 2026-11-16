@@ -15,8 +15,10 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `radio.stop` | — | disconnect, stop `meshtasticd`, power the Cap down |
 | `node.list` | — | replies `nodes` |
 | `channel.list` | — | replies `channels` |
-| `channel.add` | `url` | import a channel from a Meshtastic share URL (adds as secondary) |
-| `channel.scan` | `id?` | scan a channel QR with the camera, import it, reply `channel.scanned` or `error` with the same request ID |
+| `channel.preview` | `url`, `id` | validate and preview pasted share data without writing channels |
+| `channel.add` | `token`, `confirmed:true`, `id?` | import the connection-bound preview as secondary channels after state/expiry validation |
+| `channel.scan` | `id` | start one cancellable background camera job; replies `channel.preview` or `error`, never imports |
+| `channel.import.cancel` | `request` | cancel this connection's scan/discard preview for that original request; no RF or channel writes |
 | `channel.share` | `channel`, `id` | replies `channelshare` with a share URL for **that indexed channel only** |
 | `region.set` | `region` (e.g. `"US"`) | set the LoRa region |
 | `owner.set` | `name`, `short?` | set this node's name |
@@ -39,7 +41,8 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `delivery` | `cid`, `status` (`sent`\|`mesh`\|`delivered`\|`failed`), `hops?` — the ack for one of our `message.send`s |
 | `device` | `node_id`, `firmware`, `model` — our node's identity |
 | `config` | `preset`, `hop`, `position`, `gps_mode`, `mqtt`, `confirmed`, `frequency_slot`, `tx_enabled`, `id?` — the current LoRa/module config |
-| `channel.scanned` | `added`, `id?` — confirmed imported channel count; zero means already present; never includes the decoded URL |
+| `channel.preview` | `id`, `token`, `new`, `available`, `channels:[{name,private,existing}]`, `region`, `preset`, `slot`; no URL/key; `new:0` means already present |
+| `channel.imported` | `added`, `id?` — confirmed imported channel count; completion also emits a nonsecret notice |
 | `channelshare` | `channel`, `channel_id`, `name`, `url`, `id` — a Meshtastic share URL for one channel (reply to `channel.share`) |
 | `traceroute` | `node`, `channel`, `ok`, `path?` (names, you→…→dest) or `text?` (reason on failure) |
 | `notice` | `text` — a human status line (e.g. "location sent") |
@@ -52,13 +55,15 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 - **Async events are broadcast** to every connected client, so the UI stays live without polling.
 - **Public and private channels are supported.** All RF actions require an explicit valid enabled channel. DMs choose their channel explicitly; missing or invalid channels never fall back to zero.
 
-QR channel-add uses the same validated importer as `channel.add`. Selecting Scan
-QR code opens a ready view; Return sends one `channel.scan` request and immediately
-shows Scanning. Repeated Return while waiting does nothing. A matching
-`channel.scanned`/`error` finishes that view; failed scans offer Return to retry.
-Dismissed or superseded replies cannot reopen it. Escape only leaves the view;
-the supervisor operation may still complete. Capture/decode happens in memory,
-and the result event contains a count rather than the decoded secret URL.
+QR channel-add opens ready instructions with the Online radio requirement. Return
+starts capture and immediately shows Scanning; repeated Return is ignored. Escape
+cancels the process group and discards any preview. A decoded or pasted URL
+produces a preview of channel names/classifications before a Cancel-first import
+confirmation. No channels change until `channel.add` with the preview token and
+`confirmed:true`. Tokens are connection-bound, expire after 120 seconds, and are
+invalid after channel/tuning changes. Already-present channels report no change.
+Committed imports finish under the radio worker and broadcast a completion notice
+even if the view was left. Capture and decoded secrets are never saved to disk.
 
 QR channel-share (`channel.share`): the supervisor builds a share URL for **only the indexed channel** (public or private; never all node channels), and the UI renders it as a scannable QR with LVGL's `lv_qrcode`. Channel keys live only on the device; the URL is generated at request time and never written to the repo.
 
@@ -71,7 +76,7 @@ replies only after readback matches the requested effective values. A write/read
 failure emits `config.unknown` and `error` (with intent/request ID); clients must
 not display an unconfirmed Off. The UI expires pending config after 45 seconds.
 
-`message.clear {thread}`, `message.delete {id}` and `message.retention {cap}`
+`message.clear {thread}`, `message.delete {message_id}` and `message.retention {cap}`
 mutate authoritative history and broadcast a complete `messages` snapshot. A
 snapshot replaces local history, including removals. Retention is global server
 session policy; each UI reapplies its saved preference on connection (last writer
@@ -143,7 +148,7 @@ the receiver independently of location-sharing consent. Diagnostics include
 | `diagnostics.get/export` | whitelisted health/version/counts, no chats/keys/IDs/coordinates; export writes fixed private `diagnostics-export.json` in the radio state directory |
 | `thread.state` | `thread`, `state:{draft,pinned}`; draft at most 200 UTF-8 bytes, max 256 saved states; broadcasts `threads` |
 | `thread.delete` | forget thread state; use `message.clear` separately for messages |
-| `history.set` | strict boolean `enabled`; disabling deletes saved messages/drafts and retains RAM; enabling saves the current RAM messages/drafts and future updates; replies and broadcasts `threads` |
+| `history.set` | strict boolean `enabled`; disabling deletes saved messages/drafts/conversation identities/pins and retains RAM; enabling saves the current RAM messages/drafts/pins and future updates; replies and broadcasts `threads` |
 
 Greeting always includes history and `threads`, even with the radio Off.
 History/drafts live in private bounded SQLite storage in the radio state directory;
@@ -161,3 +166,16 @@ failure reason and power down through the guardian.
 `state.sync {id}` is a serialized persistence barrier and replies `state.synced`. The UI flushes drafts before graceful exit and waits up to two seconds for this barrier; an unavailable/busy supervisor can still prevent the final save.
 
 Channel share replies validate the original opaque identity as well as request/slot; changing the active channel closes an already visible QR. Automatic-location pickers retain the identity shown when opened and reject changed slots at either confirmation step. Retries resolve their original identity after a slot move instead of targeting a replacement. Draft-only, pinned and cleared conversations remain in the list independently of saved messages; deleting a conversation removes its saved state too.
+
+
+Local `thread.state`, `thread.delete` and `history.set` operations are serialized
+under the state lock rather than queued behind camera/admin work. `state.sync`
+still waits for all preceding radio operations and local commits from the stream.
+Greetings send one history snapshot; the UI does not request a duplicate. Changing
+retention can legitimately send a newly trimmed snapshot. Daemon version queries
+are cached for 60 seconds and greetings warm that cache outside the lifecycle
+lock; each radio start forces a fresh compatibility query. Firewall verdicts stay
+fresh on every check. Status uses a captured interface and reports Unknown if the
+library node is incomplete. Message targets use `message_id`; `id` is exclusively
+request correlation. Generic UI service waits expire after 60 seconds (90 for a
+confirmed import), report uncertainty, and ignore late replies after dismissal.

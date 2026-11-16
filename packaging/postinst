@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: MIT
 set -eu
 if [ "${1:-}" = configure ]; then
-    getent group cardputerzero-mesh >/dev/null || addgroup --system cardputerzero-mesh
     getent passwd cz-mesh-firewall >/dev/null || adduser --system --group --no-create-home --home /nonexistent cz-mesh-firewall
-    chmod 0440 /etc/sudoers.d/cardputerzero-mesh
     if [ -d /run/systemd/system ]; then
         systemctl daemon-reload
         systemctl enable cardputerzero-mesh-firewall.service

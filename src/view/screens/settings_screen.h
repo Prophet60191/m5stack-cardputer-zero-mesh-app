@@ -16,6 +16,7 @@ namespace screen {
 class SettingsScreen : public BaseScreen {
 public:
     SettingsScreen(viewmodel::BaseViewModel& view_model, app::AssetManager& assets);
+    ~SettingsScreen() override;
 
     void on_up() override;
     void on_down() override;
@@ -31,10 +32,12 @@ private:
     bool extended_text(const std::string& pending, const std::string& value);
     std::string service_route_, setup_region_, setup_kind_, channel_action_, channel_id_, profile_id_;
     std::string channel_fields_, channel_name_;
+    std::string import_token_;
+    int import_count_ = 0;
     int managed_channel_ = -1;
     bool offered_setup_ = false;
     std::vector<json::Value> service_items_;
-    enum class Overlay { None, Picker, Text, Info, Canned, ScanReady, ScanBusy };
+    enum class Overlay { None, Picker, Text, Info, Canned, ScanReady, ScanBusy, Busy, ImportPreview };
 
     void build_content(lv_obj_t* content) override;
     void rebuild();

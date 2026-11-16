@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.6 — 2026-11-16 (release candidate)
+
+- Verify the supplied 13-item report against the actual code; record corrections
+  and qualifications in [the follow-up](docs/report-followup.md).
+- Separate cancellable camera capture from confirmed channel import. Both scan
+  and paste show a preview, handle duplicates without writes, and require a
+  Cancel-first confirmation bound to the current connection/channels/tuning.
+- Keep local drafts/history writes responsive during radio admin waits, send one
+  greeting history snapshot, cache dependency probes outside greeting lifecycle
+  locking, and guard status reads through incomplete/detached library state.
+- Delete saved conversation identities/pins as well as messages/drafts when
+  history is disabled, including metadata left by the old policy.
+- Use canonical version metadata, separate delete targets from request IDs,
+  expire generic service waits, and remove the obsolete app sudo grant in favor
+  of an unprivileged health command. Preserve the red message-selection border.
+
+Validation: native ASAN/UBSAN, real parser/store/process/worker regressions and
+Debian arm64 package checks. Final CI and installed-device evidence are tracked
+separately; offline tests do not perform RF or physical camera/GPS checks.
+
 ## 0.1.5 — 2026-11-16 (release candidate)
 
 - Mark the selected message bubble with a rounded two-pixel red border in light

@@ -43,8 +43,8 @@ class PersistenceTests(unittest.TestCase):
         self.store.set_thread('dm:!12345678@group', {'draft':'RAM-only','pinned':False})
         self.store.close(); self.store = StateStore(self.path)
         self.assertEqual(self.store.load_messages(), [])
-        self.assertEqual(self.store.load_threads()['ch:synthetic'], {'draft':'','pinned':True})
-        self.assertEqual(self.store.load_threads()['dm:!12345678@group']['draft'], '')
+        self.assertEqual(self.store.load_threads(), {})
+        self.assertEqual(self.store._db.execute('SELECT COUNT(*) FROM threads').fetchone()[0], 0)
         for key, val in [('bad', {}), ('ch:x', {'draft':'x'*201}), ('dm:x', {'pinned':1})]:
             with self.assertRaises(ValueError): self.store.set_thread(key,val)
     def test_database_symlink_rejected(self):
@@ -52,6 +52,12 @@ class PersistenceTests(unittest.TestCase):
         (self.path/'other').touch(); (self.path/'conversations.sqlite3').symlink_to(self.path/'other')
         with self.assertRaises(PermissionError): StateStore(self.path)
         (self.path/'conversations.sqlite3').unlink(); self.store = StateStore(self.path)
+    def test_restart_scrubs_metadata_left_by_the_old_opt_out_policy(self):
+        self.store.set_preference('history.enabled', False)
+        self.store._db.execute('INSERT INTO threads VALUES (?,?)', ('dm:!12345678', '{"draft":"","pinned":true}'))
+        self.store._db.commit(); self.store.close(); self.store = StateStore(self.path)
+        self.assertEqual(self.store.load_threads(), {})
+        self.assertEqual(self.store._db.execute('SELECT COUNT(*) FROM threads').fetchone()[0], 0)
 
 
 class RadioSettingsTests(unittest.TestCase):
@@ -166,7 +172,7 @@ class ApplicationTests(unittest.TestCase):
         self.s._threads['ch:synthetic'] = state
         self.s._dispatch(self.c, {'intent': 'history.set', 'enabled': False})
         self.s._store.set_thread('ch:synthetic', state)
-        self.assertEqual(self.s._store.load_threads()['ch:synthetic']['draft'], '')
+        self.assertEqual(self.s._store.load_threads(), {})
         with patch.object(self.s, '_broadcast') as broadcast:
             self.s._dispatch(self.c, {'intent': 'history.set', 'enabled': True})
         self.assertEqual(broadcast.call_args[0][0]['event'], 'threads')

@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+from app_version import APP_VERSION
 
 try:
     from google.protobuf.message import DecodeError
@@ -26,17 +27,23 @@ class ApplicationServices:
         if self._iface is not None or self._daemon is not None or self._radio not in ("off", "error"):
             raise ValueError("stop the radio before changing stored setup or applying a profile")
 
-    def _daemon_version(self):
-        try:
-            result = subprocess.run(["/usr/bin/dpkg-query", "-W", "-f=${Version}", "meshtasticd"],
-                                    capture_output=True, text=True, timeout=3)
-            return result.stdout.strip()[:80] if result.returncode == 0 else "not installed"
-        except (OSError, subprocess.TimeoutExpired): return "unavailable"
+    def _daemon_version(self, *, refresh=False):
+        with self._dependency_lock:
+            cached = getattr(self, "_daemon_version_cache", None)
+            if not refresh and cached and time.monotonic() - cached[0] < 60:
+                return cached[1]
+            try:
+                result = subprocess.run(["/usr/bin/dpkg-query", "-W", "-f=${Version}", "meshtasticd"],
+                                        capture_output=True, text=True, timeout=3)
+                version = result.stdout.strip()[:80] if result.returncode == 0 else "not installed"
+            except (OSError, subprocess.TimeoutExpired): version = "unavailable"
+            self._daemon_version_cache = (time.monotonic(), version)
+            return version
 
     def _check_daemon_compatibility(self):
         if self._client_version() != "2.7.11":
             raise ValueError("install the qualified meshtastic==2.7.11 client in the configured radio venv")
-        version = self._daemon_version()
+        version = self._daemon_version(refresh=True)
         if not version.startswith("2.7.26"):
             raise ValueError("this candidate requires the qualified meshtasticd 2.7.26 build (schema 24); detected " + version)
 
@@ -58,7 +65,10 @@ class ApplicationServices:
             mode = "transmit" if config.lora.tx_enabled else "receive-only"
             region = config.lora.RegionCode.Name(config.lora.region)
         except (OSError, ValueError, DecodeError, RuntimeError): pass
-        dependencies = {"daemon": self._daemon_version(), "client": self._client_version()}
+        # Greetings warm this cache outside the lifecycle lock. Never wait for
+        # dpkg-query here while serializing radio control.
+        cached = getattr(self, "_daemon_version_cache", (0, "not checked"))
+        dependencies = {"daemon": cached[1], "client": self._client_version()}
         try:
             self._check_firewall()
             firewall = True
@@ -245,7 +255,7 @@ class ApplicationServices:
                           math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180)
         age = self._position_age(gps)
         connected = getattr(self._iface, "isConnected", None)
-        return {"event": "diagnostics", "app": "0.1.5", "python": platform.python_version(),
+        return {"event": "diagnostics", "app": APP_VERSION, "python": platform.python_version(),
                 "client": self._client_version(), "daemon": self._daemon_version(),
                 "radio": self._radio, "api_connected": bool(connected and connected.is_set()),
                 "mode": self._status()["mode"], "firewall": firewall,

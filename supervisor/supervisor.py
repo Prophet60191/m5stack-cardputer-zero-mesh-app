@@ -55,6 +55,7 @@ from pathlib import Path
 from state_store import StateStore
 from radio_settings import RadioSettings, atomic_write
 from application_services import ApplicationServices
+from channel_import import ChannelImport
 
 
 HERE = Path(__file__).resolve().parent
@@ -193,10 +194,11 @@ class Client:
             pass
 
 
-class Supervisor(ApplicationServices):
+class Supervisor(ApplicationServices, ChannelImport):
     def __init__(self) -> None:
         self._lock = threading.RLock()          # guards clients, state, messages, iface
         self._life_lock = threading.RLock()      # serializes radio start/stop as a whole
+        self._dependency_lock = threading.Lock()
         self._clients: list[Client] = []
         self._radio = "off"                      # off | starting | online | error
         self._detail = ""
@@ -237,6 +239,7 @@ class Supervisor(ApplicationServices):
         self._trace_slots = threading.BoundedSemaphore(2)
         self._attempts = {}
         self._config_confirmed = False
+        self._init_imports()
         self._worker = threading.Thread(target=self._work_loop, daemon=True)
         self._worker.start()
 
@@ -357,22 +360,21 @@ class Supervisor(ApplicationServices):
 
     # --- payload builders ----------------------------------------------------
     def _status(self) -> dict:
-        region, owner = "UNSET", ""
-        if self._iface is not None:
+        with self._lock:
+            iface, radio, port, detail, last_rx = self._iface, self._radio, self._port, self._detail, self._last_rx
+        region, owner, mode = "UNSET", "", "off" if iface is None else "unknown"
+        if iface is not None:
             try:
-                node = self._iface.localNode
+                node = iface.localNode
                 region = type(node.localConfig.lora).RegionCode.Name(node.localConfig.lora.region)
-                info = self._iface.getMyNodeInfo() or {}
+                mode = "transmit" if node.localConfig.lora.tx_enabled else "receive-only"
+                info = iface.getMyNodeInfo() or {}
                 owner = bounded_text(info.get("user", {}).get("longName", ""), 80)
             except Exception:
                 pass
-        s = {"event": "status", "radio": self._radio, "region": region, "owner": owner}
-        s["mode"] = ("transmit" if self._iface.localNode.localConfig.lora.tx_enabled else "receive-only") if self._iface is not None else "off"
-        s["last_rx"] = self._last_rx
-        if self._port:
-            s["port"] = self._port
-        if self._detail:
-            s["detail"] = self._detail
+        s = {"event": "status", "radio": radio, "region": region, "owner": owner, "mode": mode, "last_rx": last_rx}
+        if port: s["port"] = port
+        if detail: s["detail"] = detail
         return s
 
     def _nodes(self) -> dict:
@@ -464,8 +466,9 @@ class Supervisor(ApplicationServices):
                 "frequency_slot": lora.channel_num, "tx_enabled": lora.tx_enabled}
 
     def _thread_state(self):
-        return {"event": "threads", "threads": self._threads,
-                "history_enabled": self._store.preference("history.enabled", True)}
+        with self._lock:
+            return {"event": "threads", "threads": {key: dict(value) for key, value in self._threads.items()},
+                    "history_enabled": self._store.preference("history.enabled", True)}
 
     # --- history store (authoritative) ---------------------------------------
     def _trim_history(self):
@@ -788,16 +791,25 @@ class Supervisor(ApplicationServices):
     # --- intent dispatch -----------------------------------------------------
     def dispatch(self, client: Client, req: dict) -> None:
         intent = req.get("intent")
+        rid = req.get("id")
+        correlation = {"id": rid} if isinstance(rid, str) and 0 < len(rid) <= 128 else {}
         if not isinstance(intent, str) or len(intent) > 64:
-            client.send({"event": "error", "text": "invalid intent"})
+            client.send({"event": "error", "text": "invalid intent", **correlation})
             return
         for key in ("id", "cid"):
             if key in req and (not isinstance(req[key], str) or len(req[key]) > 128):
-                client.send({"event": "error", "text": "invalid request identifier"})
+                client.send({"event": "error", "text": "invalid request identifier", "intent": intent, **correlation})
                 return
+        # Camera work owns no radio state. Cancellation and private local draft
+        # writes must stay responsive even while an admin readback is waiting.
+        if intent in ("channel.scan", "channel.import.cancel", "thread.state", "thread.delete", "history.set"):
+            self._dispatch(client, req)
+            return
+        if intent == "channel.preview": self._begin_import(client, rid)
         try:
             self._submit(lambda: self._dispatch(client, req))
         except queue.Full:
+            if intent == "channel.preview": self._cancel_import(client, rid)
             client.send({"event": "error", "intent": intent, "id": req.get("id"),
                          "cid": req.get("cid"), "text": "radio busy; retry later"})
 
@@ -854,28 +866,30 @@ class Supervisor(ApplicationServices):
                 reply(self._channel_slots())
             elif intent == "thread.state":
                 state = req.get("state")
-                self._store.set_thread(req.get("thread"), state)
-                self._threads[req["thread"]] = {"draft": state.get("draft", ""), "pinned": state.get("pinned", False)}
-                self._broadcast(self._thread_state())
+                with self._lock:
+                    self._store.set_thread(req.get("thread"), state)
+                    if req["thread"] not in self._threads and len(self._threads) >= 256:
+                        raise ValueError("conversation state limit reached")
+                    self._threads[req["thread"]] = {"draft": state.get("draft", ""), "pinned": state.get("pinned", False)}
+                    self._broadcast(self._thread_state())
             elif intent == "thread.delete":
-                self._store.delete_thread(req.get("thread"))
-                for key in list(self._threads):
-                    if key == req["thread"] or key.startswith(req["thread"] + "@"):
-                        self._threads.pop(key)
-                self._broadcast(self._thread_state())
+                with self._lock:
+                    self._store.delete_thread(req.get("thread"))
+                    for key in list(self._threads):
+                        if key == req["thread"] or key.startswith(req["thread"] + "@"):
+                            self._threads.pop(key)
+                    self._broadcast(self._thread_state())
             elif intent == "history.set":
                 value = req.get("enabled")
                 if type(value) is not bool: raise ValueError("history preference must be boolean")
-                self._store.set_preference("history.enabled", value)
-                if value:
-                    self._store.replace_messages(self._messages)
-                    # Off retains this session's drafts in RAM. Re-enabling
-                    # persistence must save them even if they are never edited
-                    # again before exit/restart.
-                    for thread, state in self._threads.items():
-                        self._store.set_thread(thread, state)
-                reply(self._thread_state())
-                self._broadcast(self._thread_state())
+                with self._lock:
+                    self._store.set_preference("history.enabled", value)
+                    if value:
+                        self._store.replace_messages(self._messages)
+                        for thread, state in self._threads.items():
+                            self._store.set_thread(thread, state)
+                    reply(self._thread_state())
+                    self._broadcast(self._thread_state())
             elif intent == "radio.start":
                 self.radio_start()
                 reply({"event": "notice", "text": "starting radio"})
@@ -953,7 +967,9 @@ class Supervisor(ApplicationServices):
                 self._publish_history()
                 reply({"event": "notice", "text": "cleared"})
             elif intent == "message.delete":
-                mid = str(req["id"])
+                mid = req["message_id"]
+                if not isinstance(mid, str) or not mid or len(mid) > 128:
+                    raise ValueError("invalid message identifier")
                 if mid:
                     with self._lock:
                         self._messages = [m for m in self._messages if m.get("id") != mid]
@@ -961,15 +977,21 @@ class Supervisor(ApplicationServices):
                 reply({"event": "notice", "text": "deleted"})
             elif intent == "message.retention":
                 with self._lock:
-                    self._retention = max(0, min(MAX_MESSAGES, int(req.get("cap", 0))))
-                    self._trim_history()
-                self._publish_history()
+                    cap = max(0, min(MAX_MESSAGES, int(req.get("cap", 0))))
+                    if cap != self._retention:
+                        self._retention = cap
+                        self._trim_history()
+                        self._publish_history()
                 reply({"event": "notice", "text": "retention set"})
             elif intent == "channel.add":
                 self._require_online()
-                added = self._add_channel(str(req["url"]))
-                reply({"event": "notice", "text": f"imported {added} channel(s)"})
+                added = self._confirm_import(client, req)
+                reply({"event": "channel.imported", "added": added})
                 self._broadcast(self._channels())
+                self._broadcast({"event": "notice", "text": f"Imported {added} channel(s)" if added else "Channels already present"})
+            elif intent == "channel.preview":
+                preview = self._preview_import(client, req, req.get("url"))
+                if preview is not None: reply(preview)
             elif intent == "position.send":
                 self._require_online()
                 ch = req["channel"]
@@ -1054,19 +1076,16 @@ class Supervisor(ApplicationServices):
                 self._config_confirmed = True
                 reply(self._config_payload())
             elif intent == "channel.scan":
-                self._require_online()
-                url = self._scan_qr()
-                if url:
-                    added = self._add_channel(url)
-                    reply({"event": "channel.scanned", "added": added})
-                    self._broadcast(self._channels())
-                else:
-                    reply({"event": "error", "text": "no QR code found", "intent": "channel.scan"})
+                self._start_scan(client, req)
+            elif intent == "channel.import.cancel":
+                self._cancel_import(client, req.get("request"))
             else:
                 reply({"event": "error", "text": f"unknown intent: {intent}", "intent": intent})
         except KeyError as exc:
+            if intent in ("channel.preview", "channel.scan"): self._cancel_import(client, rid)
             reply({"event": "error", "text": f"missing field {exc}", "intent": intent, "cid": req.get("cid")})
         except (Exception, SystemExit) as exc:  # library validation may raise SystemExit
+            if intent in ("channel.preview", "channel.scan"): self._cancel_import(client, rid)
             if intent.startswith("config."):
                 self._config_confirmed = False
                 self._broadcast({"event": "config.unknown"})
@@ -1116,30 +1135,11 @@ class Supervisor(ApplicationServices):
         raise ValueError("select an enabled channel with a valid key")
 
     def _add_channel(self, url: str) -> int:
-        from base64 import urlsafe_b64decode
-        from meshtastic.protobuf import apponly_pb2, channel_pb2
-        m = re.fullmatch(r"https://meshtastic\.org/(?:e|d|v)/(?:\?add=true)?#([A-Za-z0-9_-]+={0,2})", url)
-        if not m:
-            raise ValueError("not a Meshtastic channel share URL")
-        enc = m.group(1).rstrip("=")
-        cs = apponly_pb2.ChannelSet.FromString(urlsafe_b64decode(enc + "=" * (-len(enc) % 4)))
-        if not cs.settings or len(cs.settings) > 8:
-            raise ValueError("URL must contain 1..8 channels")
-        for settings in cs.settings:
-            if (not self._valid_channel_key(settings.psk) or len(settings.name.encode("utf-8")) > 11 or
-                    (settings.name and not settings.name.isprintable())):
-                raise ValueError("invalid channel key or name (maximum 11 UTF-8 bytes)")
+        from meshtastic.protobuf import channel_pb2
+        pending, free, _ = self._import_plan(url)
         node = self._iface.localNode
-        identities = {(ch.settings.name, bytes(ch.settings.psk), ch.settings.id) for ch in node.channels if ch.role}
-        free = [ch for ch in node.channels if not self._channel_configured(ch) and ch.index != 0]
-        pending = []
-        for settings in cs.settings:
-            identity = (settings.name, bytes(settings.psk), settings.id)
-            if identity not in identities:
-                identities.add(identity)
-                pending.append(settings)
         if not pending:
-            raise ValueError("no new channel in the URL")
+            return 0
         if len(pending) > len(free):
             raise ValueError("not enough free channel slots")
         for settings, ch in zip(pending, free):
@@ -1398,26 +1398,45 @@ class Supervisor(ApplicationServices):
         else:
             raise ValueError(f"unknown config path {path}")
 
-    def _scan_qr(self):
-        """A blocked camera must not strand the serialized radio worker."""
+    def _scan_qr(self, cancelled):
+        """Own one unprivileged process group; Escape kills capture and its child."""
+        process = None
         try:
-            result = subprocess.run([sys.executable, str(HERE / "qr_scan.py")],
-                                    capture_output=True, text=True, timeout=12)
-            value = result.stdout.strip()
-            if result.returncode != 0:
-                raise RuntimeError("Camera scan unavailable: " + bounded_text(result.stderr.strip(), 180))
-            return value if len(value) <= 4096 else None
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("Camera scan timed out; close other camera apps and retry") from None
+            process = subprocess.Popen([sys.executable, str(HERE / "qr_scan.py")],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+            deadline = time.monotonic() + 12
+            while not cancelled.is_set() and not self._stop.is_set():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0: raise RuntimeError("Camera scan timed out; close other camera apps and retry")
+                try:
+                    output, errors = process.communicate(timeout=min(0.1, remaining))
+                    if process.returncode:
+                        raise RuntimeError("Camera scan unavailable: " + bounded_text(errors.strip(), 180))
+                    value = output.strip()
+                    return value if len(value) <= 4096 else None
+                except subprocess.TimeoutExpired: continue
+            return None
         except OSError:
             raise RuntimeError("Camera scanner could not start") from None
+        finally:
+            if process is not None:
+                # Kill the group even if the helper exited while its camera child
+                # remained alive. Both belong to this user; no elevated helper.
+                try: os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError: pass
+                try: process.communicate(timeout=0.4)
+                except subprocess.TimeoutExpired:
+                    try: os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError: pass
+                    process.communicate(timeout=1)
 
     # --- socket server -------------------------------------------------------
     def _drop_client(self, client: Client) -> None:
+        client.close()
+        self._cancel_import(client)
         with self._lock:
             if client in self._clients:
                 self._clients.remove(client)
-        client.close()
 
     def _read_lines(self, conn: socket.socket):
         """Yield complete UTF-8 lines, each capped at MAX_LINE_BYTES. A line that
@@ -1445,6 +1464,7 @@ class Supervisor(ApplicationServices):
                 return   # oversized line with no newline -> hang up
 
     def _handle_client(self, conn: socket.socket, client: Client) -> None:
+        self._daemon_version() # A cache miss may run dpkg-query; never under _life_lock.
         # Capture/queue greeting config under the lifecycle lock too, so a
         # reconnect cannot enqueue old confirmed values after a stop/write.
         with self._life_lock:
@@ -1459,7 +1479,6 @@ class Supervisor(ApplicationServices):
                     client.send(self._config_payload())
                     client.send(self._nodes())
                     client.send(self._channels())
-                    self._publish_history(client)
                 except Exception:
                     pass
         try:
@@ -1548,6 +1567,8 @@ class Supervisor(ApplicationServices):
                     self._clients.append(client)
                 threading.Thread(target=self._handle_client, args=(conn, client), daemon=True).start()
         finally:
+            self._stop.set()
+            self._stop_imports()
             self.radio_stop()
             with self._lock:
                 clients = list(self._clients)

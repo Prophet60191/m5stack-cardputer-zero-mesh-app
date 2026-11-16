@@ -22,7 +22,8 @@ drops TCP 47400 on every ingress interface except `lo`, including IPv6. The
 package enables a boot service to establish it. That monitor service runs
 as `cz-mesh-firewall` with only CAP_NET_ADMIN; the app and supervisor run as the
 logged-in user. A root-owned helper accepts only fixed `ensure`, `check`, `monitor`, and
-`remove` actions. The app user's sudo grant permits **only `check`**. Startup
+`remove` actions. The app installs no sudo grant. `firewall.py health` reads the
+trusted verdict without elevated privileges. Startup
 fails before powering hardware if the rule is absent/changed or its trusted health record
 cannot verify it; the watchdog rechecks while online. A privileged administrator
 can still change networking or remove rules between checks. Loopback clients
@@ -145,7 +146,8 @@ service runs as `cz-mesh-firewall`, with only CAP_NET_ADMIN, and checks its exac
 nftables table. It atomically publishes a verdict in its owned runtime directory.
 The supervisor validates owner/type/mode, boot identity, true verdict and an age
 of at most seven seconds before power-on and while running. Stale/missing/false
-verdicts stop the radio. The fixed sudo check remains a manual diagnostic command.
+verdicts stop the radio. As of 0.1.6, the obsolete passwordless sudo check grant
+is removed; `firewall.py health` is the unprivileged manual health command.
 The normal supervisor user unit can use NoNewPrivileges.
 
 This addresses an observed device failure: `subprocess.run` timed out while
@@ -165,10 +167,10 @@ replace stored preferences with factory defaults.
 Conversation storage is 0600 SQLite in the owned 0700 state directory, with WAL,
 FULL synchronous commits and a 2,000-message global bound. Drafts/pins have a
 256-thread bound. It is not encrypted at rest; a user with device/root access can
-read it. Disabling saved history deletes disk messages/drafts and suppresses
-future writes; RAM history remains until shutdown. Deletion is logical, not a
+read it. Disabling saved history deletes disk messages, drafts, conversation identities
+and pins, checkpoints the SQLite WAL, and suppresses future writes; RAM history remains until shutdown. Deletion is logical, not a
 promise of forensic erasure from flash, WAL, filesystem snapshots or backups.
-Re-enabling saved history saves the current RAM messages and drafts as well as
+Re-enabling saved history saves the current RAM messages, drafts and pins as well as
 future updates; the confirmation describes saving the current session.
 No message is automatically resent after restart.
 
@@ -177,3 +179,13 @@ explicit nonzero channel ID. Reused slots archive old conversations and cannot s
 drafts or an open DM selection. Diagnostic export is built from an explicit
 whitelist and excludes raw logs, channel/owner names, IDs, keys, URLs, coordinates,
 message text and filesystem paths. Do not substitute raw runtime logs for it.
+
+
+Channel imports (0.1.6) require a preview and explicit confirmation. Camera work
+has one cancellable background job and never writes channels. Escape, disconnect
+or screen teardown cancels capture/discards the connection-bound preview. Tokens
+expire after 120 seconds and bind the exact current channels and LoRa settings;
+changed state requires another preview. URLs/keys are bounded and kept only in
+RAM, never returned in preview events. Confirmed imports remain serialized, with
+actual readback; their completion is announced even if their view was dismissed.
+Local draft/history writes use the state lock independently of radio admin waits.

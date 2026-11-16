@@ -203,6 +203,12 @@ lv_subject_t* BaseViewModel::channel_share_subject() { return channel_share_subj
 
 // --- applied as supervisor events arrive (UI thread) ------------------------
 void BaseViewModel::set_connected(bool connected) {
+    if (!connected && !service_request_id_.empty()) {
+        json::Value error;
+        json::parse("{\"event\":\"error\",\"id\":\"" + service_request_id_ + "\",\"text\":\"Connection lost; action result unknown. Check settings before retrying.\"}", error);
+        apply_service(error);
+    }
+    if (!connected) import_request_id_.clear();
     connected_subject_.set(connected);
     if (connected) send_intent("{\"intent\":\"message.retention\",\"cap\":" + std::to_string(retention_cap_) + "}");
     if (!connected) {
@@ -471,7 +477,7 @@ void BaseViewModel::delete_message(const std::string& id) {
     messages_.erase(std::remove_if(messages_.begin(), messages_.end(),
                                    [&](const MessageInfo& m) { return m.id == id; }),
                     messages_.end());
-    send_intent("{\"intent\":\"message.delete\",\"id\":\"" + json::escape(id) + "\"}");
+    send_intent("{\"intent\":\"message.delete\",\"message_id\":\"" + json::escape(id) + "\"}");
     if (messages_.size() != before) {
         messages_version_subject_.set(messages_version_subject_.value() + 1);
     }
@@ -663,10 +669,6 @@ void BaseViewModel::clear_dm_target() {
     dm_target_name_.clear();
 }
 
-void BaseViewModel::add_channel_url(const std::string& url) {
-    send_intent("{\"intent\":\"channel.add\",\"url\":\"" + json::escape(url) + "\"}");
-}
-
 void BaseViewModel::set_region(const std::string& region) {
     send_intent("{\"intent\":\"region.set\",\"region\":\"" + json::escape(region) + "\"}");
 }
@@ -691,12 +693,18 @@ void BaseViewModel::config_unknown() {
     config_state_.set("unknown");
 }
 
-void BaseViewModel::tick() {
-    const auto now = std::chrono::steady_clock::now().time_since_epoch();
+void BaseViewModel::tick(std::chrono::steady_clock::time_point at) {
+    const auto now = at.time_since_epoch();
     if (!dirty_drafts_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() >= draft_deadline_) flush_drafts();
     if (!config_request_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() > config_deadline_) {
         config_unknown();
         apply_notice("Radio confirmation timed out; settings unknown");
+    }
+    if (!service_request_id_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() >= service_deadline_) {
+        cancel_import();
+        json::Value error;
+        json::parse("{\"event\":\"error\",\"id\":\"" + service_request_id_ + "\",\"text\":\"Action timed out; result unknown. Check settings before retrying.\"}", error);
+        apply_service(error);
     }
 }
 
@@ -783,13 +791,40 @@ void BaseViewModel::apply_health(const std::string& mode, const std::string& det
     radio_mode_ = mode; radio_detail_ = detail;
 }
 bool BaseViewModel::service_request(const std::string& intent, const std::string& fields) {
+    if (intent == "channel.scan" || intent == "channel.preview") cancel_import();
     service_request_id_ = session_id_ + "service" + std::to_string(++cid_counter_);
+    service_intent_ = intent;
+    if (intent == "channel.scan" || intent == "channel.preview") import_request_id_ = service_request_id_;
+    service_deadline_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()
+        + (intent == "channel.add" ? 90000 : 60000);
     service_event_ = {}; // An unsolicited setup update must not reuse an old result.
-    return send_intent("{\"intent\":\"" + json::escape(intent) + "\",\"id\":\"" + service_request_id_ + "\"" + fields + "}");
+    if (send_intent("{\"intent\":\"" + json::escape(intent) + "\",\"id\":\"" + service_request_id_ + "\"" + fields + "}")) return true;
+    service_request_id_.clear(); service_intent_.clear(); service_deadline_ = 0; import_request_id_.clear();
+    return false;
+}
+void BaseViewModel::cancel_import() {
+    if (import_request_id_.empty()) return;
+    send_intent("{\"intent\":\"channel.import.cancel\",\"request\":\"" + import_request_id_ + "\"}");
+    import_request_id_.clear();
+}
+void BaseViewModel::cancel_service_request() {
+    cancel_import();
+    service_request_id_.clear(); service_intent_.clear(); service_deadline_ = 0;
 }
 void BaseViewModel::apply_service(const json::Value& event) {
-    if (event.str_at("id") != service_request_id_) return;
+    if (service_request_id_.empty()) return;
+    const bool validation_error = event.str_at("event") == "error" && event.str_at("id").empty() &&
+        !service_intent_.empty() && event.str_at("intent") == service_intent_;
+    if (event.str_at("id") != service_request_id_ && !validation_error) return;
     service_event_ = event;
+    if (validation_error) {
+        json::Value ident; ident.type = json::Value::Str; ident.str = service_request_id_;
+        service_event_.obj["id"] = ident;
+    }
+    if (event.str_at("event") == "error") cancel_import();
+    if (service_intent_ == "channel.add" ||
+        (event.str_at("event") == "channel.preview" && event.int_at("new") == 0)) import_request_id_.clear();
+    service_request_id_.clear(); service_intent_.clear(); service_deadline_ = 0;
     services_version_.set(services_version_.value() + 1);
 }
 void BaseViewModel::apply_setup(const json::Value& event) {
@@ -814,6 +849,7 @@ void BaseViewModel::apply_threads(const json::Value& event) {
     if (const auto* v = event.find("history_enabled")) history_enabled_ = v->as_bool();
     for (const auto& key : dirty_drafts_) { const auto it = local.find(key); if (it != local.end()) drafts_[key] = it->second; }
     messages_version_subject_.set(messages_version_subject_.value() + 1);
+    if (!event.str_at("id").empty()) apply_service(event);
 }
 std::string BaseViewModel::draft(const std::string& key) const {
     const auto it = drafts_.find(key); return it == drafts_.end() ? "" : it->second;

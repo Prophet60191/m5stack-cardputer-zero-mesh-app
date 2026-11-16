@@ -110,14 +110,13 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
         vm.apply_setup(ev);
         const auto* ready = ev.find("ready");
         if (ready && !ready->as_bool()) vm.show_settings_page();
-    } else if (type == "profiles" || type == "profile.preview" || type == "diagnostics" || type == "channel.slots" || type == "channel.scanned") {
+    } else if (type == "profiles" || type == "profile.preview" || type == "diagnostics" || type == "channel.slots" || type == "channel.preview" || type == "channel.imported") {
         vm.apply_service(ev);
     } else if (type == "_connected") {
         vm.set_connected(true);
         client.send_line("{\"intent\":\"status\"}");
         client.send_line("{\"intent\":\"node.list\"}");
         client.send_line("{\"intent\":\"channel.list\"}");
-        client.send_line("{\"intent\":\"message.list\"}");
         // Honour "Auto-start radio" once per app launch.
         static bool auto_started = false;
         if (!auto_started && vm.auto_start()) {

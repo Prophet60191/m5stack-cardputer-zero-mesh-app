@@ -24,7 +24,7 @@ test -x /usr/bin/cardputerzero-mesh
 test -f /usr/share/doc/cardputerzero-mesh/docs/security.md
 test -f /etc/cardputerzero-mesh.conf
 test ! -e /usr/bin/template_app
-visudo -cf /etc/sudoers.d/cardputerzero-mesh
+test ! -e /etc/sudoers.d/cardputerzero-mesh
 systemd-analyze verify /usr/lib/systemd/system/cardputerzero-mesh-firewall.service \
     /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
 systemctl enable cardputerzero-mesh-firewall.service

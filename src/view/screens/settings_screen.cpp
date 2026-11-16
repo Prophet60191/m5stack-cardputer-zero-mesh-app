@@ -78,6 +78,10 @@ SettingsScreen::SettingsScreen(viewmodel::BaseViewModel& view_model, app::AssetM
     init();
 }
 
+SettingsScreen::~SettingsScreen() {
+    view_model().cancel_service_request();
+}
+
 void SettingsScreen::build_content(lv_obj_t* content) {
     list_ = lv_obj_create(content);
     lv_obj_remove_style_all(list_);
@@ -109,13 +113,6 @@ void SettingsScreen::build_content(lv_obj_t* content) {
 
 void SettingsScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
     auto* self = static_cast<SettingsScreen*>(lv_observer_get_user_data(observer));
-    if (self && self->overlay_mode_ == Overlay::ScanBusy &&
-        !lv_subject_get_int(self->view_model().connected_subject())) {
-        self->service_route_.clear();
-        self->close_overlay();
-        self->open_scan_ready("Connection lost. Check Channels before retrying.");
-        return;
-    }
     if (self && self->overlay_mode_ == Overlay::None) {
         self->rebuild();
     }
@@ -443,7 +440,7 @@ void SettingsScreen::open_info(const std::string& title, std::vector<std::string
 
 void SettingsScreen::open_scan_ready(const std::string& error) {
     open_info(error.empty() ? "Scan QR code" : "Scan failed",
-              {error.empty() ? "Aim the camera at a Meshtastic channel QR code." : error},
+              {error.empty() ? "Aim the camera at a Meshtastic channel QR code." : error, "Radio must be Online."},
               error.empty() ? "Return: scan    Esc: back" : "Return: retry    Esc: back");
     overlay_mode_ = Overlay::ScanReady;
 }
@@ -494,10 +491,16 @@ void SettingsScreen::close_overlay() {
 }
 
 void SettingsScreen::apply_overlay() {
-    if (overlay_mode_ == Overlay::ScanBusy) {
+    if (overlay_mode_ == Overlay::ScanBusy || overlay_mode_ == Overlay::Busy) {
         return; // A held Return key must not dismiss or queue another scan.
     } else if (overlay_mode_ == Overlay::ScanReady) {
+        if (!lv_subject_get_int(view_model().connected_subject()) || s_of(view_model().radio_state_subject()) != "online") {
+            close_overlay(); open_scan_ready("Turn Radio on in Settings before scanning."); return;
+        }
         request_service("scan", "channel.scan");
+    } else if (overlay_mode_ == Overlay::ImportPreview) {
+        close_overlay();
+        open_picker("Add " + std::to_string(import_count_) + " channel(s)?", {"Cancel", "Confirm import (location/MQTT Off)"}, "import-confirm", 0);
     } else if (overlay_mode_ == Overlay::Picker) {
         if (opt_sel_ < 0 || opt_sel_ >= static_cast<int>(options_.size())) { close_overlay(); return; }
         const std::string choice = options_[opt_sel_];
@@ -566,7 +569,8 @@ void SettingsScreen::apply_overlay() {
         if (pending == "name" && !value.empty()) {
             view_model().set_owner(value, value.substr(0, 4));
         } else if (pending == "channel-url" && !value.empty()) {
-            view_model().add_channel_url(value);
+            request_service("import-preview", "channel.preview", ",\"url\":\"" + json::escape(value) + "\"");
+            return;
         } else if (pending == "frequency-slot") {
             char* end = nullptr;
             errno = 0;
@@ -593,7 +597,7 @@ void SettingsScreen::apply_overlay() {
 
 // --- navigation -------------------------------------------------------------
 void SettingsScreen::on_up() {
-    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady) && overlay_obj_) {
+    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady || overlay_mode_ == Overlay::ImportPreview) && overlay_obj_) {
         const int32_t room = lv_obj_get_scroll_top(overlay_obj_);
         if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? room : 40, LV_ANIM_OFF);
         return;
@@ -607,7 +611,7 @@ void SettingsScreen::on_up() {
 }
 
 void SettingsScreen::on_down() {
-    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady) && overlay_obj_) {
+    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady || overlay_mode_ == Overlay::ImportPreview) && overlay_obj_) {
         const int32_t room = lv_obj_get_scroll_bottom(overlay_obj_);
         if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? -room : -40, LV_ANIM_OFF);
         return;
@@ -633,7 +637,10 @@ bool SettingsScreen::on_back() {
         open_canned();
         return true;
     }
-    if (overlay_mode_ != Overlay::None) { service_route_.clear(); close_overlay(); return true; }
+    if (overlay_mode_ != Overlay::None) {
+        view_model().cancel_service_request(); import_token_.clear();
+        service_route_.clear(); close_overlay(); return true;
+    }
     return false;
 }
 
@@ -654,9 +661,12 @@ void SettingsScreen::request_service(const std::string& route, const std::string
     close_overlay();
     service_route_ = route;
     if (route == "scan") {
-        open_info("Scanning QR code...", {"Keep the camera steady.", "Esc leaves this view; the scan continues."});
+        open_info("Scanning QR code...", {"Keep the camera steady.", "Preview first; nothing is imported yet."}, "Esc: cancel scan");
         overlay_mode_ = Overlay::ScanBusy;
-    } else open_info("Working", {"Waiting for supervisor...", "Esc cancels this view."});
+    } else {
+        open_info(route == "import" ? "Importing channels..." : "Working", {"Waiting for supervisor...", "Esc leaves this view; action may finish."});
+        overlay_mode_ = Overlay::Busy;
+    }
     if (!view_model().service_request(intent, fields)) {
         service_route_.clear(); close_overlay();
         if (route == "scan") open_scan_ready("Supervisor unavailable; scan was not sent.");
@@ -674,10 +684,33 @@ void SettingsScreen::service_result() {
     if (event.str_at("id").empty()) return; // Unsolicited setup changes are not replies.
     const auto route = service_route_;
     service_route_.clear(); close_overlay();
-    if (route == "scan") {
-        if (event.str_at("event") == "error") open_scan_ready(event.str_at("text"));
-        else open_info("Scan complete", {event.int_at("added") == 0 ? "Channels already present." :
-            "Imported " + std::to_string(event.int_at("added")) + " channel(s)."});
+    if (route == "scan" || route == "import-preview") {
+        if (event.str_at("event") == "error") {
+            if (route == "scan") open_scan_ready(event.str_at("text"));
+            else open_info("Preview failed", {event.str_at("text"), "Paste the URL again to retry."});
+        } else if (event.str_at("event") == "channel.preview" && event.int_at("new", -1) == 0) {
+            open_info("Channels already present", {"No changes made."});
+        } else if (event.str_at("event") == "channel.preview" && !event.str_at("token").empty() && event.int_at("new") > 0) {
+            import_token_ = event.str_at("token"); import_count_ = event.int_at("new");
+            std::vector<std::string> rows = {"Up/Down: read. Return: review."};
+            bool public_channel = false;
+            if (const auto* channels = event.find("channels")) for (const auto& ch : channels->arr)
+            {
+                rows.push_back(ch.str_at("name") + (flag(ch,"private") ? " [Private]" : " [Public]") + (flag(ch,"existing") ? " (existing)" : " (new)"));
+                if (!flag(ch,"private") && !flag(ch,"existing")) public_channel = true;
+            }
+            rows.push_back("Radio tuning stays unchanged.");
+            rows.push_back("New channels: location/MQTT Off.");
+            if (public_channel) rows.push_back("Public identity/telemetry can be visible.");
+            open_info("Preview " + std::to_string(import_count_) + " new channel(s)", rows, "Return: review import    Esc: cancel");
+            overlay_mode_ = Overlay::ImportPreview;
+        } else open_info("Preview failed", {"Unexpected reply; scan or paste again."});
+        return;
+    }
+    if (route == "import") {
+        import_token_.clear();
+        open_info(event.str_at("event") == "error" ? "Import failed" : "Import complete",
+            {event.str_at("event") == "error" ? event.str_at("text") : "Imported " + std::to_string(event.int_at("added")) + " channel(s)."});
         return;
     }
     if (event.str_at("event") == "error") { open_info("Action failed", {event.str_at("text")}); return; }
@@ -713,7 +746,11 @@ void SettingsScreen::service_result() {
 }
 bool SettingsScreen::extended_picker(const std::string& input, int choice) {
     const std::string pending = input;
-    if (pending == "gps") {
+    if (pending == "import-confirm") {
+        const auto token = import_token_;
+        if (choice == 1) request_service("import", "channel.add", ",\"confirmed\":true,\"token\":" + qstr(token));
+        else { view_model().cancel_import(); import_token_.clear(); close_overlay(); }
+    } else if (pending == "gps") {
         close_overlay(); if (choice) view_model().set_gps_enabled(choice == 1);
     } else if (pending == "setup-region") {
         setup_region_ = options_[choice]; close_overlay();

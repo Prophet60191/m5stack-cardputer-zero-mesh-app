@@ -31,7 +31,7 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.5, a release candidate** with public/private channel
+The current source is **0.1.6, a release candidate** with public/private channel
 support and fixes from an independent security and robustness review. Native UI,
 sanitizer, backend and Debian arm64 package checks pass. Private-peer delivery,
 camera QR and physical cold-power checks passed. Outdoor GPS, live public-mesh
@@ -112,14 +112,13 @@ Two cooperating processes with a clean boundary — the UI never touches the rad
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.5_rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.6_rev1_arm64.deb
 sudo apt install meshtasticd      # or the official daemon .deb for your Debian image
-sudo usermod -aG cardputerzero-mesh "$(id -un)"
 ```
 
-The package installs the supervisor, user service, scoped firewall check, and
-boot-persistent nftables service. It does not start RF. Log out and back in after
-adding the group. Keep the existing platform SPI/GPIO/I2C/video/input permissions;
+The package installs the supervisor, user service and boot-persistent capability
+firewall service, with no app sudo grant. It does not start RF.
+Keep the existing platform SPI/GPIO/I2C/video/input permissions;
 do not run the app as root or grant blanket sudo.
 
 **2. Install the pinned radio client in your own venv:**
@@ -151,7 +150,7 @@ auto-start. Closing the UI leaves the supervisor running; stop the radio or the
 user service before swapping the Cap. The firewall must pass verification before power-on. Check setup with:
 
 ```bash
-sudo -n /usr/lib/cardputerzero-mesh/firewall-setup.sh check
+python3 /usr/lib/cardputerzero-mesh/firewall.py health
 systemctl is-enabled cardputerzero-mesh-firewall.service
 systemctl --user status cardputerzero-mesh-supervisor.service
 ```

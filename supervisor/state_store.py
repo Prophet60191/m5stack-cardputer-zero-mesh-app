@@ -42,6 +42,9 @@ class StateStore:
                                self._db.execute("SELECT sender,id,payload,seq FROM messages")}
         self._sequence = max((value[1] for value in self._message_cache.values()), default=0)
         self._db.commit()
+        # Remove metadata left by older versions of the opt-out policy as well.
+        if not self.preference("history.enabled", True):
+            self.set_preference("history.enabled", False)
 
     def preference(self, name, default=None):
         with self._lock:
@@ -54,11 +57,10 @@ class StateStore:
                 self._db.execute("INSERT OR REPLACE INTO preferences VALUES (?,?)", (name, json.dumps(value)))
                 if name == "history.enabled" and value is False:
                     self._db.execute("DELETE FROM messages")
-                    for thread, payload in self._db.execute("SELECT name,payload FROM threads").fetchall():
-                        state = json.loads(payload); state["draft"] = ""
-                        self._db.execute("UPDATE threads SET payload=? WHERE name=?", (json.dumps(state), thread))
+                    self._db.execute("DELETE FROM threads")
             if name == "history.enabled" and value is False:
                 self._message_cache.clear()
+                self._db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
 
     def load_messages(self):
@@ -96,6 +98,7 @@ class StateStore:
 
     def load_threads(self):
         with self._lock:
+            if not self.preference("history.enabled", True): return {}
             return {name: json.loads(payload) for name, payload in
                     self._db.execute("SELECT name,payload FROM threads LIMIT 256")}
 
@@ -112,7 +115,7 @@ class StateStore:
             raise ValueError("pinned must be boolean")
         clean = {"draft": draft, "pinned": value.get("pinned", False)}
         with self._lock, self._db:
-            if not self.preference("history.enabled", True): clean["draft"] = ""
+            if not self.preference("history.enabled", True): return
             count = self._db.execute("SELECT COUNT(*) FROM threads").fetchone()[0]
             exists = self._db.execute("SELECT 1 FROM threads WHERE name=?", (name,)).fetchone()
             if count >= 256 and not exists: raise ValueError("conversation state limit reached")

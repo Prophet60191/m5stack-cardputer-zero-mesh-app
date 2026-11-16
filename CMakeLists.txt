@@ -6,7 +6,10 @@
 
 cmake_minimum_required(VERSION 3.31)
 
-project(template_app VERSION 0.1.5 LANGUAGES C CXX)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/app-builder.json" APP_METADATA)
+string(JSON APP_METADATA_VERSION GET "${APP_METADATA}" version)
+project(template_app VERSION "${APP_METADATA_VERSION}" LANGUAGES C CXX)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/app-builder.json")
 
 add_compile_definitions(APP_VERSION="${PROJECT_VERSION}")
 

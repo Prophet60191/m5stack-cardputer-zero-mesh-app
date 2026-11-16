@@ -14,6 +14,7 @@
 #include "lvgl.h"
 
 #include <functional>
+#include <chrono>
 #include <map>
 #include <set>
 #include <string>
@@ -93,6 +94,8 @@ public:
     const std::string& radio_detail() const { return radio_detail_; }
     lv_subject_t* services_subject() { return services_version_.native(); }
     bool service_request(const std::string& intent, const std::string& fields = "");
+    void cancel_service_request();
+    void cancel_import();
     void apply_service(const json::Value& event);
     const json::Value& service_event() const { return service_event_; }
     const json::Value& setup() const { return setup_; }
@@ -193,7 +196,6 @@ public:
     void radio_start();
     void radio_stop();
     bool send_message(int channel, const std::string& text, const std::string& dest = "");
-    void add_channel_url(const std::string& url);
     void set_region(const std::string& region);
     void set_owner(const std::string& name, const std::string& short_name);
 
@@ -223,7 +225,7 @@ public:
     lv_subject_t* config_state_subject() { return config_state_.native(); }
     const char* config_state() const { return config_state_.value(); }
     void config_unknown();
-    void tick();
+    void tick(std::chrono::steady_clock::time_point at = std::chrono::steady_clock::now());
 
     // Direct-message target: when set, the Messages screen sends to this node.
     void set_dm_target(const std::string& id, const std::string& name);
@@ -235,7 +237,8 @@ private:
     std::string radio_mode_, radio_detail_;
     reactive::IntSubject services_version_{0};
     json::Value service_event_, setup_;
-    std::string service_request_id_;
+    std::string service_request_id_, service_intent_, import_request_id_;
+    long long service_deadline_ = 0;
     std::map<std::string, std::string> drafts_;
     std::map<std::string, std::string> sent_draft_keys_;
     std::set<std::string> dirty_drafts_;

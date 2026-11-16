@@ -114,7 +114,7 @@ set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 # Derive native library dependencies from the built ELF, including SONAMEs.
 # Hardcoded libjpeg/libfmt package names were wrong across Debian/Ubuntu/BSPs.
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3, python3-venv, nftables, sudo, adduser, systemd")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3, python3-venv, nftables, adduser, systemd")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CM0_LIBRARY_HINTS}")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
@@ -127,13 +127,12 @@ configure_file(
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/supervisor/"
     DESTINATION "lib/cardputerzero-mesh"
     FILES_MATCHING PATTERN "*.py" PATTERN "*.yaml" PATTERN "LICENSE.GPL")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/app-builder.json" DESTINATION "lib/cardputerzero-mesh")
 install(PROGRAMS supervisor/firewall-setup.sh packaging/run-supervisor
     DESTINATION "lib/cardputerzero-mesh")
 install(PROGRAMS packaging/mesh-launch DESTINATION "bin")
 install(FILES packaging/cardputerzero-mesh-firewall.service DESTINATION "lib/systemd/system")
 install(FILES packaging/cardputerzero-mesh-supervisor.service DESTINATION "lib/systemd/user")
-install(FILES packaging/cardputerzero-mesh.sudoers DESTINATION "/etc/sudoers.d" RENAME "cardputerzero-mesh"
-    PERMISSIONS OWNER_READ GROUP_READ)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${APP_GENERATED_DIR}/conffiles;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postinst;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postrm")
 
 include(CPack)

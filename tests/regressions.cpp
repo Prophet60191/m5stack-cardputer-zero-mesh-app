@@ -312,7 +312,7 @@ static void qr_scan_ui_regression(const char* screenshot_path) {
         if (value.find("channel.scan") != std::string::npos) ++scans;
         return accept;
     });
-    vm.set_connected(true);
+    vm.set_connected(true); vm.apply_status("online", "US", "Synthetic");
     app::AssetManager assets;
     screen::SettingsScreen settings(vm, assets); lv_screen_load(settings.root());
     const auto visible_hint = [&](const char* prefix) {
@@ -324,60 +324,81 @@ static void qr_scan_ui_regression(const char* screenshot_path) {
         CHECK(size.x <= lv_obj_get_width(hint));
     };
     const auto open_scan = [&] {
-        select_setting(settings, "Add a channel");
-        settings.on_enter(); settings.on_enter();
-        CHECK(labels(settings.root()).find("Return: scan") != std::string::npos);
+        select_setting(settings, "Add a channel"); settings.on_enter(); settings.on_enter();
+        CHECK(labels(settings.root()).find("Radio must be Online.") != std::string::npos);
         CHECK(labels(settings.root()).find("simulator") == std::string::npos);
         visible_hint("Return: scan");
     };
     const auto capture = [&](const char* name) {
         if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/name).c_str(), settings.root());
     };
+    const auto request = [&](const char* intent) {
+        json::Value req; CHECK(json::parse(sent, req)); CHECK(req.str_at("intent") == intent); return req;
+    };
     const auto result = [&](const std::string& id, const std::string& fields) {
-        json::Value ev; CHECK(json::parse("{\"id\":\""+id+"\","+fields+"}", ev));
-        vm.apply_service(ev);
+        json::Value ev; CHECK(json::parse("{\"id\":\""+id+"\","+fields+"}", ev)); vm.apply_service(ev);
     };
     const auto start = [&] {
-        settings.on_enter();
-        CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
-        visible_hint("Esc: back");
-        json::Value req; CHECK(json::parse(sent, req));
-        CHECK(req.str_at("intent") == "channel.scan");
-        CHECK(!req.str_at("id").empty());
-        return req.str_at("id");
+        settings.on_enter(); CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
+        visible_hint("Esc: cancel scan"); return request("channel.scan").str_at("id");
     };
+    const std::string preview = R"("event":"channel.preview","new":1,"token":"synthetic-token","channels":[{"name":"Synthetic","private":true,"existing":false}])";
     open_scan(); CHECK(scans == 0); capture("qr-scan-ready.png");
-    CHECK(settings.on_back()); CHECK(scans == 0);
-    open_scan(); const auto first = start(); CHECK(scans == 1); capture("qr-scanning.png");
-    json::Value setup; CHECK(json::parse(R"({"event":"setup","ready":true})", setup));
-    vm.apply_setup(setup); // An unsolicited state change cannot complete a scan.
-    for (int i = 0; i < 5; ++i) settings.on_enter();
-    CHECK(scans == 1); CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
-    result("wrong-request", R"("event":"channel.scanned","added":1)");
-    CHECK(labels(settings.root()).find("Scan complete") == std::string::npos);
+    settings.on_back(); open_scan(); vm.apply_status("off", "US", "Synthetic");
+    settings.on_enter(); CHECK(scans == 0); CHECK(labels(settings.root()).find("Turn Radio on") != std::string::npos);
+    settings.on_back(); vm.apply_status("online", "US", "Synthetic"); open_scan();
+    const auto first = start(); CHECK(scans == 1); capture("qr-scanning.png");
+    json::Value setup; CHECK(json::parse(R"({"event":"setup","ready":true})", setup)); vm.apply_setup(setup);
+    for (int i = 0; i < 5; ++i) settings.on_enter(); CHECK(scans == 1);
+    result("wrong-request", preview); CHECK(labels(settings.root()).find("Preview 1") == std::string::npos);
     result(first, R"("event":"error","text":"No QR code found. Aim and retry.")");
     CHECK(labels(settings.root()).find("Return: retry") != std::string::npos); capture("qr-scan-failed.png");
-    const auto second = start(); CHECK(second != first); CHECK(scans == 2);
-    vm.apply_setup(setup); // Nor can it replay the previous cached error.
-    result(first, R"("event":"channel.scanned","added":1)"); // late old reply
-    CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
-    result(second, R"("event":"channel.scanned","added":1)");
-    CHECK(labels(settings.root()).find("Imported 1 channel(s).") != std::string::npos); capture("qr-scan-complete.png");
-    settings.on_back(); open_scan(); const auto dismissed = start();
-    settings.on_back(); open_scan();
-    result(dismissed, R"("event":"channel.scanned","added":1)");
-    CHECK(labels(settings.root()).find("Return: scan") != std::string::npos); // leave ready view alone
-    const auto duplicate = start(); result(duplicate, R"("event":"channel.scanned","added":0)");
-    CHECK(labels(settings.root()).find("Channels already present.") != std::string::npos);
+    const auto second = start(); CHECK(second != first); vm.apply_setup(setup);
+    result(first, preview); CHECK(labels(settings.root()).find("Scanning QR code...") != std::string::npos);
+    result(second, preview); CHECK(labels(settings.root()).find("Synthetic [Private]") != std::string::npos);
+    CHECK(request("channel.scan").str_at("id") == second); // Preview never imports automatically.
+    capture("channel-import-preview.png");
+    settings.on_enter(); CHECK(labels(settings.root()).find("Confirm import") != std::string::npos);
+    capture("channel-import-confirm.png"); settings.on_enter(); // Cancel is first/default.
+    CHECK(request("channel.import.cancel").str_at("request") == second);
+    open_scan(); const auto confirmed = start(); result(confirmed, preview);
+    settings.on_enter(); settings.on_down(); settings.on_enter();
+    auto add = request("channel.add"); CHECK(add.find("confirmed")->as_bool()); CHECK(add.str_at("token") == "synthetic-token");
+    const auto before = sent; settings.on_enter(); CHECK(sent == before); // Working cannot be dismissed by Return.
+    result(add.str_at("id"), R"("event":"channel.imported","added":1)");
+    CHECK(labels(settings.root()).find("Import complete") != std::string::npos); capture("channel-import-complete.png");
+    settings.on_back(); open_scan(); const auto dismissed = start(); settings.on_back();
+    CHECK(request("channel.import.cancel").str_at("request") == dismissed);
+    open_scan(); result(dismissed, preview); CHECK(labels(settings.root()).find("Return: scan") != std::string::npos);
+    const auto duplicate = start(); result(duplicate, R"("event":"channel.preview","new":0,"token":"","channels":[])");
+    CHECK(labels(settings.root()).find("Channels already present") != std::string::npos);
     settings.on_back(); open_scan(); accept = false; settings.on_enter();
     CHECK(labels(settings.root()).find("scan was not sent") != std::string::npos);
     accept = true; const auto disconnected = start(); vm.set_connected(false);
     CHECK(labels(settings.root()).find("Connection lost") != std::string::npos);
-    result(disconnected, R"("event":"channel.scanned","added":1)");
-    CHECK(labels(settings.root()).find("Scan complete") == std::string::npos);
-    vm.set_connected(true); const auto after_reconnect = start();
-    result(after_reconnect, R"("event":"channel.scanned","added":0)");
-    CHECK(labels(settings.root()).find("Channels already present.") != std::string::npos);
+    result(disconnected, preview); CHECK(labels(settings.root()).find("Preview 1") == std::string::npos);
+    vm.set_connected(true); vm.apply_status("online", "US", "Synthetic");
+    const auto after_reconnect = start(); result(after_reconnect, R"("event":"channel.preview","new":0,"token":"","channels":[])");
+    settings.on_back(); select_setting(settings, "Channel manager"); settings.on_enter();
+    const auto slots = request("channel.slots").str_at("id");
+    vm.tick(std::chrono::steady_clock::now()+std::chrono::seconds(61));
+    CHECK(labels(settings.root()).find("timed out") != std::string::npos);
+    result(slots, R"("event":"channel.slots","channels":[])"); CHECK(labels(settings.root()).find("timed out") != std::string::npos);
+    settings.on_back(); select_setting(settings, "Mesh profiles"); settings.on_enter();
+    json::Value error; CHECK(json::parse(R"({"event":"error","intent":"profile.list","text":"Invalid profile request"})", error));
+    vm.apply_service(error); CHECK(labels(settings.root()).find("Invalid profile request") != std::string::npos);
+    settings.on_back(); select_setting(settings, "Add a channel"); settings.on_enter(); settings.on_down(); settings.on_enter();
+    auto* input = textarea(settings.root()); CHECK(input); lv_textarea_set_text(input,"https://meshtastic.org/e/#synthetic"); settings.on_enter();
+    const auto pasted = request("channel.preview"); CHECK(!pasted.str_at("url").empty()); result(pasted.str_at("id"), preview);
+    CHECK(labels(settings.root()).find("Preview 1") != std::string::npos); settings.on_back();
+    CHECK(request("channel.import.cancel").str_at("request") == pasted.str_at("id"));
+    std::string destroyed;
+    {
+        screen::SettingsScreen temporary(vm,assets); select_setting(temporary,"Add a channel");
+        temporary.on_enter(); temporary.on_enter(); temporary.on_enter(); destroyed = request("channel.scan").str_at("id");
+    }
+    CHECK(request("channel.import.cancel").str_at("request") == destroyed);
+    result(destroyed, preview); lv_screen_load(settings.root());
 }
 
 static void services_ui_regression(const char* screenshot_path) {

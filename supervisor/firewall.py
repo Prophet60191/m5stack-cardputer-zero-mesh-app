@@ -104,8 +104,13 @@ def protected(document: dict) -> bool:
 
 def main() -> int:
     os.environ["PATH"] = "/usr/sbin:/usr/bin:/sbin:/bin"
-    if len(sys.argv) != 2 or sys.argv[1] not in ("ensure", "check", "remove", "monitor"):
-        raise SystemExit("usage: firewall-setup.sh {ensure|check|remove|monitor}")
+    if len(sys.argv) != 2 or sys.argv[1] not in ("ensure", "check", "remove", "monitor", "health"):
+        raise SystemExit("usage: firewall.py {health|ensure|check|remove|monitor}")
+    if sys.argv[1] == "health":
+        try: health_status()
+        except (RuntimeError, OSError) as exc: raise SystemExit(str(exc)) from None
+        print("radio API firewall health verified")
+        return 0
     if sys.argv[1] == "monitor":
         monitor()
         return 0
