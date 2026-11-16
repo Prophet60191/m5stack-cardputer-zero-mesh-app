@@ -650,9 +650,24 @@ if(MESH_BUILD_BENCHMARKS)
         ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
 endif()
 if(BUILD_TESTING AND USE_DESKTOP)
+    add_executable(mesh_keyboard_regressions tests/keyboard.cpp)
+    target_link_libraries(mesh_keyboard_regressions PRIVATE ${PROJECT_NAME}_platform)
+    target_compile_definitions(mesh_keyboard_regressions PRIVATE MESH_KEYMAP_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/cardputerzero-keymap.map")
+    add_test(NAME mesh_keyboard_regressions COMMAND mesh_keyboard_regressions)
     add_executable(mesh_regressions tests/regressions.cpp)
     target_link_libraries(mesh_regressions PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
         ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive
         ${PROJECT_NAME}_model PNG::PNG)
     add_test(NAME mesh_regressions COMMAND mesh_regressions)
+endif()
+
+if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # Compile the REAL device reader on Linux, even when the main app is an SDL
+    # build. Pipes contain synthetic evdev records; no /dev/input or RF is used.
+    add_executable(mesh_keyboard_evdev_regressions tests/keyboard.cpp src/platform/linux_input.cpp src/platform/keyboard_decoder.cpp)
+    target_include_directories(mesh_keyboard_evdev_regressions PRIVATE src/platform)
+    target_compile_definitions(mesh_keyboard_evdev_regressions PRIVATE MESH_INPUT_TESTING=1 MESH_DEVICE_INPUT_TESTS=1
+        MESH_KEYMAP_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/cardputerzero-keymap.map")
+    target_link_libraries(mesh_keyboard_evdev_regressions PRIVATE lvgl)
+    add_test(NAME mesh_keyboard_evdev_regressions COMMAND mesh_keyboard_evdev_regressions)
 endif()

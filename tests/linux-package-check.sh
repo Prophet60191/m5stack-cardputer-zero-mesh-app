@@ -13,6 +13,7 @@ cmake -S /src -B "$mesh_build" -G Ninja -DUSE_DESKTOP=OFF -DCM0_SDK_ROOT=/ \
     -DCPACK_OUTPUT_FILE_PREFIX="$mesh_build/dist"
 cmake --build "$mesh_build" -j 8
 cd "$mesh_build"
+ASAN_OPTIONS=detect_leaks=0 ctest --output-on-failure
 cpack -G DEB
 mesh_version=$(python3 -c 'import json; print(json.load(open("/src/app-builder.json"))["version"])')
 package="dist/cardputerzero-mesh_${mesh_version}_rev1_arm64.deb"
@@ -22,6 +23,8 @@ dpkg-deb --contents "$package" > package-contents.txt
 dpkg --path-include='/usr/share/doc/*' -i "$package"
 test -x /usr/bin/cardputerzero-mesh
 test ! -e /usr/bin/mesh_benchmarks
+test ! -e /usr/bin/mesh_keyboard_regressions
+test ! -e /usr/bin/mesh_keyboard_evdev_regressions
 ./mesh_benchmarks > synthetic-benchmarks.txt
 test -f /usr/share/doc/cardputerzero-mesh/docs/security.md
 test -f /usr/share/doc/cardputerzero-mesh/docs/user-guide/README.md

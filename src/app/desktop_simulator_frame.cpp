@@ -29,6 +29,7 @@ constexpr SDL_Rect kScreenRect{DesktopSimulatorFrame::kScreenX,
                                view::kScreenHeight};
 
 uint32_t map_control_key(SDL_Keycode key) {
+    if (key >= SDLK_F1 && key <= SDLK_F12) return platform::kKeyFunction1 + key - SDLK_F1;
     switch (key) {
         case SDLK_RIGHT:
         case SDLK_KP_PLUS:
@@ -50,10 +51,13 @@ uint32_t map_control_key(SDL_Keycode key) {
         case SDLK_RETURN:
             return LV_KEY_ENTER;
         case SDLK_TAB:
-        case SDLK_PAGEDOWN:
             return LV_KEY_NEXT;
+        case SDLK_PAGEDOWN:
+            return platform::kKeyPageDown;
         case SDLK_PAGEUP:
-            return LV_KEY_PREV;
+            return platform::kKeyPageUp;
+        case SDLK_INSERT:
+            return platform::kKeyInsert;
         case SDLK_HOME:
             return LV_KEY_HOME;
         case SDLK_END:

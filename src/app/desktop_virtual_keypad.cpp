@@ -150,45 +150,45 @@ void fill_key(SDL_Renderer* renderer, size_t index, uint32_t color, uint8_t alph
 uint32_t fn_key_for(char key) {
     switch (key) {
         case '1':
-            return SDLK_F1;
+            return platform::kKeyFunction1 + 0;
         case '2':
-            return SDLK_F2;
+            return platform::kKeyFunction1 + 1;
         case '3':
-            return SDLK_F3;
+            return platform::kKeyFunction1 + 2;
         case '4':
-            return SDLK_F4;
+            return platform::kKeyFunction1 + 3;
         case '5':
-            return SDLK_F5;
+            return platform::kKeyFunction1 + 4;
         case '6':
-            return SDLK_F6;
+            return platform::kKeyFunction1 + 5;
         case '7':
-            return SDLK_F7;
+            return platform::kKeyFunction1 + 6;
         case '8':
-            return SDLK_F8;
+            return platform::kKeyFunction1 + 7;
         case '9':
-            return SDLK_F9;
+            return platform::kKeyFunction1 + 8;
         case '0':
-            return SDLK_F10;
+            return platform::kKeyFunction1 + 9;
         case 'q':
-            return SDLK_AUDIOPLAY;
+            return platform::kKeySystemAction + 164;
         case 'w':
-            return SDLK_AUDIOPREV;
+            return platform::kKeySystemAction + 165;
         case 'e':
-            return SDLK_AUDIONEXT;
+            return platform::kKeySystemAction + 163;
         case 'u':
-            return SDLK_BRIGHTNESSDOWN;
+            return platform::kKeySystemAction + 224;
         case 'i':
-            return SDLK_BRIGHTNESSUP;
+            return platform::kKeySystemAction + 225;
         case 'o':
-            return SDLK_F11;
+            return platform::kKeyFunction1 + 10;
         case 'p':
-            return SDLK_F12;
+            return platform::kKeyFunction1 + 11;
         case 'a':
-            return SDLK_MUTE;
+            return platform::kKeySystemAction + 113;
         case 's':
-            return SDLK_VOLUMEDOWN;
+            return platform::kKeySystemAction + 114;
         case 'd':
-            return SDLK_VOLUMEUP;
+            return platform::kKeySystemAction + 115;
         case 'f':
             return LV_KEY_UP;
         case 'h':
@@ -198,7 +198,7 @@ uint32_t fn_key_for(char key) {
         case 'k':
             return LV_KEY_HOME;
         case 'l':
-            return LV_KEY_PREV;
+            return platform::kKeyPageUp;
         case 'z':
             return LV_KEY_LEFT;
         case 'x':
@@ -206,11 +206,11 @@ uint32_t fn_key_for(char key) {
         case 'c':
             return LV_KEY_RIGHT;
         case 'b':
-            return SDLK_INSERT;
+            return platform::kKeyInsert;
         case 'n':
             return LV_KEY_END;
         case 'm':
-            return LV_KEY_NEXT;
+            return platform::kKeyPageDown;
         default:
             return 0;
     }
@@ -244,51 +244,51 @@ std::string key_kind_name(const KeySpec& key) {
 
 std::string output_key_name(uint32_t key) {
     switch (key) {
-        case SDLK_F1:
+        case platform::kKeyFunction1 + 0:
             return "f1";
-        case SDLK_F2:
+        case platform::kKeyFunction1 + 1:
             return "f2";
-        case SDLK_F3:
+        case platform::kKeyFunction1 + 2:
             return "f3";
-        case SDLK_F4:
+        case platform::kKeyFunction1 + 3:
             return "f4";
-        case SDLK_F5:
+        case platform::kKeyFunction1 + 4:
             return "f5";
-        case SDLK_F6:
+        case platform::kKeyFunction1 + 5:
             return "f6";
-        case SDLK_F7:
+        case platform::kKeyFunction1 + 6:
             return "f7";
-        case SDLK_F8:
+        case platform::kKeyFunction1 + 7:
             return "f8";
-        case SDLK_F9:
+        case platform::kKeyFunction1 + 8:
             return "f9";
-        case SDLK_F10:
+        case platform::kKeyFunction1 + 9:
             return "f10";
-        case SDLK_F11:
+        case platform::kKeyFunction1 + 10:
             return "f11";
-        case SDLK_F12:
+        case platform::kKeyFunction1 + 11:
             return "f12";
-        case SDLK_AUDIOPLAY:
+        case platform::kKeySystemAction + 164:
             return "media-play-pause";
-        case SDLK_AUDIOPREV:
+        case platform::kKeySystemAction + 165:
             return "media-previous";
-        case SDLK_AUDIONEXT:
+        case platform::kKeySystemAction + 163:
             return "media-next";
-        case SDLK_MUTE:
+        case platform::kKeySystemAction + 113:
             return "mute";
-        case SDLK_VOLUMEDOWN:
+        case platform::kKeySystemAction + 114:
             return "volume-down";
-        case SDLK_VOLUMEUP:
+        case platform::kKeySystemAction + 115:
             return "volume-up";
-        case SDLK_BRIGHTNESSDOWN:
+        case platform::kKeySystemAction + 224:
             return "brightness-down";
-        case SDLK_BRIGHTNESSUP:
+        case platform::kKeySystemAction + 225:
             return "brightness-up";
         case platform::kKeyHelp:
             return "help";
         case platform::kKeyPrintScreen:
             return "print-screen";
-        case SDLK_INSERT:
+        case platform::kKeyInsert:
             return "insert";
         case LV_KEY_UP:
             return "up";
@@ -310,6 +310,10 @@ std::string output_key_name(uint32_t key) {
             return "home";
         case LV_KEY_END:
             return "end";
+        case platform::kKeyPageUp:
+            return "page-up";
+        case platform::kKeyPageDown:
+            return "page-down";
         case LV_KEY_PREV:
             return "prev";
         case LV_KEY_NEXT:
@@ -337,7 +341,6 @@ DesktopVirtualKeypad::DesktopVirtualKeypad(lv_display_t* display) {
     lv_indev_set_driver_data(indev_, this);
     lv_indev_set_mode(indev_, LV_INDEV_MODE_EVENT);
     lv_indev_set_display(indev_, display);
-    platform::attach_key_router(indev_);
 
     previous_default_group_ = lv_group_get_default();
     group_ = lv_group_create();
@@ -368,6 +371,8 @@ void DesktopVirtualKeypad::read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
 
     data->key = keypad->pending_key_;
     data->state = keypad->pending_pressed_ ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+    platform::route_key_input(data);
+    if (platform::is_action_key(data->key)) data->state = LV_INDEV_STATE_RELEASED;
 }
 
 bool DesktopVirtualKeypad::handle_pointer(int32_t x, int32_t y, bool pressed) {

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.8 — 2026-11-16 (release candidate)
+
+- Replace the incorrect partial Sym table with all 32 official symbols, using
+  the trusted system map with a complete validated fallback. Correct `/`, `:`
+  and `-`; recognize driver-selected symbols independently of physical Sym state.
+- Add a reusable decoder with per-device modifier/release state and separate
+  built-in/USB profiles. Handle same-batch focus changes, rollover, event loss
+  and disconnect; keep non-text Fn actions out of drafts.
+- Consume shortcuts before LVGL text delivery. Keep Help/Screenshot available
+  during editing, with Help owning input until dismissed. Preserve draft/cursor.
+- Add independent vendor-map and raw-event-to-editor regressions, including the
+  real device reader on Linux. Correct reusable keyboard guidance and user docs.
+
+Validation is recorded in [the keyboard contract](docs/keyboard.md). Automated
+event replay is distinct from an operator pressing physical keys.
+Native ASAN/UBSAN decoder/UI checks and Debian arm64 real-reader, package/install,
+policy and all 86 backend cases pass locally. User-guide PDF layout is checked.
+
 ## 2026-11-16 — User documentation for 0.1.7
 
 - Add seven illustrated user guides, a guide index and a prominent README link.

@@ -73,7 +73,7 @@ cd build/cp0-native
 cpack -G DEB -C Release
 ```
 
-Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.7_rev1_arm64.deb`.
+Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.8_rev1_arm64.deb`.
 The package contains the UI, assets, launcher, supervisor/guardian sources, both
 licenses, user service, capability-limited firewall boot service, and canonical version metadata. The launcher starts the supervisor; it does not automatically start
 RF. Follow the README for platform permissions and pinned venv setup. The optional
@@ -150,3 +150,12 @@ it opens no radio socket, framebuffer or camera. The isolated package gate also
 compiles/runs it and checks that the binary is excluded from the installed package.
 Timing results are informational, without timing thresholds in regression tests.
 See [the measurement record](maintenance-pass.md) for the actual-device baseline.
+
+## Keyboard regressions
+
+CTest includes `mesh_keyboard_regressions` on the desktop host. On Linux it
+also builds/runs `mesh_keyboard_evdev_regressions` with the production device
+reader, synthetic pipe records and a focused LVGL textarea. The device package
+gate invokes that test and verifies neither helper is installed. See the
+[keyboard contract](keyboard.md) for the official map, reuse and qualification
+boundaries. No keyboard test injects into live `/dev/input` or sends RF.

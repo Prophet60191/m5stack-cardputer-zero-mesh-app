@@ -4,15 +4,16 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <map>
+#include <optional>
 
-#if !USE_DESKTOP
+#if !USE_DESKTOP || defined(MESH_INPUT_TESTING)
 #include <cerrno>
 #include <dirent.h>
 #include <fcntl.h>
 #include <linux/input.h>
 #include <string>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -27,18 +28,11 @@ std::array<lv_obj_t*, kNavKeyCount> nav_buttons{};
 uint32_t last_key = 0;
 bool last_key_pressed = false;
 bool nav_shortcut_mode = false;
-bool shift_held = false;
-// The keyboard's "Sym" modifier (blue symbols). The kernel does NOT translate it
-// to ASCII — it emits the Sym-layer keycodes plus this modifier (code 383), and
-// several of those keycodes collide with normal punctuation keys, so we must
-// know whether Sym is held to tell "!" (Sym) from "[" (plain).
-bool sym_held = false;
-constexpr uint16_t kSymKey = 383;
-// When false (menus, lists, settings - anywhere we are NOT typing into a text
-// field) the bare F/X/Z/C keys act as the Up/Down/Left/Right d-pad, so the user
-// never needs the Fn chord to navigate. When true (composing a message, editing
-// a text field) those keys type their letters and Fn+F/X/Z/C gives the arrows.
+// Mode is queried at each key, including after an Enter starts composing in
+// the same evdev batch. The setter remains useful for simple standalone apps.
 bool text_entry_mode = false;
+TextEntryQuery text_entry_query = nullptr;
+void* text_entry_query_data = nullptr;
 uint32_t pressed_key = 0;
 uint32_t press_started_at = 0;
 bool long_press_sent = false;
@@ -51,14 +45,15 @@ void* global_key_listener_user_data = nullptr;
 
 constexpr uint32_t kLongPressMs = 700;
 
-#if !USE_DESKTOP
+#if !USE_DESKTOP || defined(MESH_INPUT_TESTING)
 struct EvdevKeypad {
     int fd{-1};
     lv_indev_state_t state{LV_INDEV_STATE_RELEASED};
     uint32_t key{0};
-    bool router_event_pending{false};
-    uint32_t router_key{0};
-    bool router_pressed{false};
+    KeyboardDecoder decoder;
+    std::optional<KeyboardDecoder::Event> pending;
+    bool dropped{false};
+    explicit EvdevKeypad(KeyboardDecoder::Profile profile) : decoder(profile) {}
 };
 #endif
 
@@ -137,7 +132,10 @@ void ensure_long_press_timer() {
     }
 }
 
-void route_key_state(uint32_t key, bool pressed) {
+bool route_key_state(uint32_t key, bool pressed) {
+    // Releasing an older rollover key must not cancel a newer key's hold.
+    if (!pressed && pressed_key != key) return false;
+    const bool consumed_release = !pressed && pressed_key_consumed;
     const bool new_hold = pressed && (!last_key_pressed || pressed_key != key);
     if (new_hold) {
         pressed_key = key;
@@ -162,44 +160,10 @@ void route_key_state(uint32_t key, bool pressed) {
 
     last_key = key;
     last_key_pressed = pressed;
+    return pressed ? pressed_key_consumed : consumed_release;
 }
 
-void key_event_cb(lv_event_t* event) {
-    LV_UNUSED(event);
-
-    auto* indev = lv_indev_active();
-    if (!indev) {
-        return;
-    }
-
-#if !USE_DESKTOP
-    auto* keypad = static_cast<EvdevKeypad*>(lv_indev_get_driver_data(indev));
-    if (keypad) {
-        // LVGL emits LV_EVENT_KEY on every poll, even when evdev had no new event.
-        if (!keypad->router_event_pending) {
-            return;
-        }
-
-        keypad->router_event_pending = false;
-        const auto key = keypad->router_key;
-        const bool pressed = keypad->router_pressed;
-
-        route_key_state(key, pressed);
-        return;
-    }
-#endif
-
-    const auto key = lv_indev_get_key(indev);
-    const bool pressed = lv_indev_get_state(indev) == LV_INDEV_STATE_PRESSED;
-
-    route_key_state(key, pressed);
-}
-
-#if !USE_DESKTOP
-// The CardputerZero keyboard has no arrow keys: the kernel keymap turns the
-// Fn+F/X/Z/C chord into real KEY_UP/DOWN/LEFT/RIGHT events, and every other key
-// is a standard US keycode. We translate nav keys to LVGL keys and every
-// printable key to its character (honouring Shift) so text fields work too.
+#if !USE_DESKTOP || defined(MESH_INPUT_TESTING)
 lv_group_t* keypad_group = nullptr;
 
 lv_group_t* ensure_keypad_group() {
@@ -210,130 +174,36 @@ lv_group_t* ensure_keypad_group() {
     return keypad_group;
 }
 
-uint32_t printable_key(uint16_t code, bool shift) {
-    switch (code) {
-        case KEY_SPACE: return ' ';
-        case KEY_1: return shift ? '!' : '1';
-        case KEY_2: return shift ? '@' : '2';
-        case KEY_3: return shift ? '#' : '3';
-        case KEY_4: return shift ? '$' : '4';
-        case KEY_5: return shift ? '%' : '5';
-        case KEY_6: return shift ? '^' : '6';
-        case KEY_7: return shift ? '&' : '7';
-        case KEY_8: return shift ? '*' : '8';
-        case KEY_9: return shift ? '(' : '9';
-        case KEY_0: return shift ? ')' : '0';
-        case KEY_MINUS: return shift ? '_' : '-';
-        case KEY_EQUAL: return shift ? '+' : '=';
-        case KEY_LEFTBRACE: return shift ? '{' : '[';
-        case KEY_RIGHTBRACE: return shift ? '}' : ']';
-        case KEY_BACKSLASH: return shift ? '|' : '\\';
-        case KEY_SEMICOLON: return shift ? ':' : ';';
-        case KEY_APOSTROPHE: return shift ? '"' : '\'';
-        case KEY_GRAVE: return shift ? '~' : '`';
-        case KEY_COMMA: return shift ? '<' : ',';
-        case KEY_DOT: return shift ? '>' : '.';
-        case KEY_SLASH: return shift ? '?' : '/';
-        default: break;
-    }
-
-    struct Letter { uint16_t code; char ch; };
-    static const Letter letters[] = {
-        {KEY_A, 'a'}, {KEY_B, 'b'}, {KEY_C, 'c'}, {KEY_D, 'd'}, {KEY_E, 'e'},
-        {KEY_F, 'f'}, {KEY_G, 'g'}, {KEY_H, 'h'}, {KEY_I, 'i'}, {KEY_J, 'j'},
-        {KEY_K, 'k'}, {KEY_L, 'l'}, {KEY_M, 'm'}, {KEY_N, 'n'}, {KEY_O, 'o'},
-        {KEY_P, 'p'}, {KEY_Q, 'q'}, {KEY_R, 'r'}, {KEY_S, 's'}, {KEY_T, 't'},
-        {KEY_U, 'u'}, {KEY_V, 'v'}, {KEY_W, 'w'}, {KEY_X, 'x'}, {KEY_Y, 'y'},
-        {KEY_Z, 'z'},
-    };
-    for (const auto& letter : letters) {
-        if (letter.code == code) {
-            return shift ? static_cast<uint32_t>(letter.ch - 32) : static_cast<uint32_t>(letter.ch);
-        }
-    }
-    return 0;
+bool key_down(const unsigned long* bits, unsigned code) {
+    constexpr auto width=sizeof(unsigned long)*8;
+    return (bits[code/width] & (1UL<<(code%width)))!=0;
 }
 
-// The Sym layer (blue symbols), mapped from the device's own keycodes — captured
-// on-device because the kernel assigns them placeholder/punctuation codes.
-uint32_t sym_printable(uint16_t code) {
-    switch (code) {
-        case 93: return '?';
-        case 26: return '!';
-        case 27: return '@';
-        case 39: return '#';
-        case 40: return '$';
-        case 41: return '%';
-        case 51: return '&';
-        case 52: return '*';
-        case 53: return '(';
-        case 94: return ')';
-        case 80: return '-';
-        case 71: return '/';
-        case 92: return ':';
-        case 81: return '\'';
-        default: return 0;
-    }
+void restore_modifier_state(EvdevKeypad& keypad) {
+    unsigned long bits[(KEY_MAX/(sizeof(unsigned long)*8))+1]{};
+    if (ioctl(keypad.fd,EVIOCGKEY(sizeof(bits)),bits)>=0)
+        keypad.decoder.restore_modifiers(key_down(bits,KEY_LEFTSHIFT),key_down(bits,KEY_RIGHTSHIFT),
+            key_down(bits,KEY_LEFTCTRL),key_down(bits,KEY_RIGHTCTRL),key_down(bits,KEY_LEFTALT),key_down(bits,KEY_RIGHTALT));
 }
 
-uint32_t map_evdev_key(uint16_t code, bool shift, bool sym) {
-    switch (code) {
-        case KEY_ESC:
-            return LV_KEY_ESC;
-        case KEY_ENTER:
-        case KEY_KPENTER:
-            return LV_KEY_ENTER;
-        case KEY_UP:
-            return LV_KEY_UP;
-        case KEY_DOWN:
-            return LV_KEY_DOWN;
-        case KEY_LEFT:
-            return LV_KEY_LEFT;
-        case KEY_RIGHT:
-            return LV_KEY_RIGHT;
-        case KEY_BACKSPACE:
-            return LV_KEY_BACKSPACE;
-        case KEY_DELETE:
-            return LV_KEY_DEL;
-        case KEY_TAB:
-            return LV_KEY_NEXT;
-        case KEY_HOME:
-            return LV_KEY_HOME;
-        case KEY_END:
-            return LV_KEY_END;
-        case KEY_SYSRQ:
-            return kKeyPrintScreen;
-        case KEY_HELP:
-            return kKeyHelp;
-        default:
-            break;
-    }
+void cancel_hold() {
+    pressed_key=last_key=0;
+    last_key_pressed=pressed_key_consumed=long_press_sent=false;
+    if (long_press_timer) lv_timer_pause(long_press_timer);
+}
 
-    // Sym layer (blue symbols) takes precedence over the d-pad and over the plain
-    // character of keys that collide (code 26 is "!" with Sym, "[" without it).
-    if (sym) {
-        return sym_printable(code);
-    }
-
-    // Outside text entry the bare d-pad cluster navigates without Fn. (The kernel
-    // still delivers real KEY_UP/DOWN/LEFT/RIGHT for the Fn chord, handled above,
-    // so both ways keep working.) While typing, these fall through to letters.
-    if (!text_entry_mode) {
-        switch (code) {
-            case KEY_F:
-                return LV_KEY_UP;
-            case KEY_X:
-                return LV_KEY_DOWN;
-            case KEY_Z:
-                return LV_KEY_LEFT;
-            case KEY_C:
-                return LV_KEY_RIGHT;
-            default:
-                break;
-        }
-    }
-
-    return printable_key(code, shift);
+void load_system_map(KeyboardDecoder& decoder) {
+    // Fixed root-owned system source, never an intent/config-supplied path.
+    const int fd=open("/usr/share/keymaps/tca8418_keypad_m5stack_keymap.map", O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+    if (fd<0) return; // The complete pinned official map is compiled in.
+    struct stat st{};
+    char buffer[8193];
+    const bool trusted=fstat(fd,&st)==0 && S_ISREG(st.st_mode) && st.st_uid==0 && !(st.st_mode&0022);
+    const ssize_t length=trusted ? read(fd,buffer,sizeof(buffer)) : -1;
+    close(fd);
+    std::string error;
+    if (length<=0 || length>8192 || !decoder.load_symbol_map(std::string_view(buffer,static_cast<size_t>(length)),error))
+        LV_LOG_WARN("unavailable/invalid system keyboard map; using complete built-in map");
 }
 
 bool has_nav_keys(int fd) {
@@ -353,58 +223,61 @@ bool has_nav_keys(int fd) {
 }
 
 void evdev_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
-    auto* keypad = static_cast<EvdevKeypad*>(lv_indev_get_driver_data(indev));
-    data->continue_reading = false;
-    if (!keypad) {
-        data->state = LV_INDEV_STATE_RELEASED;
+    auto* keypad=static_cast<EvdevKeypad*>(lv_indev_get_driver_data(indev));
+    data->continue_reading=false;
+    if (!keypad || keypad->fd<0) { data->state=LV_INDEV_STATE_RELEASED; return; }
+    while (true) {
+        std::optional<KeyboardDecoder::Event> decoded;
+        if (keypad->pending) { decoded=keypad->pending; keypad->pending.reset(); }
+        else {
+            input_event input{};
+            const auto size=read(keypad->fd,&input,sizeof(input));
+            if (size<0 && errno==EINTR) continue;
+            if (size<0 && (errno==EAGAIN || errno==EWOULDBLOCK)) break;
+            if (size!=sizeof(input)) {
+                keypad->decoder.reset(); keypad->state=LV_INDEV_STATE_RELEASED;
+                cancel_hold();
+                if (keypad->fd>=0) { close(keypad->fd); keypad->fd=-1; }
+                break;
+            }
+            if (input.type==EV_SYN && input.code==SYN_DROPPED) {
+                keypad->dropped=true; keypad->decoder.reset(); cancel_hold();
+                keypad->state=LV_INDEV_STATE_RELEASED;
+                break; // release LVGL too; never treat a lost Esc as a click
+            }
+            if (keypad->dropped) {
+                if (input.type==EV_SYN && input.code==SYN_REPORT) {
+                    keypad->dropped=false; restore_modifier_state(*keypad);
+                }
+                continue;
+            }
+            if (input.type!=EV_KEY) continue;
+            const bool editing=text_entry_query ? text_entry_query(text_entry_query_data) : text_entry_mode;
+            decoded=keypad->decoder.feed(input.code,input.value,editing);
+        }
+        if (!decoded || decoded->repeat) continue; // LVGL owns repeat timing.
+        if (!decoded->pressed && decoded->key!=keypad->key) {
+            route_key_state(decoded->key,false); // old rollover key; not an LVGL release of the newer key
+            continue;
+        }
+        if (decoded->pressed && keypad->state==LV_INDEV_STATE_PRESSED && decoded->key!=keypad->key) {
+            // LVGL is a single-key indev. Insert a logical release before another
+            // physical key's press; do not synthesize an application Esc release.
+            keypad->pending=decoded; keypad->state=LV_INDEV_STATE_RELEASED;
+            data->continue_reading=true;
+            break;
+        }
+        keypad->key=decoded->key;
+        data->key=decoded->key;
+        data->state=decoded->pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+        route_key_input(data);
+        // Unbound non-text function keys never become invalid Unicode in a draft.
+        if (is_action_key(data->key)) data->state=LV_INDEV_STATE_RELEASED;
+        keypad->state=data->state;
+        data->continue_reading=true;
         return;
     }
-
-    input_event input{};
-    while (read(keypad->fd, &input, sizeof(input)) == sizeof(input)) {
-        if (input.type != EV_KEY) {
-            continue;
-        }
-
-        if (input.code == KEY_LEFTSHIFT || input.code == KEY_RIGHTSHIFT) {
-            shift_held = input.value != 0;
-            continue;
-        }
-        if (input.code == kSymKey) {
-            sym_held = input.value != 0;
-            continue;
-        }
-        if (input.value == 2) {
-            continue;   // auto-repeat
-        }
-
-        // Remember the mapping made at press time and reuse it at release, so a
-        // Shift release (or a text-entry-mode change) between press and release
-        // can never emit a different key up than the key down (no stuck hold).
-        static std::map<uint16_t, uint32_t> active_keys;
-        uint32_t key;
-        if (input.value) {
-            key = map_evdev_key(input.code, shift_held, sym_held);
-            if (!key) continue;
-            active_keys[input.code] = key;
-        } else {
-            auto it = active_keys.find(input.code);
-            if (it == active_keys.end()) continue;
-            key = it->second;
-            active_keys.erase(it);
-        }
-
-        keypad->key = key;
-        keypad->state = input.value ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
-        keypad->router_event_pending = true;
-        keypad->router_key = key;
-        keypad->router_pressed = keypad->state == LV_INDEV_STATE_PRESSED;
-        data->continue_reading = true;
-        break;
-    }
-
-    data->key = keypad->key;
-    data->state = keypad->state;
+    data->key=keypad->key; data->state=keypad->state;
 }
 
 void evdev_delete_cb(lv_event_t* event) {
@@ -420,9 +293,11 @@ void evdev_delete_cb(lv_event_t* event) {
     delete keypad;
 }
 
-lv_indev_t* create_keypad_from_fd(int fd) {
-    auto* keypad = new EvdevKeypad;
+lv_indev_t* create_keypad_from_fd(int fd, KeyboardDecoder::Profile profile) {
+    auto* keypad = new EvdevKeypad(profile);
     keypad->fd = fd;
+    if (profile==KeyboardDecoder::Profile::CardputerZero) load_system_map(keypad->decoder);
+    restore_modifier_state(*keypad);
 
     auto* indev = lv_indev_create();
     if (!indev) {
@@ -436,7 +311,6 @@ lv_indev_t* create_keypad_from_fd(int fd) {
     lv_indev_set_driver_data(indev, keypad);
     lv_indev_set_group(indev, ensure_keypad_group());
     lv_indev_add_event_cb(indev, evdev_delete_cb, LV_EVENT_DELETE, nullptr);
-    attach_key_router(indev);
     return indev;
 }
 
@@ -457,7 +331,11 @@ lv_indev_t* try_create_keypad(const char* path) {
     }
 
     LV_LOG_INFO("using evdev key input %s", path);
-    return create_keypad_from_fd(fd);
+    char name[128]{};
+    ioctl(fd,EVIOCGNAME(sizeof(name)),name);
+    name[sizeof(name)-1]='\0';
+    const auto profile=KeyboardDecoder::is_cardputer(name) ? KeyboardDecoder::Profile::CardputerZero : KeyboardDecoder::Profile::UsKeyboard;
+    return create_keypad_from_fd(fd,profile);
 }
 
 void discover_keypads(lv_display_t* display) {
@@ -496,20 +374,33 @@ void discover_keypads(lv_display_t* display) {
 } // namespace
 
 void init_key_input(lv_display_t* display) {
-#if !USE_DESKTOP
+#if !USE_DESKTOP || defined(MESH_INPUT_TESTING)
     discover_keypads(display);
 #else
     LV_UNUSED(display);
 #endif
 }
 
-void attach_key_router(lv_indev_t* indev) {
-    if (!indev || lv_indev_get_type(indev) != LV_INDEV_TYPE_KEYPAD) {
-        return;
-    }
-
-    lv_indev_add_event_cb(indev, key_event_cb, LV_EVENT_KEY, nullptr);
+void route_key_input(lv_indev_data_t* data) {
+    if (route_key_state(data->key,data->state==LV_INDEV_STATE_PRESSED))
+        data->state=LV_INDEV_STATE_RELEASED;
 }
+
+void set_text_entry_query(TextEntryQuery query, void* user_data) {
+    text_entry_query=query; text_entry_query_data=user_data;
+}
+
+void clear_text_entry_query(TextEntryQuery query, void* user_data) {
+    if (text_entry_query==query && text_entry_query_data==user_data) {
+        text_entry_query=nullptr; text_entry_query_data=nullptr;
+    }
+}
+
+#if defined(MESH_INPUT_TESTING)
+lv_indev_t* make_test_evdev(int fd, bool cardputer) {
+    return create_keypad_from_fd(fd,cardputer ? KeyboardDecoder::Profile::CardputerZero : KeyboardDecoder::Profile::UsKeyboard);
+}
+#endif
 
 void set_nav_shortcut_mode(bool enabled) {
     nav_shortcut_mode = enabled;

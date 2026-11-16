@@ -5,6 +5,13 @@ CMake baseline 0.2.1: https://github.com/CardputerZero/Template . The original
 M5Stack copyright/permission text is retained in LICENSE. Its exact upstream
 commit was not recorded in the initial app import.
 
+The complete CardputerZero symbol assignments in keyboard_decoder.cpp and the
+independent test fixture follow M5Stack's MIT-licensed launcher keymap at
+4c05b444cb977cb90e2f33eb4c8261226e370713 (Copyright 2026 M5Stack Technology CO LTD):
+https://github.com/CardputerZero/launcher/blob/4c05b444cb977cb90e2f33eb4c8261226e370713/ext_components/cp0_lvgl/src/cp0/cp0_keyboard_keymap.c .
+The M5Stack MIT permission text is retained in LICENSE; provenance and the
+unaltered system-map fixture hash are recorded in tests/fixtures/README.md.
+
 LVGL is pinned to v9.5.0 (85aa60d18b3d5e5588d7b247abf90198f07c8a63),
 https://github.com/lvgl/lvgl . Full upstream notices are in licenses/:
 

@@ -8,6 +8,10 @@ under the MIT License (see LICENSE). It is built on the official M5Stack
 upstream MIT copyright is preserved in LICENSE and in the SPDX headers of the
 source files that originate from the Template.
 
+The keyboard symbol map also follows the official M5Stack launcher keymap
+(Copyright 2026 M5Stack Technology CO LTD, MIT). Its pinned source and fixture
+provenance are recorded in THIRD_PARTY_NOTICES.md and docs/keyboard.md.
+
 Licensing split
 ---------------
 - Application (src/, CMake build, this README)  . . . . . MIT

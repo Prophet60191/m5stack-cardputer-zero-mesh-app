@@ -17,3 +17,6 @@ privacy settings, protocol, or package integration.
 - Keep hardware qualification distinct from simulator/container results. Do not
   power a Cap without its antenna; do not deploy, publish, or transmit RF as a
   side effect of running the offline regression suite.
+- Keyboard changes must use the official map and independent fixture linked in
+  `docs/keyboard.md`. Keep the reusable decoder and raw evdev-to-textarea checks
+  together; direct text insertion is not proof of physical-key translation.

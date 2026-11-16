@@ -295,23 +295,17 @@ public:
             lv_observer_remove(notice_observer_);
         }
         platform::clear_key_release_listener(key_release_listener, this);
+        platform::clear_text_entry_query(text_entry_query, this);
         platform::clear_global_key_listener(global_key_listener, this);
     }
 
     void set_screen_manager(ScreenManager* screen_manager) {
         screen_manager_ = screen_manager;
+        platform::set_text_entry_query(text_entry_query, this);
     }
 
 private:
     bool handle_key(uint32_t key, bool long_pressed) {
-        // While a text field is capturing input, only intercept Enter (commit)
-        // and Esc (cancel); let every other key reach the text box.
-        if (screen_manager_ && screen_manager_->is_composing()) {
-            if (long_pressed) return true;
-            if (key == LV_KEY_ENTER) { screen_manager_->key_enter(); return true; }
-            if (key == LV_KEY_ESC)   { screen_manager_->key_back();  return true; }
-            return false;
-        }
         if (key == platform::kKeyPrintScreen) {
             if (!long_pressed) {
                 const auto result = platform::screenshot::capture_active_screen();
@@ -352,6 +346,15 @@ private:
                 help_popup_->hide();
             }
             return true;
+        }
+
+        // Help/Screenshot remain available while typing. A visible Help overlay
+        // owns input, so Enter cannot send a draft underneath it.
+        if (screen_manager_ && screen_manager_->is_composing()) {
+            if (long_pressed) return true;
+            if (key == LV_KEY_ENTER) { screen_manager_->key_enter(); return true; }
+            if (key == LV_KEY_ESC)   { screen_manager_->key_back();  return true; }
+            return platform::is_action_key(key); // unbound Fn actions are not text
         }
 
         const bool on_menu = view_model_.current_page() == model::AppPage::Menu;
@@ -428,6 +431,11 @@ private:
                                     void* user_data) {
         auto* controller = static_cast<ShortcutController*>(user_data);
         return controller && controller->handle_key(key, long_pressed);
+    }
+
+    static bool text_entry_query(void* user_data) {
+        const auto* self = static_cast<ShortcutController*>(user_data);
+        return self && self->screen_manager_ && self->screen_manager_->is_composing();
     }
 
     static void key_release_listener(uint32_t key, const char*, void* user_data) {

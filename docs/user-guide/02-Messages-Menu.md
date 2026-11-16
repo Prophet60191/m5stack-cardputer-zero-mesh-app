@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.7 (release candidate)** · Updated **2026-11-16** · [Guide index](README.md)
+> For Mesh **0.1.8 (release candidate)** · Updated **2026-11-16** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 
@@ -103,6 +103,12 @@ Even direct messages travel across one of your radio channels. The app never gue
 3. If you press **ESC** or leave before sending, your unfinished text is automatically saved as a **Draft** tied to that specific chat and channel.
    - *Tip:* For Direct Messages, each draft stays linked to the channel you were typing on. If you later open that DM on a different channel while empty, the screen reminds you: `Saved draft (edit on its original channel)`.
    - If a group channel was archived/removed, you can still read old messages there, but sending is blocked so you don't send on the wrong channel.
+
+While typing, **Fn+Z / Fn+C** moves the cursor left/right, **Fn+K / Fn+N**
+jumps to the start/end, and **Fn+Backspace** deletes to the right. **Fn+H** opens
+Help without changing the draft; close it with **HELP** or **ESC** to resume.
+**Fn+J** saves a screenshot. PageUp/PageDown, Insert and F1-F12 have no extra
+message-editor action; they do not type characters or move focus.
 
 ### Quick Messages (`q`)
 
