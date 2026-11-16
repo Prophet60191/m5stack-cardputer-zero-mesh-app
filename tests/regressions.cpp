@@ -161,6 +161,18 @@ static void dual_channel_ui_regression(const char* screenshot_path) {
     CHECK(json::parse(sent, v)); CHECK(v.str_at("path") == "lora.channel_num"); CHECK(v.int_at("value") == 21);
 }
 
+static void draft_only_conversation_regression() {
+    viewmodel::BaseViewModel vm;vm.set_command_sink([](const std::string&){return true;});
+    vm.set_channels({{1,"Draft group",true,"SECONDARY",0,"draft-only"}});
+    json::Value state;CHECK(json::parse(R"({"threads":{"ch:draft-only":{"draft":"Unsent only","pinned":true},"dm:":{"draft":"invalid"},"x":{"draft":"invalid"}},"history_enabled":true})",state));
+    vm.apply_threads(state);CHECK(vm.conversation_keys().size()==1);
+    app::AssetManager assets;screen::MessagesScreen screen(vm,assets);lv_screen_load(screen.root());
+    CHECK(labels(screen.root()).find("Draft group")!=std::string::npos);CHECK(labels(screen.root()).find("Unsent only")!=std::string::npos);
+    screen.on_down();screen.on_enter();screen.on_enter();auto* input=textarea(screen.root());CHECK(input);CHECK(std::string(lv_textarea_get_text(input))=="Unsent only");
+    screen.on_back();screen.on_back();vm.save_draft("ch:draft-only","");vm.flush_drafts();vm.clear_thread("ch:draft-only");
+    CHECK(labels(screen.root()).find("Draft group")!=std::string::npos);vm.delete_thread("ch:draft-only");CHECK(labels(screen.root()).find("Draft group")==std::string::npos);
+}
+
 static void identity_confirmation_regression() {
     viewmodel::BaseViewModel vm; std::string sent;
     vm.set_command_sink([&](const std::string& value) {sent=value;return true;});
@@ -291,6 +303,7 @@ int main(int argc, char** argv) {
     dual_channel_ui_regression(argc > 1 ? argv[1] : nullptr);
     services_ui_regression(argc > 1 ? argv[1] : nullptr);
     identity_confirmation_regression();
+    draft_only_conversation_regression();
     {
         viewmodel::BaseViewModel vm;
         std::string sent;

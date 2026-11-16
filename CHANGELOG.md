@@ -22,11 +22,21 @@
   through rpicam-still and report missing decoder/camera failures.
 - Add native arm64 Debian 13 build/install/namespace validation and checksummed
   workflow artifacts in CI, using fixed LVGL/action commits.
+- Exercise real empty-profile startup; explicitly enable the local console/API
+  default, handle firmware's empty disabled slots and compare semantic readback.
+- Include explicit channel IDs in identity/import deduplication; preserve draft-only
+  and cleared conversations and reject malformed saved peer identities.
+- Separate GPS receiver control from sharing, mark stale map locations, and count
+  actual remote receive packets with tested parent/child pubsub signatures.
 
-Validation: 62 backend regressions (one Linux-only case skipped on macOS),
+Validation: 66 backend regressions (one Linux-only case skipped on macOS),
 real LVGL keyboard/lifetime/parser/transport checks with ASAN/UBSAN, synthetic
-320x170 renders and Debian arm64 package validation. See the implementation
-checklist for pending actual device, peer, GPS, camera and cold-power evidence.
+320x170 renders and Debian arm64 package validation. Native arm64 GitHub CI and
+downloaded artifact checks passed. Actual device checks passed for private-peer
+ACK/reply, CSI QR decoding, cold power/firewall order, empty setup, channel/profile
+readback and crash cleanup/durable drafts. Outdoor GPS remains deferred because
+the operator cannot provide sky view now; final installed-build stability and
+qualification status are tracked in the implementation checklist.
 
 ## 0.1.1 — 2026-11-15 (release candidate)
 

@@ -22,9 +22,9 @@ const char* const kRows[] = {
     "Radio", "Region", "Modem preset", "Hop limit", "Add a channel", "Node name",
     "Share position", "Internet (MQTT)", "Auto-start radio", "Theme", "Channels", "About",
     "Quick messages", "Signal on messages", "Keep per chat", "Mute all", "Message acks",
-    "Frequency slot", "First-run setup", "Transmit mode", "Channel manager", "Mesh profiles", "Diagnostics", "Save conversations", "Quiet hours",
+    "Frequency slot", "First-run setup", "Transmit mode", "Channel manager", "Mesh profiles", "Diagnostics", "Save conversations", "Quiet hours", "GPS receiver",
 };
-constexpr int kRowCount = 25;
+constexpr int kRowCount = 26;
 
 const std::vector<std::string> kRegions = {
     "US", "EU_868", "EU_433", "ANZ", "NZ_865", "KR", "TW", "JP", "SG_923", "TH", "MY_919", "PH_915",
@@ -69,6 +69,7 @@ void SettingsScreen::build_content(lv_obj_t* content) {
     lv_subject_add_observer_obj(view_model().hop_limit_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().frequency_slot_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().position_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().gps_mode_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().config_state_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().mqtt_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().autostart_subject(), on_change, list_, this);
@@ -85,7 +86,7 @@ void SettingsScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*
 }
 
 std::string SettingsScreen::value_for(int row) {
-    if (row == 2 || row == 3 || row == 6 || row == 7 || row == 17) {
+    if (row == 2 || row == 3 || row == 6 || row == 7 || row == 17 || row == 25) {
         const std::string state = view_model().config_state();
         if (state != "confirmed") return state == "pending" ? "Pending..." : "Unknown";
     }
@@ -95,6 +96,7 @@ std::string SettingsScreen::value_for(int row) {
         case 19: return view_model().radio_mode();
         case 23: return view_model().history_enabled() ? "On" : "Off";
         case 24: return view_model().quiet_start() < 0 ? "Off" : "Scheduled";
+        case 25: return s_of(view_model().gps_mode_subject());
         case 1: return s_of(view_model().region_subject());
         case 2: return s_of(view_model().modem_preset_subject());
         case 3: return std::to_string(lv_subject_get_int(view_model().hop_limit_subject()));
@@ -166,6 +168,7 @@ void SettingsScreen::rebuild() {
 }
 
 void SettingsScreen::row_action(int row) {
+    if (row == 25) { open_picker("GPS receiver; sharing is a separate setting", {"Cancel", "Enable GPS receiver", "Disable GPS receiver"}, "gps", 0); return; }
     if (row == 18) { request_service("setup", "setup.status"); return; }
     if (row == 19) { open_picker("Antenna attached? Region: " + (view_model().radio_mode() == "off" ? view_model().setup().str_at("region", "Unknown") : s_of(view_model().region_subject())), {"Cancel", "Enable transmission", "Receive only"}, "tx", 0); return; }
     if (row == 20) { request_service("slots", "channel.slots"); return; }
@@ -624,6 +627,7 @@ void SettingsScreen::service_result() {
     } else if (route == "diagnostics") {
         std::vector<std::string> rows = {"App: " + event.str_at("app"), "Daemon: " + event.str_at("daemon"), "Client: " + event.str_at("client"), "Radio: " + event.str_at("radio") + " / " + event.str_at("mode"),
             "API: " + std::string(flag(event,"api_connected") ? "connected" : "disconnected"), "Camera: " + std::string(flag(event,"camera_available") ? "available" : "unavailable"),
+            std::string("Position: ") + (!flag(event,"position_valid") ? "no fix" : (flag(event,"position_fresh") ? "fresh" : "stale/unknown age")),
             "GPS age: " + std::to_string(event.int_at("gps_age", -1)) + "s (-1=unknown)", "GPS satellites: " + std::to_string(event.int_at("gps_satellites", -1)), "Last RX age: " + std::to_string(event.int_at("last_rx_age", -1)) + "s",
             "History: " + std::to_string(event.int_at("history_count")), view_model().radio_detail()};
         const auto* fw = event.find("firewall"); rows.push_back(std::string("Firewall: ") + (fw && flag(*fw,"ok") ? "healthy" : "FAILED"));
@@ -633,7 +637,9 @@ void SettingsScreen::service_result() {
 }
 bool SettingsScreen::extended_picker(const std::string& input, int choice) {
     const std::string pending = input;
-    if (pending == "setup-region") {
+    if (pending == "gps") {
+        close_overlay(); if (choice) view_model().set_gps_enabled(choice == 1);
+    } else if (pending == "setup-region") {
         setup_region_ = options_[choice]; close_overlay();
         open_picker("Channel (public identity/telemetry is visible)", {"Private: generate a new secret", "Public default"}, "setup-kind", 0);
     } else if (pending == "setup-kind") {

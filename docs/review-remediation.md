@@ -1,6 +1,7 @@
 # Independent review remediation — 2026-11-15
 
-Release candidate: **0.1.1**. These changes replace the earlier assumption that
+Initial review candidate: **0.1.1**; current candidate: **0.1.2** (latest evidence below).
+These changes replace the earlier assumption that
 all review concerns had already been resolved. The evidence below covers the
 current source and offline package; it does not certify an installed radio.
 
@@ -150,8 +151,54 @@ public-channel traffic or personal profile changes are part of these tests.
 
 ## Publication state
 
-The 0.1.1 source remains a release candidate. The GitHub source and companion
+The 0.1.2 source remains a release candidate. The GitHub source and companion
 guide include the review fixes and both channel types; the historical v0.1.0
 release notes point to this candidate and its qualification limits. Publication
 does not certify live public RF delivery or the remaining hardware checks, and
-the existing release tag does not contain the later 0.1.1 implementation.
+the existing release tag does not contain the later implementation.
+
+## 0.1.2 actual-device qualification
+
+These results supplement the historical sections above. Raw logs, peer IDs,
+coordinates, keys and the operator's profile/backup remain outside this tree.
+
+- An old-device traceback confirmed the idle Error cause: timeout cleanup tried
+  to signal an elevated sudo child and failed with EPERM. The replacement
+  capability-owned firewall monitor works under the actual packaged user unit
+  with NoNewPrivileges. No repeated sudo probes remain in the app watchdog.
+- Guardian recovery now normalizes the vendor's enabled brightness value 255;
+  actual stranded-state recovery passed. A separate NFC runtime overlay claimed
+  LoRa's BUSY GPIO; read-only preflight identifies it before power-on. A physical
+  off/unplug/on cycle cleared that conflict without unbinding a driver.
+- Operator-confirmed cold power, changed boot identity and live timestamps proved
+  the firewall active before any radio start. ADB/hotplug and the separate system
+  daemon remained inactive after boot.
+- A deliberate private message received an ACK from the intended peer. The
+  operator confirmed receipt and replied; the matching reply arrived. Public RF
+  traffic was not exercised and remains a separate interoperability check.
+- The built-in CSI camera decoded the exact wholly synthetic QR target. Measured
+  capture startup exceeded the original deadline; the corrected scanner has
+  bounded capture dimensions, retry count and total time, with no saved frames.
+- Isolated fresh app state started the actual daemon receive-only with location/
+  MQTT Off. Create, rename, rotate, disable, enable and remove passed real admin
+  readback; named-profile save/preview/offline apply and subsequent RX-only
+  startup passed. Firmware-generated empty submessages and derived modem fields
+  are compared semantically, rather than as serialized bytes.
+- Planned GPS/preset/slot changes and hop-limit writes returned online with
+  confirmed requested values; original tuning and TX mode were restored.
+- Actual supervisor SIGKILL closed the API, restored Cap power to zero, and
+  restarted Off. A committed synthetic draft/pin survived; history count stayed
+  unchanged. Only the synthetic test conversation was then removed.
+- IPv4 LAN probes were blocked while the actual API was listening on loopback
+  and the SSH control was reachable. The physical IPv6 control was unreachable,
+  so that path is unqualified; isolated IPv4/IPv6 namespace checks still pass.
+- Native arm64 GitHub build/install/tests and a downloaded artifact's checksum/
+  source-commit verification passed. Final source revisions repeat those gates.
+
+The receiver had been configured absent. Enabling it worked through planned
+restart/readback, but no valid fix was observed indoors. The operator cannot
+provide clear sky now; outdoor fix/freshness is explicitly deferred. The previous
+receiver setting has been restored, with automatic sharing still Off.
+Final package installation and sustained installed-build stability are tracked
+in [the implementation checklist](implementation-plan.md). Earlier source-stage
+hardware results must not be mistaken for verification of an older installed UI.

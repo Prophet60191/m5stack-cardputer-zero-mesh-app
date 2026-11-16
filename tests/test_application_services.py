@@ -64,6 +64,7 @@ class RadioSettingsTests(unittest.TestCase):
         self.assertEqual((cfg.version, channels.version), (SCHEMA,SCHEMA))
         self.assertEqual(len(channels.channels),8); self.assertEqual(len(channels.channels[0].settings.psk),32)
         self.assertFalse(cfg.lora.tx_enabled)
+        self.assertTrue(cfg.security.serial_enabled)
         self.assertFalse(any(ch.settings.module_settings.position_precision or ch.settings.uplink_enabled or ch.settings.downlink_enabled for ch in channels.channels))
         with self.assertRaises(ValueError): self.settings.initialize('US')
         modules = localonly_pb2.LocalModuleConfig.FromString((self.settings.prefs/'module.proto').read_bytes())
@@ -81,6 +82,8 @@ class RadioSettingsTests(unittest.TestCase):
         moved=copy.deepcopy(ch); moved.index=5; moved.role=2
         self.assertEqual(self.settings.identity(moved,cfg.lora),ident)
         self.assertEqual(RadioSettings(self.path).identity(moved,cfg.lora),ident)
+        moved.settings.id=42; self.assertNotEqual(self.settings.identity(moved,cfg.lora),ident)
+        moved.settings.id=0
         moved.settings.name='Different'; self.assertNotEqual(self.settings.identity(moved,cfg.lora),ident)
         moved.CopyFrom(ch); moved.settings.psk=b'S'*32; self.assertNotEqual(self.settings.identity(moved,cfg.lora),ident)
         other=copy.deepcopy(ch); other.settings.psk=b'\x01'; ch.settings.psk=bytes.fromhex('d4f1bb3a20290759f0bcffabcf4e6901')
@@ -214,6 +217,47 @@ class ApplicationTests(unittest.TestCase):
         self.s._record({'from':'self','id':'pending','status':'sending'})
         with patch.object(Path,'home',return_value=Path(self.tmp.name)), self.assertRaises(RuntimeError): supervisor.Supervisor()
         self.assertEqual(self.s._store.load_messages()[0]['status'],'sending')
+
+    def test_firmware_empty_settings_are_free_but_disabled_keys_are_preserved(self):
+        for ch in self.s._iface.localNode.channels[3:]:ch.settings.SetInParent()
+        retained=self.s._iface.localNode.channels[3];retained.settings.name='Retained';retained.settings.psk=b'R'*32
+        before=retained.SerializeToString()
+        self.s._channel_manage({'action':'create','kind':'private','name':'NewGroup','confirmed':True})
+        self.assertEqual(retained.SerializeToString(),before)
+        self.assertEqual(self.s._iface.localNode.channels[4].role,2)
+        self.assertFalse(self.s._channel_configured(self.s._iface.localNode.channels[5]))
+
+    def test_remote_routing_ack_is_rx_but_local_admin_or_cached_node_update_is_not(self):
+        self.s._iface.getMyNodeInfo=lambda:{'num':0x11111111}
+        self.s._on_receive_packet({'from':0x11111111},self.s._iface);self.assertEqual(self.s._last_rx,0)
+        self.s._on_node_update(self.s._iface,node={});self.assertEqual(self.s._last_rx,0)
+        self.s._on_receive_packet({'from':0x12345678,'decoded':{'routing':{'errorReason':'NONE'}}},self.s._iface)
+        self.assertGreater(self.s._last_rx,0);self.assertTrue(self.s._nodes_dirty.is_set())
+
+    def test_tuning_readback_accepts_derived_fields_but_not_transmit_mode_changes(self):
+        interface=self.s._iface
+        def restart(*,bad_tx=False):
+            cfg,_=self.s._settings.load();interface.localNode.localConfig.CopyFrom(cfg)
+            interface.localNode.localConfig.lora.spread_factor=12
+            if bad_tx:interface.localNode.localConfig.lora.tx_enabled=False
+            self.s._iface=interface;self.s._radio='online'
+        with patch.object(self.s,'radio_start',side_effect=restart):self.s._restart_with_config('lora.modem_preset','MEDIUM_FAST')
+        self.assertEqual(self.s._iface.localNode.localConfig.lora.modem_preset,4);self.assertEqual(self.s._radio,'online')
+        with patch.object(self.s,'radio_start',side_effect=lambda:restart(bad_tx=True)),self.assertRaises(ValueError):self.s._restart_with_config('lora.channel_num',20)
+        self.assertEqual(self.s._radio,'error');self.assertIsNone(self.s._iface)
+
+    def test_actual_pubsub_parent_and_telemetry_contracts_are_compatible(self):
+        from pubsub.core import Publisher
+        publisher=Publisher()
+        publisher.subscribe(self.s._on_receive_text,'meshtastic.receive.text')
+        publisher.subscribe(self.s._on_receive_packet,'meshtastic.receive')
+        publisher.subscribe(self.s._on_receive_position,'meshtastic.receive.position')
+        publisher.subscribe(self.s._on_node_update,'meshtastic.node.updated')
+        publisher.subscribe(self.s._on_telemetry,'meshtastic.receive.telemetry')
+        self.s._iface.getMyNodeInfo=lambda:{'num':0x11111111}
+        publisher.sendMessage('meshtastic.receive.telemetry',packet={'from':0x12345678},interface=self.s._iface)
+        self.assertTrue(self.s._nodes_dirty.is_set());self.assertGreater(self.s._last_rx,0)
+        publisher.sendMessage('meshtastic.node.updated',node={},interface=self.s._iface)
 
 
 class CameraTests(unittest.TestCase):

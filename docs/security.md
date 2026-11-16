@@ -44,7 +44,7 @@ labeled Public. A custom key is only private while its owner keeps it secret.
 The channel label does not certify the firmware's separate DM encryption.
 
 Imports accept public/default/unnamed and private channels. Validate the complete
-set and available capacity before writing; deduplicate by name plus key. Imports
+set and available capacity before writing; deduplicate by name, key and explicit channel ID. Imports
 always disable location and MQTT forwarding on the new channels and confirm
 actual readback. URL radio parameters do not silently retune the node. Channel
 QR sharing serializes exactly the requested channel; other keys are excluded.
@@ -122,7 +122,8 @@ re-enabled; subsequent saves use the new app-specific path.
 ## Publishing and operation
 
 - Attach the correct antenna **before powering the Cap**; software cannot detect it.
-- Use the permitted regional band. No RF transmissions were made by these tests.
+- Use the permitted regional band. Offline regressions never transmit; deliberate
+  private-peer hardware messages are recorded separately in the verification log.
 - ADB, when enabled, exposes an unauthenticated root shell over USB. The app does
   not enable it or require it at runtime; disable it after development.
 - Keys, location, contacts and radio state remain sensitive on the device. Do not
@@ -169,8 +170,8 @@ future writes; RAM history remains until shutdown. Deletion is logical, not a
 promise of forensic erasure from flash, WAL, filesystem snapshots or backups.
 No message is automatically resent after restart.
 
-Opaque local channel identities bind routing to effective name/key rather than
-slot. Reused slots archive old conversations and cannot silently retarget retries,
+Opaque local channel identities bind routing to effective name/key and any
+explicit nonzero channel ID. Reused slots archive old conversations and cannot silently retarget retries,
 drafts or an open DM selection. Diagnostic export is built from an explicit
 whitelist and excludes raw logs, channel/owner names, IDs, keys, URLs, coordinates,
 message text and filesystem paths. Do not substitute raw runtime logs for it.

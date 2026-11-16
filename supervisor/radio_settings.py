@@ -79,6 +79,8 @@ class RadioSettings:
         name = channel.settings.name
         effective = name if name else "default-preset:" + str(lora.modem_preset)
         value = effective.encode() + b"\0" + key
+        if channel.settings.id:
+            value += b"\0id" + channel.settings.id.to_bytes(4, "big")
         return hmac.new(self._secret, value, hashlib.sha256).hexdigest()[:32]
 
     def load(self):
@@ -133,6 +135,9 @@ class RadioSettings:
         lora.hop_limit = 3
         lora.tx_enabled = False
         config.position.gps_mode = config.position.GpsMode.Value("ENABLED")
+        # Portduino uses this for its local console/API and complete startup
+        # diagnostics. An empty security submessage disables it implicitly.
+        config.security.serial_enabled = True
         channels = deviceonly_pb2.ChannelFile(version=SCHEMA)
         if private and (not name or not name.isprintable() or len(name.encode()) > 11):
             raise ValueError("private channel name must contain 1..11 printable UTF-8 bytes")

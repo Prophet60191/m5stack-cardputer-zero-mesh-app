@@ -373,6 +373,10 @@ class SupervisorTests(unittest.TestCase):
         imported = self.s._iface.localNode.channels[4].settings
         self.assertEqual(imported.module_settings.position_precision, 0)
         self.assertFalse(imported.uplink_enabled or imported.downlink_enabled)
+        with self.assertRaises(ValueError): self.s._add_channel(url())
+        setting.id = 42
+        self.assertEqual(self.s._add_channel(url()), 1)
+        self.assertEqual(self.s._iface.localNode.channels[5].settings.id, 42)
 
     def test_import_validates_entire_set_and_capacity_before_writes(self):
         from meshtastic.protobuf import apponly_pb2

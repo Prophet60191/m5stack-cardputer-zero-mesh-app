@@ -33,8 +33,9 @@ out there, and share a channel by QR — with an interface designed for the tiny
 
 The current source is **0.1.2, a release candidate** with public/private channel
 support and fixes from an independent security and robustness review. Native UI,
-sanitizer, backend and Debian arm64 package checks pass. Live public-mesh delivery,
-full cold-boot and other remaining device checks are documented in the
+sanitizer, backend and Debian arm64 package checks pass. Private-peer delivery,
+camera QR and physical cold-power checks passed. Outdoor GPS, live public-mesh
+delivery and other remaining device checks are documented in the
 [verification record](docs/review-remediation.md); the candidate is not a claim
 that all hardware qualification is complete.
 

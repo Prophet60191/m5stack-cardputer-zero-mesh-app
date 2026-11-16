@@ -11,6 +11,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -100,6 +101,10 @@ void MapScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
 void MapScreen::rebuild() {
     lv_obj_clean(plot_);
     const auto colors = view::palette(view_model().is_dark_mode());
+    const auto now = static_cast<long>(std::time(nullptr));
+    const auto fresh = [now](const viewmodel::NodeInfo& n) {
+        return n.positionTime > 0 && now >= n.positionTime && now - n.positionTime <= 120;
+    };
     const lv_font_t* font = assets().load_standard_font(11, app::StandardFontWeight::Regular);
     if (!font) font = &lv_font_montserrat_12;
 
@@ -138,7 +143,7 @@ void MapScreen::rebuild() {
         const double r = (p.dist / maxd) * kR;
         const int x = kCx + static_cast<int>(std::sin(p.bearing) * r);
         const int y = kCy - static_cast<int>(std::cos(p.bearing) * r);
-        make_dot(plot_, x, y, 9, colors.primary);
+        make_dot(plot_, x, y, 9, fresh(*p.n) ? colors.primary : colors.text_disabled);
         auto* label = lv_label_create(plot_);
         const std::string tag = p.n->shortName.empty() ? p.n->name : p.n->shortName;
         lv_label_set_text(label, tag.c_str());
@@ -148,16 +153,16 @@ void MapScreen::rebuild() {
     }
 
     // You, at the centre.
-    make_dot(plot_, kCx, kCy, 11, colors.primary);
+    make_dot(plot_, kCx, kCy, 11, fresh(*me) ? colors.primary : colors.text_disabled);
     auto* you = lv_label_create(plot_);
-    lv_label_set_text(you, "you");
+    lv_label_set_text(you, fresh(*me) ? "you" : "you (last known)");
     lv_obj_set_style_text_font(you, font, 0);
     lv_obj_set_style_text_color(you, colors.text, 0);
     lv_obj_set_pos(you, kCx + 8, kCy + 4);
 
     // Scale note.
     auto* scale = lv_label_create(plot_);
-    lv_label_set_text(scale, ("ring: " + distance_text(maxd)).c_str());
+    lv_label_set_text(scale, ("Last known / ring: " + distance_text(maxd)).c_str());
     lv_obj_set_style_text_font(scale, font, 0);
     lv_obj_set_style_text_color(scale, colors.text_disabled, 0);
     lv_obj_set_pos(scale, 6, 2);

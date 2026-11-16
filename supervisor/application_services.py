@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.metadata
 import importlib.util
 import json
+import math
 import os
 import platform
 import secrets
@@ -152,8 +153,21 @@ class ApplicationServices:
         node = self._iface.localNode
         return {"event": "channel.slots", "channels": [
             {"index": ch.index, "name": ch.settings.name, "role": ch.Role.Name(ch.role),
-             "private": self._private_channel(ch), "configured": ch.HasField("settings"),
+             "private": self._private_channel(ch), "configured": self._channel_configured(ch),
              "identity": self._settings.identity(ch, node.localConfig.lora)} for ch in node.channels]}
+
+    @staticmethod
+    def _channel_configured(ch):
+        # Firmware serializes an empty settings submessage in disabled slots.
+        # Presence alone cannot distinguish those from retained named/keyed groups.
+        return bool(ch.role or ch.settings.name or ch.settings.psk or ch.settings.id)
+
+    @staticmethod
+    def _channel_signature(ch):
+        return (ch.index, ch.role, ch.settings.name, bytes(ch.settings.psk),
+                ch.settings.uplink_enabled, ch.settings.downlink_enabled,
+                ch.settings.module_settings.position_precision, ch.settings.module_settings.is_muted,
+                ch.settings.id, ch.settings.channel_num)
 
     @staticmethod
     def _channel_name(name, *, required=False):
@@ -170,7 +184,7 @@ class ApplicationServices:
             kind = req.get("kind")
             if kind not in ("public", "private"): raise ValueError("choose public or private channel")
             name = self._channel_name(req.get("name", ""), required=kind == "private")
-            ch = next((ch for ch in node.channels if ch.index > 0 and not ch.role and not ch.HasField("settings")), None)
+            ch = next((ch for ch in node.channels if ch.index > 0 and not self._channel_configured(ch)), None)
             if ch is None: raise ValueError("all channel slots are occupied")
             ch.settings.name = name
             ch.settings.psk = secrets.token_bytes(32) if kind == "private" else b"\x01"
@@ -192,7 +206,7 @@ class ApplicationServices:
                 ch.role = channel_pb2.Channel.DISABLED
                 if action == "remove": ch.Clear(); ch.index = index
             elif action == "enable":
-                if not ch.HasField("settings"): raise ValueError("configure this empty slot first")
+                if not self._channel_configured(ch): raise ValueError("configure this empty slot first")
                 ch.role = channel_pb2.Channel.SECONDARY if ch.index else channel_pb2.Channel.PRIMARY
             else: raise ValueError("unknown channel operation")
         # Changed groups do not inherit location/forwarding consent.
@@ -201,10 +215,10 @@ class ApplicationServices:
             ch.settings.uplink_enabled = ch.settings.downlink_enabled = False
         try:
             node.writeChannel(ch.index)
-            expected = ch.SerializeToString()
+            expected = self._channel_signature(ch)
             self._config_confirmed = False
             self._verify_config()
-            if node.channels[ch.index].SerializeToString() != expected:
+            if self._channel_signature(node.channels[ch.index]) != expected:
                 raise ValueError("channel readback differs from requested settings")
         except Exception:
             self.radio_stop_with_error("channel change readback failed")
@@ -226,12 +240,17 @@ class ApplicationServices:
         channels = self._channels()["channels"]
         import qr_scan
         camera_available = qr_scan.available()
+        lat, lon = gps.get("latitude"), gps.get("longitude")
+        position_valid = (type(lat) in (int, float) and type(lon) in (int, float) and
+                          math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180)
+        age = self._position_age(gps)
         connected = getattr(self._iface, "isConnected", None)
         return {"event": "diagnostics", "app": "0.1.2", "python": platform.python_version(),
                 "client": self._client_version(), "daemon": self._daemon_version(),
                 "radio": self._radio, "api_connected": bool(connected and connected.is_set()),
                 "mode": self._status()["mode"], "firewall": firewall,
                 "gps_age": self._position_age(gps), "gps_satellites": gps.get("satsInView") if type(gps.get("satsInView")) is int and 0 <= gps["satsInView"] <= 255 else None,
+                "position_valid": position_valid, "position_fresh": position_valid and age is not None and age <= 120,
                 "last_rx_age": max(0, int(time.time()) - self._last_rx) if self._last_rx else None,
                 "camera_available": camera_available,
                 "channels": len(channels), "private_channels": sum(ch["private"] for ch in channels),

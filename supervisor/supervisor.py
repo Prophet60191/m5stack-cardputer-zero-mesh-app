@@ -295,7 +295,8 @@ class Supervisor(ApplicationServices):
         if (not enabled or channels.channels[0].role != 1 or
                 any(ch.index != i or ch.role not in (0, 1, 2) or
                     (i != 0 and ch.role == 1) or
-                    (ch.role and (not self._valid_channel_key(ch.settings.psk) or len(ch.settings.name.encode("utf-8")) > 11))
+                    (ch.role and (not self._valid_channel_key(ch.settings.psk) or len(ch.settings.name.encode("utf-8")) > 11 or
+                                 (ch.settings.name and not ch.settings.name.isprintable())))
                     for i, ch in enumerate(channels.channels))):
             raise RuntimeError("invalid radio channel profile; verify channel indices, roles and keys before power-on")
         # Public channels are supported. Factory profiles may enable location by
@@ -459,6 +460,7 @@ class Supervisor(ApplicationServices):
             pass
         return {"event": "config", "preset": preset, "hop": lora.hop_limit,
                 "position": pos, "mqtt": mqtt, "confirmed": self._config_confirmed,
+                "gps_mode": node.localConfig.position.GpsMode.Name(node.localConfig.position.gps_mode),
                 "frequency_slot": lora.channel_num, "tx_enabled": lora.tx_enabled}
 
     def _thread_state(self):
@@ -581,9 +583,10 @@ class Supervisor(ApplicationServices):
             try:
                 from pubsub import pub
                 pub.unsubscribe(self._on_receive_text, "meshtastic.receive.text")
+                pub.unsubscribe(self._on_receive_packet, "meshtastic.receive")
                 pub.unsubscribe(self._on_receive_position, "meshtastic.receive.position")
                 pub.unsubscribe(self._on_node_update, "meshtastic.node.updated")
-                pub.unsubscribe(self._on_node_update, "meshtastic.receive.telemetry")
+                pub.unsubscribe(self._on_telemetry, "meshtastic.receive.telemetry")
                 pub.unsubscribe(self._on_connection_lost, "meshtastic.connection.lost")
             except Exception:
                 pass
@@ -685,12 +688,22 @@ class Supervisor(ApplicationServices):
         from pubsub import pub
         self._iface = TCPInterface(hostname="127.0.0.1", portNumber=self._port, timeout=8)
         pub.subscribe(self._on_receive_text, "meshtastic.receive.text")
+        pub.subscribe(self._on_receive_packet, "meshtastic.receive")
         pub.subscribe(self._on_receive_position, "meshtastic.receive.position")
         pub.subscribe(self._on_node_update, "meshtastic.node.updated")
-        pub.subscribe(self._on_node_update, "meshtastic.receive.telemetry")
+        pub.subscribe(self._on_telemetry, "meshtastic.receive.telemetry")
         pub.subscribe(self._on_connection_lost, "meshtastic.connection.lost")
 
     # --- incoming messages ---------------------------------------------------
+    def _on_receive_packet(self, packet, interface):
+        if interface is not self._iface: return
+        try: own = (interface.getMyNodeInfo() or {}).get("num")
+        except Exception: own = None
+        sender = packet.get("from")
+        if own is not None and type(sender) is int and sender != own:
+            self._last_rx = int(time.time())
+            self._nodes_dirty.set()
+
     def _on_receive_text(self, packet, interface):  # meshtastic thread
         if interface is not self._iface: return
         try:
@@ -721,20 +734,22 @@ class Supervisor(ApplicationServices):
             }
             self._record(msg)
             self._broadcast({"event": "message", "message": msg})
-            self._last_rx = int(time.time())
             self._nodes_dirty.set()
         except Exception:
             pass
 
     def _on_receive_position(self, packet, interface):  # meshtastic thread
         if interface is not self._iface: return
-        self._last_rx = int(time.time())
         self._nodes_dirty.set()
 
     def _on_node_update(self, interface, node=None, packet=None):
         if interface is self._iface:
-            self._last_rx = int(time.time())
             self._nodes_dirty.set()
+
+    def _on_telemetry(self, packet, interface):
+        # Parent receive topic requires BOTH packet and interface. A listener
+        # whose packet argument is optional declares an incompatible child spec.
+        if interface is self._iface: self._nodes_dirty.set()
 
     def _on_connection_lost(self, interface):
         if interface is self._iface and not self._stop.is_set():
@@ -1008,7 +1023,7 @@ class Supervisor(ApplicationServices):
             elif intent == "config.set":
                 self._require_online()
                 self._config_confirmed = False
-                if req["path"] in ("lora.modem_preset", "lora.channel_num"):
+                if req["path"] in ("lora.modem_preset", "lora.channel_num", "position.gps_mode"):
                     self._restart_with_config(req["path"], req["value"])
                 else:
                     if req["path"] == "position.enabled" and req["value"] is True:
@@ -1104,14 +1119,15 @@ class Supervisor(ApplicationServices):
         if not cs.settings or len(cs.settings) > 8:
             raise ValueError("URL must contain 1..8 channels")
         for settings in cs.settings:
-            if not self._valid_channel_key(settings.psk) or len(settings.name.encode("utf-8")) > 11:
+            if (not self._valid_channel_key(settings.psk) or len(settings.name.encode("utf-8")) > 11 or
+                    (settings.name and not settings.name.isprintable())):
                 raise ValueError("invalid channel key or name (maximum 11 UTF-8 bytes)")
         node = self._iface.localNode
-        identities = {(ch.settings.name, bytes(ch.settings.psk)) for ch in node.channels if ch.role}
-        free = [ch for ch in node.channels if not ch.role and ch.index != 0 and not ch.HasField("settings")]
+        identities = {(ch.settings.name, bytes(ch.settings.psk), ch.settings.id) for ch in node.channels if ch.role}
+        free = [ch for ch in node.channels if not self._channel_configured(ch) and ch.index != 0]
         pending = []
         for settings in cs.settings:
-            identity = (settings.name, bytes(settings.psk))
+            identity = (settings.name, bytes(settings.psk), settings.id)
             if identity not in identities:
                 identities.add(identity)
                 pending.append(settings)
@@ -1126,11 +1142,11 @@ class Supervisor(ApplicationServices):
             ch.settings.downlink_enabled = False
             ch.role = channel_pb2.Channel.SECONDARY
             node.writeChannel(ch.index)
-        expected = tuple(ch.SerializeToString() for ch in node.channels)
+        expected = tuple(self._channel_signature(ch) for ch in node.channels)
         self._config_confirmed = False
         try:
             self._verify_config()
-            if tuple(ch.SerializeToString() for ch in node.channels) != expected:
+            if tuple(self._channel_signature(ch) for ch in node.channels) != expected:
                 raise RuntimeError("channel readback mismatch")
             self._config_confirmed = True
         except Exception:
@@ -1233,6 +1249,7 @@ class Supervisor(ApplicationServices):
         # An expected reboot must not race the unexpected-disconnect watchdog.
         config, channels = self._capture_preferences()
         lora = config.lora
+        group = "lora"
         if path == "lora.region":
             lora.region = lora.RegionCode.Value(str(value))
             if not lora.region: raise ValueError("select a region")
@@ -1242,16 +1259,24 @@ class Supervisor(ApplicationServices):
         elif path == "lora.channel_num":
             if type(value) is not int or not 0 <= value <= 255: raise ValueError("frequency slot must be 0..255")
             lora.channel_num = value
+        elif path == "position.gps_mode":
+            if value not in ("ENABLED", "DISABLED"): raise ValueError("GPS mode must be ENABLED or DISABLED")
+            config.position.gps_mode = config.position.GpsMode.Value(value)
+            group = "position"
         else: raise ValueError("unsupported restart setting")
-        expected = lora.SerializeToString()
+        field = {"lora.region": "region", "lora.modem_preset": "modem_preset", "lora.channel_num": "channel_num", "position.gps_mode": "gps_mode"}[path]
+        expected = getattr(getattr(config, group), field)
+        expected_tx = lora.tx_enabled
         self.radio_stop()
         self._settings.apply(config, channels)
         self._set_radio("off", "Settings saved; reconnecting radio")
         self.radio_start()
         self._require_online()
-        if self._iface.localNode.localConfig.lora.SerializeToString() != expected:
-            self.radio_stop_with_error("radio tuning readback differs from requested settings")
-            raise ValueError("radio tuning was not confirmed")
+        actual = self._iface.localNode.localConfig
+        if (getattr(getattr(actual, group), field) != expected or actual.lora.tx_enabled != expected_tx or
+                (path == "lora.modem_preset" and not actual.lora.use_preset)):
+            self.radio_stop_with_error("radio configuration readback differs from requested settings")
+            raise ValueError("radio configuration was not confirmed")
 
     def _position_sharing_on(self) -> bool:
         """Position is actually shared only when a channel carries non-zero

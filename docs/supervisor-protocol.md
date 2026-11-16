@@ -4,7 +4,7 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 
 - **Socket path:** `$XDG_RUNTIME_DIR/cz-mesh/supervisor.sock` (falls back to `/tmp/cz-mesh-<uid>/supervisor.sock`).
 - **Framing:** UTF-8, one compact JSON object per line (`\n`-terminated). No embedded newlines.
-- **Direction:** the client sends **intents**; the supervisor sends **events** — both as replies to an intent and asynchronously (e.g. an incoming message). A client may send `"id"` on an intent; the matching reply echoes it.
+- **Direction:** the client sends **intents**; the supervisor sends **events** — both as replies to an intent and asynchronously (e.g. an incoming message). Direct replies echo the intent's optional `"id"`; state-update broadcasts do not. Use `state.sync` when a persistence barrier is needed after a broadcast-only operation.
 
 ## Intents (UI → supervisor)
 
@@ -20,7 +20,7 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `channel.share` | `channel`, `id` | replies `channelshare` with a share URL for **that indexed channel only** |
 | `region.set` | `region` (e.g. `"US"`) | set the LoRa region |
 | `owner.set` | `name`, `short?` | set this node's name |
-| `config.set` | `path`, `value`, `id`, `channel` when enabling position | set one config field (`lora.modem_preset`, `lora.hop_limit`, `lora.channel_num`, `position.enabled`, `mqtt.enabled`) |
+| `config.set` | `path`, `value`, `id`, `channel` when enabling position | set one config field (`lora.modem_preset`, `lora.hop_limit`, `lora.channel_num`, `position.gps_mode`, `position.enabled`, `mqtt.enabled`) |
 | `message.list` | `channel?` | replies `messages` (optionally filtered to one channel index) |
 | `message.send` | `channel`, `text`, `dest?`, `cid`, `wantAck?` (default `true`) | send a text message; with `wantAck` an ack drives a `delivery` event keyed by `cid` |
 | `position.send` | `channel`, `dest?` | send this node's GPS position as a visible message, or reply `error` if there is no fix |
@@ -38,7 +38,7 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `message` | `message`: one `{…}` — pushed asynchronously when a text arrives (received carry `snr`/`hops`) |
 | `delivery` | `cid`, `status` (`sent`\|`mesh`\|`delivered`\|`failed`), `hops?` — the ack for one of our `message.send`s |
 | `device` | `node_id`, `firmware`, `model` — our node's identity |
-| `config` | `preset`, `hop`, `position`, `mqtt`, `confirmed`, `frequency_slot`, `id?` — the current LoRa/module config |
+| `config` | `preset`, `hop`, `position`, `gps_mode`, `mqtt`, `confirmed`, `frequency_slot`, `tx_enabled`, `id?` — the current LoRa/module config |
 | `channelshare` | `channel`, `channel_id`, `name`, `url`, `id` — a Meshtastic share URL for one channel (reply to `channel.share`) |
 | `traceroute` | `node`, `channel`, `ok`, `path?` (names, you→…→dest) or `text?` (reason on failure) |
 | `notice` | `text` — a human status line (e.g. "location sent") |
@@ -101,8 +101,9 @@ Upgrade UI and supervisor together. Every operation that targets an existing
 channel includes `channel_id` from `channels[].identity`, in addition to its
 integer `channel`. This includes messages, position sends/requests, traces, QR
 sharing and enabling automatic location. A stale/missing identity is refused
-before RF. Each identity is an opaque local HMAC of effective name and key;
-slot/role changes preserve it while key/name changes create an archived thread.
+before RF. Each identity is an opaque local HMAC of effective name, normalized
+key and any explicit nonzero channel ID; slot/role changes preserve it while
+key/name/explicit-ID changes create an archived thread.
 The HMAC secret and channel keys never enter ordinary events. A broadcast thread
 is `ch:<identity>`; old messages without identity are isolated as `ch:legacy:<slot>`
 and cannot send. DMs still require explicit channel selection; their drafts
@@ -116,6 +117,9 @@ Messages carry `channel_id`, saved `channel_name`, `channel_private`, and option
 status refreshes every two seconds, node ages at least every ten seconds.
 Fresh GPS coordinates must be finite/in range with age at most 120 seconds;
 unknown/future/stale fixes cannot be sent silently. The UI waits for a fresh fix.
+`config.set` with `position.gps_mode` accepts `ENABLED` or `DISABLED` and controls
+the receiver independently of location-sharing consent. Diagnostics include
+`position_valid` and `position_fresh`; a timestamp alone is not a position fix.
 
 | Intent | Args and result |
 |---|---|
@@ -142,11 +146,11 @@ crash can lose the last 650 ms of edits. Confirmed supervisor acceptance clears 
 matching draft; rejected sends preserve it. Quiet hours are UI preferences in
 its private INI, using device local time and supporting windows across midnight.
 
-Changes to region, modem preset or frequency slot use a planned stop/persist/start
+Changes to region, modem preset, frequency slot or GPS receiver mode use a planned stop/persist/start
 cycle, followed by actual readback. Firmware-initiated tuning reboots are not
 misclassified as unexpected radio loss. Other disconnections preserve the actual
 failure reason and power down through the guardian.
 
 `state.sync {id}` is a serialized persistence barrier and replies `state.synced`. The UI flushes drafts before graceful exit and waits up to two seconds for this barrier; an unavailable/busy supervisor can still prevent the final save.
 
-Channel share replies validate the original opaque identity as well as request/slot; changing the active channel closes an already visible QR. Automatic-location pickers retain the identity shown when opened and reject changed slots at either confirmation step. Retries resolve their original identity after a slot move instead of targeting a replacement.
+Channel share replies validate the original opaque identity as well as request/slot; changing the active channel closes an already visible QR. Automatic-location pickers retain the identity shown when opened and reject changed slots at either confirmation step. Retries resolve their original identity after a slot move instead of targeting a replacement. Draft-only, pinned and cleared conversations remain in the list independently of saved messages; deleting a conversation removes its saved state too.

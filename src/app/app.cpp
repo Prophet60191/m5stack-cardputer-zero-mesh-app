@@ -248,7 +248,7 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
             vm.config_unknown();
             return;
         }
-        vm.apply_config(preset->str, hop->as_int32(), position->b, mqtt->b, ev.str_at("id"), static_cast<int>(ev.int_at("frequency_slot")));
+        vm.apply_config(preset->str, hop->as_int32(), position->b, mqtt->b, ev.str_at("id"), static_cast<int>(ev.int_at("frequency_slot")), ev.str_at("gps_mode", "UNKNOWN"));
     }
     // "notice" / "error": surfaced via toast during polish (step 5).
 }

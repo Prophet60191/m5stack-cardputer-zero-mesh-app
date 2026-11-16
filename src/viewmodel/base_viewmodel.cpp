@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -461,6 +462,7 @@ void BaseViewModel::delete_thread(const std::string& key) {
     send_intent("{\"intent\":\"thread.delete\",\"thread\":\"" + json::escape(key) + "\"}");
     muted_.erase(key);   // forget everything local about the conversation
     persist();
+    messages_version_subject_.set(messages_version_subject_.value() + 1);
 }
 
 void BaseViewModel::delete_message(const std::string& id) {
@@ -736,6 +738,10 @@ void BaseViewModel::set_mqtt(bool on) {
     send_config(std::string("\"path\":\"mqtt.enabled\",\"value\":") + (on ? "true" : "false"));
 }
 
+void BaseViewModel::set_gps_enabled(bool on) {
+    send_config(std::string("\"path\":\"position.gps_mode\",\"value\":\"") + (on ? "ENABLED" : "DISABLED") + "\"");
+}
+
 void BaseViewModel::set_auto_start(bool on) {
     autostart_subject_.set(on);
     persist();
@@ -756,13 +762,14 @@ void BaseViewModel::apply_device(const std::string& node_id, const std::string& 
     model_subject_.set(model.c_str());
 }
 
-void BaseViewModel::apply_config(const std::string& preset, int hop, bool position, bool mqtt, const std::string& request, int frequency_slot) {
+void BaseViewModel::apply_config(const std::string& preset, int hop, bool position, bool mqtt, const std::string& request, int frequency_slot, const std::string& gps_mode) {
     if (!config_request_.empty() && request != config_request_) return;
     config_request_.clear();
     if (!preset.empty()) modem_preset_subject_.set(preset.c_str());
     if (hop >= 0) hop_limit_subject_.set(hop);
     frequency_slot_subject_.set(frequency_slot);
     position_subject_.set(position);
+    gps_mode_subject_.set(gps_mode.c_str());
     mqtt_subject_.set(mqtt);
     config_state_.set("confirmed");
 }
@@ -797,6 +804,13 @@ void BaseViewModel::apply_threads(const json::Value& event) {
     const auto local = drafts_;
     drafts_.clear(); pinned_.clear();
     if (const auto* states = event.find("threads")) for (const auto& [key, value] : states->obj) {
+        if (drafts_.size() >= 256) break;
+        if (key.size() <= 3 || key.size() > 160 || value.type != json::Value::Obj ||
+            (key.rfind("ch:",0) != 0 && key.rfind("dm:",0) != 0) || value.str_at("draft").size() > 200) continue;
+        if (key.rfind("dm:",0) == 0) {
+            const auto peer = key.substr(3,key.find('@') == std::string::npos ? std::string::npos : key.find('@')-3);
+            if (peer.size() != 9 || peer[0] != '!' || !std::all_of(peer.begin()+1,peer.end(),[](unsigned char c) { return std::isxdigit(c); })) continue;
+        }
         drafts_[key] = value.str_at("draft");
         if (const auto* pin = value.find("pinned"); pin && pin->as_bool()) pinned_.insert(key);
     }
@@ -808,6 +822,21 @@ std::string BaseViewModel::draft(const std::string& key) const {
     const auto it = drafts_.find(key); return it == drafts_.end() ? "" : it->second;
 }
 bool BaseViewModel::pinned(const std::string& key) const { return pinned_.count(key); }
+void BaseViewModel::remember_conversation(const std::string& key) {
+    if (drafts_.count(key)) return;
+    drafts_[key] = "";
+    send_thread_state(key);
+}
+std::vector<std::string> BaseViewModel::conversation_keys() const {
+    std::set<std::string> keys = pinned_;
+    for (const auto& item : drafts_) keys.insert(item.first.substr(0, item.first.find('@')));
+    return {keys.begin(), keys.end()};
+}
+std::string BaseViewModel::conversation_draft(const std::string& key) const {
+    for (const auto& item : drafts_) if (!item.second.empty() &&
+        (item.first == key || item.first.rfind(key + "@", 0) == 0)) return item.second;
+    return "";
+}
 void BaseViewModel::send_thread_state(const std::string& key) {
     send_intent("{\"intent\":\"thread.state\",\"thread\":\"" + json::escape(key) +
         "\",\"state\":{\"draft\":\"" + json::escape(draft(key)) + "\",\"pinned\":" + (pinned(key) ? "true" : "false") + "}}");

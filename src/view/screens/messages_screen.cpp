@@ -10,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <algorithm>
 #include <ctime>
 #include <string>
 
@@ -219,6 +220,22 @@ void MessagesScreen::rebuild_list() {
         }
         if (m.time >= last_time[idx]) { last_time[idx] = m.time; last_text[idx] = m.text; }
     }
+    // Persisted empty, pinned and draft-only conversations remain reachable.
+    for (const auto& key : view_model().conversation_keys()) {
+        const std::string draft = view_model().conversation_draft(key);
+        auto existing = std::find(conv_key_.begin(), conv_key_.end(), key);
+        if (existing != conv_key_.end()) {
+            if (!draft.empty()) last_text[existing - conv_key_.begin()] = "Draft: " + draft;
+            continue;
+        }
+        conv_key_.push_back(key);
+        const bool group = viewmodel::is_group_thread(key);
+        const std::string peer = group ? "" : key.substr(3);
+        conv_peer_.push_back(peer);
+        conv_name_.push_back(group ? group_name(key) : peer_name_for(peer));
+        last_text.push_back(draft.empty() ? "No messages" : "Draft: " + draft);
+        last_time.push_back(0);
+    }
     // Sort by last_time desc (simple selection sort on the parallel arrays).
     for (int i = 0; i < static_cast<int>(conv_key_.size()); ++i) {
         int best = i;
@@ -237,7 +254,7 @@ void MessagesScreen::rebuild_list() {
 
     if (!search_.empty()) {
         for (int i = static_cast<int>(conv_key_.size()) - 1; i >= 0; --i) {
-            bool match = conv_name_[i].find(search_) != std::string::npos;
+            bool match = conv_name_[i].find(search_) != std::string::npos || last_text[i].find(search_) != std::string::npos;
             for (const auto& m : messages) if (thread_of(m) == conv_key_[i] && m.text.find(search_) != std::string::npos) match = true;
             if (!match) { conv_key_.erase(conv_key_.begin()+i); conv_peer_.erase(conv_peer_.begin()+i); conv_name_.erase(conv_name_.begin()+i); last_text.erase(last_text.begin()+i); last_time.erase(last_time.begin()+i); }
         }
@@ -287,8 +304,9 @@ void MessagesScreen::rebuild_list() {
         lv_obj_set_style_text_color(name, colors.text, 0);
         auto* sub = lv_label_create(row);
         char when[16];
-        fmt("%H:%M", when, sizeof(when), last_time[i]);
-        lv_label_set_text(sub, (preview(last_text[i]) + kDot + when).c_str());
+        when[0] = '\0';
+        if (last_time[i] > 0) fmt("%H:%M", when, sizeof(when), last_time[i]);
+        lv_label_set_text(sub, (preview(last_text[i]) + (when[0] ? std::string(kDot) + when : "")).c_str());
         lv_label_set_long_mode(sub, LV_LABEL_LONG_DOT);
         lv_obj_set_width(sub, lv_pct(100));
         lv_obj_set_style_text_font(sub, sub_font, 0);
@@ -429,7 +447,11 @@ void MessagesScreen::rebuild_thread() {
 
     if (!any) {
         auto* empty = lv_label_create(body_);
-        lv_label_set_text(empty, "No messages yet. Press Enter to write one.");
+        const std::string saved = view_model().conversation_draft(thread_key_);
+        lv_label_set_text(empty, saved.empty() ? "No messages yet. Press Enter to write one." :
+            ("Saved draft (edit on its original channel):\n" + saved).c_str());
+        lv_obj_set_width(empty, lv_pct(95));
+        lv_label_set_long_mode(empty, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_font(empty, small_font, 0);
         lv_obj_set_style_text_color(empty, colors.text_disabled, 0);
         lv_obj_center(empty);
@@ -449,6 +471,7 @@ void MessagesScreen::open_thread(const std::string& key, const std::string& peer
                                  const std::string& peer_name) {
     mode_ = Mode::Thread;
     thread_key_ = key;
+    view_model().remember_conversation(key);
     peer_id_ = peer_id;
     peer_name_ = peer_name.empty() ? peer_name_for(peer_id) : peer_name;
     at_bottom_ = true;

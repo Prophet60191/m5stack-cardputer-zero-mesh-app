@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import stat
 import threading
@@ -99,7 +100,9 @@ class StateStore:
                     self._db.execute("SELECT name,payload FROM threads LIMIT 256")}
 
     def set_thread(self, name, value):
-        if not isinstance(name, str) or not name.startswith(("ch:", "dm:")) or len(name) > 160:
+        if (not isinstance(name, str) or len(name) <= 3 or len(name) > 160 or
+                not name.startswith(("ch:", "dm:")) or
+                (name.startswith("dm:") and not re.fullmatch(r"dm:![0-9a-fA-F]{8}(?:@[A-Za-z0-9_-]{1,64})?", name))):
             raise ValueError("invalid conversation identity")
         if not isinstance(value, dict): raise ValueError("invalid conversation state")
         draft = value.get("draft", "")
@@ -116,7 +119,9 @@ class StateStore:
             self._db.execute("INSERT OR REPLACE INTO threads VALUES (?,?)", (name, json.dumps(clean)))
 
     def delete_thread(self, name):
-        if not isinstance(name, str) or not name.startswith(("ch:", "dm:")) or len(name) > 160:
+        if (not isinstance(name, str) or len(name) <= 3 or len(name) > 160 or
+                not name.startswith(("ch:", "dm:")) or
+                (name.startswith("dm:") and not re.fullmatch(r"dm:![0-9a-fA-F]{8}(?:@[A-Za-z0-9_-]{1,64})?", name))):
             raise ValueError("invalid conversation identity")
         with self._lock, self._db:
             keys = [key for (key,) in self._db.execute("SELECT name FROM threads") if key == name or key.startswith(name + "@")]

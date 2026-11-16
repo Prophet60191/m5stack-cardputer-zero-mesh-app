@@ -102,6 +102,9 @@ public:
     void save_draft(const std::string& key, const std::string& text);
     void flush_drafts();
     bool pinned(const std::string& key) const;
+    void remember_conversation(const std::string& key);
+    std::vector<std::string> conversation_keys() const;
+    std::string conversation_draft(const std::string& key) const;
     void toggle_pin(const std::string& key);
     bool history_enabled() const { return history_enabled_; }
     void set_quiet_hours(int start, int end);
@@ -200,6 +203,8 @@ public:
     lv_subject_t* hop_limit_subject();
     lv_subject_t* frequency_slot_subject() { return frequency_slot_subject_.native(); }
     lv_subject_t* position_subject();     // broadcast my position
+    lv_subject_t* gps_mode_subject() { return gps_mode_subject_.native(); }
+    void set_gps_enabled(bool on);
     lv_subject_t* mqtt_subject();         // internet/MQTT bridge
     lv_subject_t* autostart_subject();    // start the radio on launch (app-local)
     lv_subject_t* node_id_subject();
@@ -215,7 +220,7 @@ public:
     void load_auto_start(bool on);   // apply persisted auto-start without re-saving
     bool auto_start() const;
     void apply_device(const std::string& node_id, const std::string& firmware, const std::string& model);
-    void apply_config(const std::string& preset, int hop, bool position, bool mqtt, const std::string& request = "", int frequency_slot = 0);
+    void apply_config(const std::string& preset, int hop, bool position, bool mqtt, const std::string& request = "", int frequency_slot = 0, const std::string& gps_mode = "UNKNOWN");
     lv_subject_t* config_state_subject() { return config_state_.native(); }
     const char* config_state() const { return config_state_.value(); }
     void config_unknown();
@@ -270,6 +275,7 @@ private:
     reactive::IntSubject hop_limit_subject_{3};
     reactive::IntSubject frequency_slot_subject_{0};
     reactive::BoolSubject position_subject_{false};
+    reactive::StringSubject<20> gps_mode_subject_{"UNKNOWN"};
     reactive::StringSubject<16> config_state_{"unknown"};
     std::string config_request_;
     long long config_deadline_ = 0;
