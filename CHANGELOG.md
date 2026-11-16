@@ -18,7 +18,9 @@ privacy/configuration actions, real-font footer bounds and compose/scroll/list
 transitions. Both CI jobs pass, including 67 backend cases and Debian arm64
 package/install checks. The exact CI artifact is installed on the development
 device; all ten runtime hashes, saved messages, current keys/settings, radio
-online and firewall health were verified. No additional RF messages were sent.
+online and firewall health were verified. No test texts, position requests or traceroutes were sent.
+The operator confirmed Radio is first and the channel/header plus footer help
+are both visible on the actual device.
 
 ## 0.1.2 — 2026-11-15 (release candidate; hardware qualification in progress)
 

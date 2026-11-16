@@ -236,8 +236,8 @@ Conversations keep channel/peer context in a fixed header above the scrolling
 messages and use the footer solely for keyboard help or compose input. Long peer
 names are ellipsized after the channel/classification. The route is revalidated
 for display when a DM selection changes. Native tests measure actual font/text
-and object bounds at320x170, including selection, composing and return to the list.
-ASAN/UBSAN and all67 backend tests in the Debian arm64 package gate pass. Current
+and object bounds at 320x170, including selection, composing and return to the list.
+ASAN/UBSAN and all 67 backend tests in the Debian arm64 package gate pass. Current
 screenshots are synthetic renders.
 
 The actual checksummed CI artifact from the 0.1.3 functional source was installed
@@ -245,3 +245,5 @@ on the development device. All ten runtime hashes matched, current channel keys/
 configuration and saved messages survived, and actual radio-online/API/firewall
 readback passed. Launcher refresh passed. This UI change does not establish the
 previously deferred outdoor GPS/public-RF/physical-IPv6 checks.
+The operator subsequently confirmed the Settings order and the separate channel
+header/keyboard-help layout on the actual device.
