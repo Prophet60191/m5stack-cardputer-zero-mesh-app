@@ -120,6 +120,7 @@ rules.ninja
 *.pdb
 *.ilk
 *.map
+!tests/fixtures/cardputerzero-keymap.map
 *.gcno
 *.gcda
 *.gcov
