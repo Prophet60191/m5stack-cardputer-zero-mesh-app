@@ -14,8 +14,11 @@ Validation: native ASAN/UBSAN checks cover ready/busy/result transitions, retry,
 Escape, repeated keys, unsolicited updates, stale replies and connection loss.
 Real-font keyboard hints fit at 320x170. All 68 backend cases pass in Debian 13
 arm64, including scan reply correlation without exposing the decoded URL;
-package/install/policy checks pass. Actual-device installation is tracked
-separately in the verification record.
+package/install/policy checks pass. Both CI jobs pass. The exact checksummed CI
+package is installed on the development device: ten runtime hashes match, current
+settings/keys, saved conversations/drafts and app preferences are preserved, and
+radio/API/firewall readback passes. No new physical QR import was performed for
+this UI update; camera capture itself is unchanged.
 
 ## 0.1.3 — 2026-11-16 (release candidate)
 

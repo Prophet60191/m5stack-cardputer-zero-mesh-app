@@ -266,4 +266,13 @@ busy keyboard hints are checked against real-font pixel bounds at 320x170;
 rendered examples use synthetic data. All 68 backend cases and Debian 13 arm64
 package/install/policy checks pass. Existing in-memory camera capture and import
 validation are unchanged. These offline results do not claim a new physical
-camera scan; installation verification is recorded separately when completed.
+camera scan.
+
+Both GitHub CI jobs passed on functional source `8213d63`:
+[workflow run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/43878767196).
+The downloaded 0.1.4 package's source ID and checksum were verified before
+installation. All ten installed runtime hashes match that artifact; current
+channel keys/tuning/TX/GPS/privacy settings, app preferences, conversations and
+drafts are unchanged. Saved messages survived. Actual radio-online/API/firewall
+readback and launcher refresh passed. No test texts, location requests or traces
+were sent. The previous outdoor GPS/public-RF/physical-IPv6 limits remain.
