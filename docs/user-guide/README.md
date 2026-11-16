@@ -1,6 +1,6 @@
 # User Guide & Quick Reference
 
-For Mesh **0.1.8 (release candidate)** · Updated **2026-11-16**
+For Mesh **0.1.9 (release candidate)** · Updated **2026-11-16**
 
 Start with the introduction if you are new to the app, or keep the quick reference
 handy when you are away from a computer.
@@ -22,7 +22,7 @@ URL contains its secret key: share it only with the intended group.
 
 ## Offline downloads
 
-Download both PDFs from the **[0.1.8 candidate documentation release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.8-rc.1)**:
+Download both PDFs from the **[0.1.9 candidate documentation release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.9-rc.1)**:
 
 - **Cardputer-Zero-Mesh-User-Guide.pdf** — combined illustrated manual, with
   contents, internal links and chapter bookmarks.
@@ -37,7 +37,7 @@ See the [verification record](../review-remediation.md).
 
 All 24 screenshots use synthetic names, node IDs, messages and positions. The QR
 picture is demonstration data, not a channel to join. The screenshots were
-rendered with 0.1.6; their controls were checked against 0.1.8. Diagnostics on your
+rendered with 0.1.6; their controls were checked against 0.1.9. Diagnostics on your
 device shows your installed version. Colors can differ with your selected theme.
 
 Public messages, identity and telemetry can be visible to other people. Other

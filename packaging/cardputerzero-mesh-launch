@@ -1,5 +1,5 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
 set -eu
-systemctl --user start cardputerzero-mesh-supervisor.service
+/usr/bin/python3 /usr/lib/cardputerzero-mesh/user_service.py ensure
 exec /usr/bin/cardputerzero-mesh "$@"

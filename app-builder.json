@@ -1,27 +1,27 @@
 {
   "app_name": "Cardputer Zero Mesh",
   "package_name": "cardputerzero-mesh",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Meshtastic client for the M5Stack CardputerZero",
   "store": {
     "summary": "Send and receive Meshtastic messages over LoRa on the CardputerZero.",
-    "description": "A Meshtastic client for the M5Stack CardputerZero. Threaded messaging over the LoRa mesh with delivery status and resend, a nodes list and radar map, quick (canned) messages, send/request location, traceroute, and channel-QR share. A native LVGL UI drives a Python radio supervisor that owns the SX1262 Cap and meshtasticd. Requires the Cap LoRa-1262 (install meshtasticd and the meshtastic library separately).",
+    "description": "A Meshtastic client for the M5Stack CardputerZero and Cap LoRa-1262. Public/private channel messaging, delivery results and retries, saved conversations/drafts, nodes and radar map, quick messages, location controls, traceroute, channel QR import/share, profiles and diagnostics. A native LVGL UI uses an unprivileged background radio supervisor. Prerequisites: Debian 13 arm64, the qualified meshtasticd 2.7.26 build and meshtastic 2.7.11 in an app-private Python environment; see the source installation guide. Optional camera scanning also requires its documented camera/QR dependencies. Attach the antenna before enabling the radio. First setup is receive-only; transmitting and location sharing require explicit choices. Private channel keys and local history remain sensitive.",
     "categories": [
-      "Communication",
-      "Utilities"
+      "Radio & Comms",
+      "Hardware & IoT"
     ],
     "screenshots": [
       "docs/screenshots/carousel.png",
       "docs/screenshots/messages.png"
     ],
-    "icon": "assets/images/mesh.png",
+    "icon": "packaging/store-icon.png",
     "license": "MIT AND GPL-3.0-or-later",
     "source_repo": "https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app",
     "author": {
       "github": "Prophet60191",
       "display_name": "Jose Di Lenola"
     },
-    "share_code": "",
+    "share_code": "MESH",
     "permissions": {
       "camera": true,
       "microphone": false,

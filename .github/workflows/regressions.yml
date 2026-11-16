@@ -27,6 +27,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Check out reviewed non-publishing Store checker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Prophet60191/m5stack-cardputer-zero-app-guide
+          ref: d414f602e219b3e40d2630022f3996bc8b9c4fcd
+          path: build/store-guide
+          persist-credentials: false
+      - name: Check out reviewed Store policy and catalog
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: CardputerZero/packages
+          ref: 94eb8d7ad524e8ee01a52658f31871e6377c7544
+          path: build/store-packages
+          persist-credentials: false
+      - name: Fetch and verify the published upgrade baseline
+        run: |
+          mkdir -p "$RUNNER_TEMP/cz-baseline"
+          curl --fail --location --retry 3 https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/download/v0.1.8-rc.1/cardputerzero-mesh_0.1.8_rev1_arm64.deb -o "$RUNNER_TEMP/cz-baseline/mesh-0.1.8.deb"
+          printf '%s  %s\n' 8ff56073d45b43ed1cd1212f46bbdfcc9e345219c0897fbdf97d5fac2ad7b3b4 "$RUNNER_TEMP/cz-baseline/mesh-0.1.8.deb" | sha256sum -c -
       - name: Fetch qualified LVGL source
         run: |
           git init --quiet "$RUNNER_TEMP/lvgl"
@@ -39,8 +58,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/cz-build"
           docker run --rm --network none --cap-add NET_ADMIN \
             -e CZ_MESH_ISOLATED_TEST=1 \
+            -e CZ_MESH_UPGRADE_BASELINE=/baseline/mesh-0.1.8.deb \
             -v "$GITHUB_WORKSPACE:/src:ro" \
             -v "$RUNNER_TEMP/lvgl:/lvgl:ro" \
+            -v "$RUNNER_TEMP/cz-baseline:/baseline:ro" \
             -v "$RUNNER_TEMP/cz-build:/work" \
             cz-mesh-arm64 sh /src/tests/linux-package-check.sh
       - name: Record checksums and corresponding source
@@ -50,6 +71,14 @@ jobs:
           cd "$RUNNER_TEMP/cz-artifact"
           sha256sum *.deb > SHA256SUMS
           printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT
+      - name: Inspect the exact candidate without publishing
+        run: |
+          mesh_version=$(python3 -c 'import json; print(json.load(open("app-builder.json"))["version"])')
+          python3 build/store-guide/tools/store_preflight.py \
+            --app . \
+            --deb "$RUNNER_TEMP/cz-artifact/cardputerzero-mesh_${mesh_version}-rev1_arm64.deb" \
+            --packages-dir build/store-packages --uploader Prophet60191 \
+            --source-commit "$GITHUB_SHA" --json > "$RUNNER_TEMP/cz-artifact/store-preflight.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cardputerzero-mesh-debian13-arm64
@@ -57,6 +86,7 @@ jobs:
             ${{ runner.temp }}/cz-artifact/*.deb
             ${{ runner.temp }}/cz-artifact/SHA256SUMS
             ${{ runner.temp }}/cz-artifact/SOURCE_COMMIT
+            ${{ runner.temp }}/cz-artifact/store-preflight.json
           if-no-files-found: error
       - name: Stage the non-installed keyboard replay helper
         run: |

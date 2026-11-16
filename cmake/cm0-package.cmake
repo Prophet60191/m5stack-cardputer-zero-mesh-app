@@ -10,8 +10,7 @@ set(APP_DOC_DIR "${CMAKE_INSTALL_DATAROOTDIR}/doc/cardputerzero-mesh")
 set(APP_DISPLAY_NAME "Cardputer Zero Mesh" CACHE STRING "Human-readable application name used by launchers and package filename")
 set(APP_DEBIAN_REVISION "rev1" CACHE STRING "Debian package revision/vendor suffix")
 set(APP_DEBIAN_ARCHITECTURE "arm64" CACHE STRING "Debian package architecture")
-# Deliberately a placeholder: the store rejects packages whose Maintainer is
-# still a template/M5Stack identity, so set your own name and email here.
+# Preserve the explicit project maintainer; template identities fail Store checks.
 set(APP_MAINTAINER "Jose Di Lenola <Prophet60191@users.noreply.github.com>" CACHE STRING "Debian package maintainer")
 set(APP_PACKAGE_DESCRIPTION "Meshtastic client for the M5Stack CardputerZero" CACHE STRING "Debian package summary")
 # Off by default: the app launches from the APPLaunch grid as the logged-in
@@ -105,7 +104,7 @@ set(CPACK_PACKAGE_VENDOR "${APP_MAINTAINER}")
 set(CPACK_PACKAGE_CONTACT "${APP_MAINTAINER}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${APP_PACKAGE_DESCRIPTION}")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_FILE_NAME "cardputerzero-mesh_${PROJECT_VERSION}_${APP_DEBIAN_REVISION}_${APP_DEBIAN_ARCHITECTURE}")
+set(CPACK_PACKAGE_FILE_NAME "cardputerzero-mesh_${PROJECT_VERSION}-${APP_DEBIAN_REVISION}_${APP_DEBIAN_ARCHITECTURE}")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 
 string(TOLOWER "${APP_DISPLAY_NAME}" APP_DEBIAN_PACKAGE_NAME)
@@ -135,9 +134,8 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/supervisor/"
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/app-builder.json" DESTINATION "lib/cardputerzero-mesh")
 install(PROGRAMS supervisor/firewall-setup.sh packaging/run-supervisor
     DESTINATION "lib/cardputerzero-mesh")
-install(PROGRAMS packaging/mesh-launch DESTINATION "bin")
+install(PROGRAMS packaging/cardputerzero-mesh-launch DESTINATION "bin")
 install(FILES packaging/cardputerzero-mesh-firewall.service DESTINATION "lib/systemd/system")
-install(FILES packaging/cardputerzero-mesh-supervisor.service DESTINATION "lib/systemd/user")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${APP_GENERATED_DIR}/conffiles;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postinst;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postrm")
 
 include(CPack)

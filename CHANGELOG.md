@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.9 — 2026-11-16 (release candidate)
+
+- Correct Store categories/share code and add a separate 256px Store icon with
+  vector source, preserving the visible app identity and runtime icon.
+- Rename the launcher wrapper to the package prefix and align its desktop entry.
+  Use the Debian version/revision in the installer filename.
+- Replace the static user-unit installation with a fixed transient user-service
+  controller. Preserve NoNewPrivileges, umask, cgroup termination, failure restart
+  and guardian stop recovery. Serialize lifecycle actions; reject root/unsafe
+  locks and leave an active supervisor alone on repeated UI launches.
+- Add actual 0.1.8 package-upgrade checks and pinned official Store preflight to
+  arm64 CI. Record corrected static/transient cleanup-argument behavior and keep
+  hardware evidence distinct from package admission.
+
+Native sanitizer checks and all 95 backend cases pass locally, including nine
+new service regressions. The actual-device dummy-service probe passes without
+touching the existing supervisor. Package/CI and installed-runtime verification
+are recorded separately in the release evidence and [readiness record](docs/store-readiness.md).
+Local Debian 13 arm64 fresh-install/0.1.8-upgrade, real-reader, firewall/policy
+checks and all 95 backend cases pass; Store preflight reports no blocking errors.
+
 ## 0.1.8 — 2026-11-16 (release candidate)
 
 - Replace the incorrect partial Sym table with all 32 official symbols, using

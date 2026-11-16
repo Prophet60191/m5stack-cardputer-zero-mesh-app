@@ -16,12 +16,16 @@ cd "$mesh_build"
 ASAN_OPTIONS=detect_leaks=0 ctest --output-on-failure
 cpack -G DEB
 mesh_version=$(python3 -c 'import json; print(json.load(open("/src/app-builder.json"))["version"])')
-package="dist/cardputerzero-mesh_${mesh_version}_rev1_arm64.deb"
+package="dist/cardputerzero-mesh_${mesh_version}-rev1_arm64.deb"
 dpkg-deb --info "$package"
 dpkg-deb --contents "$package" > package-contents.txt
 # Some minimized images exclude docs by default; include them for validation.
 dpkg --path-include='/usr/share/doc/*' -i "$package"
 test -x /usr/bin/cardputerzero-mesh
+test -x /usr/bin/cardputerzero-mesh-launch
+test -f /usr/lib/cardputerzero-mesh/user_service.py
+test ! -e /usr/bin/mesh-launch
+test ! -e /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
 test ! -e /usr/bin/mesh_benchmarks
 test ! -e /usr/bin/mesh_keyboard_regressions
 test ! -e /usr/bin/mesh_keyboard_evdev_regressions
@@ -33,8 +37,21 @@ test -z "$(find /usr/share/doc/cardputerzero-mesh/docs -type f -iname '*.pdf' -p
 test -f /etc/cardputerzero-mesh.conf
 test ! -e /usr/bin/template_app
 test ! -e /etc/sudoers.d/cardputerzero-mesh
-systemd-analyze verify /usr/lib/systemd/system/cardputerzero-mesh-firewall.service \
-    /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
+systemd-analyze verify /usr/lib/systemd/system/cardputerzero-mesh-firewall.service
+# Exercise the real upgrade archive, including removal of the old wrapper/unit.
+# The trusted baseline is downloaded/checksummed before this offline container.
+test -n "${CZ_MESH_UPGRADE_BASELINE:-}"
+test "$(sha256sum "$CZ_MESH_UPGRADE_BASELINE" | cut -d ' ' -f 1)" = 8ff56073d45b43ed1cd1212f46bbdfcc9e345219c0897fbdf97d5fac2ad7b3b4
+mesh_saved_config=$(sha256sum /etc/cardputerzero-mesh.conf | cut -d ' ' -f 1)
+dpkg --path-include='/usr/share/doc/*' -i "$CZ_MESH_UPGRADE_BASELINE"
+test -e /usr/bin/mesh-launch
+test -e /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
+dpkg --path-include='/usr/share/doc/*' -i "$package"
+test ! -e /usr/bin/mesh-launch
+test ! -e /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
+test -x /usr/bin/cardputerzero-mesh-launch
+test "$mesh_saved_config" = "$(sha256sum /etc/cardputerzero-mesh.conf | cut -d ' ' -f 1)"
+test -z "$(dpkg --audit)"
 systemctl enable cardputerzero-mesh-firewall.service
 systemctl is-enabled cardputerzero-mesh-firewall.service
 setpriv --reuid=cz-mesh-firewall --regid=cz-mesh-firewall --clear-groups \

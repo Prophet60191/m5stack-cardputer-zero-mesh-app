@@ -31,7 +31,7 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.8, a release candidate** with public/private channel
+The current source is **0.1.9, a release candidate** with public/private channel
 support and fixes from an independent security and robustness review. Native UI,
 sanitizer, backend and Debian arm64 package checks pass. Private-peer delivery,
 camera QR and physical cold-power checks passed. Outdoor GPS, live public-mesh
@@ -120,14 +120,21 @@ Two cooperating processes with a clean boundary — the UI never touches the rad
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.8_rev1_arm64.deb
-sudo apt install meshtasticd      # or the official daemon .deb for your Debian image
+sudo apt install ./cardputerzero-mesh_0.1.9-rev1_arm64.deb
+# The qualified Debian build used for this candidate:
+sudo apt install 'meshtasticd=2.7.26.61~obs54e0d8d~beta'
 ```
 
-The package installs the supervisor, user service and boot-persistent capability
-firewall service, with no app sudo grant. It does not start RF.
+The package installs the supervisor and a boot-persistent capability firewall
+service, with no app sudo grant. On launch, a fixed helper creates a transient
+service in the logged-in user’s systemd manager. No shared user-unit file is
+installed and package installation does not start RF.
 Keep the existing platform SPI/GPIO/I2C/video/input permissions;
 do not run the app as root or grant blanket sudo.
+If that exact daemon build is unavailable from the configured repositories, obtain
+the corresponding verified upstream package rather than substituting a newer
+firmware/client combination. Runtime compatibility checks fail closed before
+power-on; this installer does not add repositories or install the radio stack.
 
 **2. Install the pinned radio client in your own venv:**
 
@@ -153,7 +160,7 @@ USB/V4L2 webcam fallback. Pasting a private share URL works without a camera.
 **3. Attach the antenna and launch Mesh from the grid.** On an empty state directory, first-run setup creates a receive-only profile. Choose your permitted region and public or newly generated private primary channel. Existing profiles are preserved. Use Settings → Transmit mode to enable TX deliberately. A private group needs its selected-channel QR shared with the intended peer.
 
 The launcher starts the
-user supervisor service; radio startup stays an explicit action unless you enable
+transient user supervisor service; radio startup stays an explicit action unless you enable
 auto-start. Closing the UI leaves the supervisor running; stop the radio or the
 user service before swapping the Cap. The firewall must pass verification before power-on. Check setup with:
 
@@ -162,6 +169,23 @@ python3 /usr/lib/cardputerzero-mesh/firewall.py health
 systemctl is-enabled cardputerzero-mesh-firewall.service
 systemctl --user status cardputerzero-mesh-supervisor.service
 ```
+
+For an upgrade, stop the radio/supervisor as the logged-in user before replacing
+its files, then launch Mesh again. The fixed lifecycle helper can also restart it
+explicitly (this stops any running radio and its child processes):
+
+```bash
+python3 /usr/lib/cardputerzero-mesh/user_service.py stop
+# Install the reviewed update, then launch Mesh, or:
+python3 /usr/lib/cardputerzero-mesh/user_service.py ensure
+# Explicit restart when needed:
+python3 /usr/lib/cardputerzero-mesh/user_service.py restart
+```
+
+Closing Mesh keeps the background supervisor available for reception. The service
+is created on demand after login; it is not enabled for boot. A cold boot starts
+without RF until Mesh is opened and its normal explicit/approved auto-start
+setting is applied. Before uninstall, stop the supervisor with the helper above.
 
 Source development can run the supervisor manually with the pinned venv, after
 installing this package's runtime/firewall integration. The retired `radio_up.py`

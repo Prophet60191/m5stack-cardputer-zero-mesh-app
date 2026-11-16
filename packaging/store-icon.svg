@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 100 100">
+  <title>Cardputer Zero Mesh</title>
+  <rect x="2" y="2" width="96" height="96" rx="20" fill="#139a4d"/>
+  <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 33L50 55L70 28M50 55L28 75L74 73L30 33M28 75L30 33M50 55L74 73"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="30" cy="33" r="8"/>
+    <circle cx="70" cy="28" r="8"/>
+    <circle cx="50" cy="55" r="7"/>
+    <circle cx="28" cy="75" r="8"/>
+    <circle cx="74" cy="73" r="8"/>
+  </g>
+</svg>

@@ -148,7 +148,7 @@ The supervisor validates owner/type/mode, boot identity, true verdict and an age
 of at most seven seconds before power-on and while running. Stale/missing/false
 verdicts stop the radio. As of 0.1.6, the obsolete passwordless sudo check grant
 is removed; `firewall.py health` is the unprivileged manual health command.
-The normal supervisor user unit can use NoNewPrivileges.
+The normal supervisor user service uses NoNewPrivileges.
 
 This addresses an observed device failure: `subprocess.run` timed out while
 waiting for sudo, then attempted to kill an elevated process it could not signal.
@@ -189,3 +189,25 @@ changed state requires another preview. URLs/keys are bounded and kept only in
 RAM, never returned in preview events. Confirmed imports remain serialized, with
 actual readback; their completion is announced even if their view was dismissed.
 Local draft/history writes use the state lock independently of radio admin waits.
+
+
+## Store-compatible user service (0.1.9)
+
+The package launches the supervisor as an on-demand **transient user service**,
+using fixed `systemd-run --user` arguments in `user_service.py`. It installs no
+static user unit or generated privileged files. The UI wrapper is named
+`cardputerzero-mesh-launch`; the visible application identity is unchanged.
+The supervisor still has its own control group, KillMode=control-group,
+NoNewPrivileges, UMask=0077, failure restart and guardian ExecStopPost recovery.
+It continues receiving when the UI exits. A second UI launch leaves an active
+supervisor alone. Restart/stop are explicit user operations and stop the radio;
+service-control arguments never come from an intent or a socket peer.
+
+An owned private runtime lock serializes lifecycle operations and refuses
+symlink/hardlink or permissive lock files/directories. The helper refuses root.
+Upgrade requires a completed stop, replacement of files, then a fresh start;
+check the reported live version/PID and settings afterward. The first 0.1.9
+upgrade removes the old package-owned wrapper and static unit, rather than
+leaving aliases, configuration links or installer-created hidden units.
+Store validation of the archive does not validate dynamically created service
+properties; these are covered by dedicated tests and a separate device probe.

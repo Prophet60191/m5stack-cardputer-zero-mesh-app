@@ -2,7 +2,7 @@
 Type=Application
 Name=@APP_DISPLAY_NAME@
 Comment=@APP_PACKAGE_DESCRIPTION@
-Exec=/usr/bin/mesh-launch
+Exec=/usr/bin/cardputerzero-mesh-launch
 Icon=share/images/mesh.png
 Terminal=false
 Categories=Utility;

@@ -73,9 +73,9 @@ cd build/cp0-native
 cpack -G DEB -C Release
 ```
 
-Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.8_rev1_arm64.deb`.
+Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.9-rev1_arm64.deb`.
 The package contains the UI, assets, launcher, supervisor/guardian sources, both
-licenses, user service, capability-limited firewall boot service, and canonical version metadata. The launcher starts the supervisor; it does not automatically start
+licenses, a fixed transient user-service controller, capability-limited firewall boot service, and canonical version metadata. The launcher starts the supervisor; it does not automatically start
 RF. Follow the README for platform permissions and pinned venv setup. The optional
 system-level UI autostart unit is unrelated to the radio supervisor and stays off.
 
@@ -102,7 +102,9 @@ using the real LVGL screen. Python tests use real pinned protobufs with fake rad
 and sysfs controls, including real subprocess death; they never power hardware.
 `tests/Dockerfile` provides an isolated Debian 13 arm64 build/test environment.
 Run `tests/linux-package-check.sh` there with `CZ_MESH_ISOLATED_TEST=1`, read-only
-source/LVGL mounts at `/src` and `/lvgl`, and a writable build mount at `/work`. The
+source/LVGL mounts at `/src` and `/lvgl`, and a writable build mount at `/work`.
+Mount the checksummed 0.1.8 baseline package read-only and set
+`CZ_MESH_UPGRADE_BASELINE` to its container path for the actual upgrade check. The
 firewall tests require NET_ADMIN **inside that container's network namespace**;
 do not run them against a live host ruleset.
 
