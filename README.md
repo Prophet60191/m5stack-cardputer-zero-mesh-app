@@ -31,7 +31,7 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.10, a release candidate** with public/private channel
+The current source is **0.1.11, a release candidate** with public/private channel
 support and fixes from an independent security and robustness review. Native UI,
 sanitizer, backend and Debian arm64 package checks pass. Private-peer delivery,
 camera QR and physical cold-power checks passed. Outdoor GPS, live public-mesh
@@ -84,11 +84,18 @@ are available for offline use and printing.
 
 Want to build an app for this device? This repo is the worked example for a full guide:
 **[Building Apps for the M5Stack Cardputer Zero](https://github.com/Prophet60191/m5stack-cardputer-zero-app-guide)**
-— the platform, the UI+supervisor architecture, the keyboard, packaging, and publishing.
+— the platform, architecture choices, the keyboard, packaging, and publishing.
 
 ## Architecture
 
 Two cooperating processes with a clean boundary — the UI never touches the radio:
+
+We chose modularity so the interface, radio authority and resource lifecycle can
+evolve and be tested independently, while reception continues after the UI closes.
+This also lets the native UI use the existing Meshtastic Python client through a
+documented interface. The [architecture decision](docs/architecture.md) explains
+the purpose, benefits, costs and relationship to the official components; a
+separate supervisor is a Mesh choice rather than a requirement for every app.
 
 ```
   ┌────────────────────┐   newline-JSON    ┌──────────────────────┐   TCP (loopback)   ┌────────────┐
@@ -120,7 +127,7 @@ Two cooperating processes with a clean boundary — the UI never touches the rad
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.10-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.11-rev1_arm64.deb
 # The qualified Debian build used for this candidate:
 sudo apt install 'meshtasticd=2.7.26.61~obs54e0d8d~beta'
 ```

@@ -1,6 +1,6 @@
 # UI ↔ supervisor protocol
 
-The contract between the **LVGL UI** (C++) and the **Python supervisor** (`supervisor/supervisor.py`). The UI never touches the radio or the Cap; it connects to the supervisor over a **local Unix socket** and exchanges **newline-delimited JSON** — one object per line. This is the extensibility backbone: a new feature is a new intent + event, nothing in the core changes.
+The contract between the **LVGL UI** (C++) and the **Python supervisor** (`supervisor/supervisor.py`). The UI never touches the radio or the Cap; it connects to the supervisor over a **local Unix socket** and exchanges **newline-delimited JSON** — one object per line. This explicit interface supports independent presentation/resource-owner development. New features still require their validation, state, lifecycle and tests to be designed; adding an intent/event is not automatic isolation or a general plugin mechanism. See [why Mesh uses this modular design](architecture.md).
 
 - **Socket path:** `$XDG_RUNTIME_DIR/cz-mesh/supervisor.sock` (falls back to `/tmp/cz-mesh-<uid>/supervisor.sock`).
 - **Framing:** UTF-8, one compact JSON object per line (`\n`-terminated). No embedded newlines.

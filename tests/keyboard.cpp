@@ -112,11 +112,12 @@ static void decoder_checks() {
 
 #ifdef MESH_DEVICE_INPUT_TESTS
 struct UiState {
-    bool editing{false},help{false};int commits{0},screenshots{0};
+    bool editing{false},help{false};int commits{0},screenshots{0},holds{0},releases{0};
     static bool query(void* data) {return static_cast<UiState*>(data)->editing;}
+    static void release(uint32_t,const char*,void* data) { ++static_cast<UiState*>(data)->releases; }
     static bool route(uint32_t key,const char*,bool held,void* data) {
         auto& state=*static_cast<UiState*>(data);
-        if (held) return true;
+        if (held) { ++state.holds; return true; }
         if (key==platform::kKeyHelp) {state.help=!state.help;return true;}
         if (key==platform::kKeyPrintScreen) {++state.screenshots;return true;}
         if (state.help) {if(key==LV_KEY_ESC)state.help=false;return true;}
@@ -154,9 +155,54 @@ static void device_path_checks() {
     REQUIRE(std::string(lv_textarea_get_text(area))=="ab");
     raw(EV_KEY,KEY_LEFTSHIFT,1);raw(EV_SYN,SYN_DROPPED,0);raw(EV_KEY,KEY_A,1);raw(EV_SYN,SYN_REPORT,0);key(KEY_B);drain();drain();
     REQUIRE(std::string(lv_textarea_get_text(area))=="abb");
-    close(fds[1]);drain();drain(); // EOF releases once and stays inert.
+    // Both ignored/modifier events and ordinary text are bounded across the
+    // complete LVGL continue_reading chain, and unread events are retained.
+    for(int i=0;i<140;++i) raw(EV_KEY,KEY_LEFTSHIFT,2);
+    raw(EV_KEY,KEY_LEFTSHIFT,0);key(KEY_B);
+    drain();REQUIRE(std::string(lv_textarea_get_text(area))=="abb");
+    drain();REQUIRE(std::string(lv_textarea_get_text(area))=="abbb");
+    lv_textarea_set_max_length(area,512);lv_textarea_set_text(area,"");
+    for(int i=0;i<70;++i) key(KEY_A);
+    drain();REQUIRE(std::string(lv_textarea_get_text(area))==std::string(64,'a'));
+    drain();REQUIRE(std::string(lv_textarea_get_text(area))==std::string(70,'a'));
+
+    // Closing the stream cancels a hold without a synthetic short-click/release.
+    platform::set_key_release_listener(UiState::release,&state);
+    raw(EV_KEY,KEY_ESC,1);drain();const int released_before=state.releases;
+    close(fds[1]);drain();drain();
+    lv_tick_inc(800);lv_timer_handler();
+    REQUIRE(state.holds==0 && state.releases==released_before);
+    lv_indev_delete(device);device=nullptr;
+
+    auto pipe_device=[&](int (&pipefd)[2]) {
+        REQUIRE(pipe(pipefd)==0);REQUIRE(fcntl(pipefd[0],F_SETFL,O_NONBLOCK)==0);
+        auto* input=platform::make_test_evdev(pipefd[0],true);lv_indev_set_display(input,display);return input;
+    };
+    auto send=[&](int fd,unsigned code,int value) {input_event ev{};ev.type=EV_KEY;ev.code=code;ev.value=value;REQUIRE(write(fd,&ev,sizeof(ev))==sizeof(ev));};
+    int owner_fds[2],other_fds[2];auto* owner=pipe_device(owner_fds);auto* other=pipe_device(other_fds);
+    send(other_fds[1],KEY_ESC,1);lv_indev_read(other);
+    send(owner_fds[1],KEY_ESC,1);lv_indev_read(owner);
+    // Unrelated input activity/release and teardown must not cancel this owner.
+    send(other_fds[1],KEY_ESC,0);lv_indev_read(other);
+    lv_indev_delete(other);close(other_fds[1]);
+    lv_tick_inc(800);lv_timer_handler();REQUIRE(state.holds==1);
+    send(owner_fds[1],KEY_ESC,0);lv_indev_read(owner);
+    send(owner_fds[1],KEY_ESC,1);lv_indev_read(owner);
+    const int before_delete=state.releases;
+    lv_indev_delete(owner);close(owner_fds[1]);
+    lv_tick_inc(800);lv_timer_handler();
+    REQUIRE(state.holds==1 && state.releases==before_delete);
+
+    // The generic adapter cleanup API (also used by SDL) has the same scoped
+    // behavior, without needing to delete the underlying LVGL device first.
+    int adapter_fds[2];auto* adapter=pipe_device(adapter_fds);
+    send(adapter_fds[1],KEY_ESC,1);lv_indev_read(adapter);
+    platform::release_key_input(adapter);
+    lv_tick_inc(800);lv_timer_handler();REQUIRE(state.holds==1);
+    lv_indev_delete(adapter);close(adapter_fds[1]);
+    platform::clear_key_release_listener(UiState::release,&state);
     platform::clear_global_key_listener(UiState::route,&state);platform::clear_text_entry_query(UiState::query,&state);
-    lv_indev_delete(device);lv_obj_delete(area);lv_group_set_default(nullptr);lv_group_delete(group);lv_display_delete(display);
+    if(device) lv_indev_delete(device);lv_obj_delete(area);lv_group_set_default(nullptr);lv_group_delete(group);lv_display_delete(display);
 }
 #endif
 

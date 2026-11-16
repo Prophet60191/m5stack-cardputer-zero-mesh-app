@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.11 — 2026-11-16 (release candidate)
+
+- Bound native input work across each LVGL poll chain to 128 raw read attempts;
+  preserve unread input for the next poll, including under modifier/repeat floods.
+- Tie pending holds to their input owner. Cancel owned holds on native teardown,
+  loss/disconnect and SDL cleanup without synthesizing a short action or clearing
+  an unrelated device's hold/release state.
+- Add real-reader/editor regressions for flood/resume, normal text spanning the
+  budget, stale holds, multiple devices and generic adapter cleanup.
+- Document the modular UI/supervisor decision: purpose, background lifetime,
+  explicit authority, independent testing, costs, official compatibility and limits.
+
+Validation: native ASAN/UBSAN, the Debian 13 arm64 real-reader sanitizer cases,
+package/fresh-install/upgrade/firewall checks and all 98 backend tests pass locally.
+Running-code/device verification and exact-source CI are recorded separately.
+
 ## 0.1.10 — 2026-11-16 (release candidate)
 
 - Apply saved message-retention preferences silently on startup and reconnect,

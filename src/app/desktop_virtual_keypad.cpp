@@ -350,6 +350,7 @@ DesktopVirtualKeypad::DesktopVirtualKeypad(lv_display_t* display) {
 
 DesktopVirtualKeypad::~DesktopVirtualKeypad() {
     if (indev_) {
+        platform::release_key_input(indev_);
         lv_indev_delete(indev_);
         indev_ = nullptr;
     }

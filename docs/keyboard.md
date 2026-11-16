@@ -56,6 +56,24 @@ modifier state. There is no direct I2C access or keyboard firmware modification.
 
 ## Verification and limits
 
+### Bounded polling and owned cleanup (0.1.11)
+
+Each native input device gets a budget of 128 raw read attempts across LVGL's
+`continue_reading` callback chain. Ignored records, modifiers, repeats and
+interrupted reads consume that budget too. Exhaustion yields to the UI and leaves
+unread input/pending translation for the next poll; it does not discard the queue
+or change the symbol map. This is a per-device poll bound, not a global timing or
+battery-life guarantee.
+
+A pending hold is associated with its source LVGL input device. EOF, lost input
+and native object deletion cancel that owner's hold without synthesizing an
+application release/click. The SDL adapter calls the same cleanup interface before
+deleting its input object. Another device's release/deletion must not cancel the
+active owner's action. Tests exercise flood/resume, ordinary text across the
+budget, stale hold cancellation and the two-device case with a simulated clock.
+
+### Regression paths
+
 `mesh_keyboard_regressions` compiles the production decoder on the development
 host and compares every symbol to the independent original fixture. Linux also
 builds `mesh_keyboard_evdev_regressions`: synthetic input_event records go through

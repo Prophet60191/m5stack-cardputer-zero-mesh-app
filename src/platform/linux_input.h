@@ -20,6 +20,9 @@ void init_key_input(lv_display_t* display);
 // Call once for each new decoded press/release, inside the indev read callback,
 // BEFORE LVGL can deliver it to a focused object. Consumed shortcuts never type.
 void route_key_input(lv_indev_data_t* data);
+// Call before destroying an input adapter. Cancel its pending hold without
+// synthesizing an application key release, click, or action for another device.
+void release_key_input(lv_indev_t* source);
 using TextEntryQuery = bool (*)(void* user_data);
 void set_text_entry_query(TextEntryQuery query, void* user_data);
 void clear_text_entry_query(TextEntryQuery query, void* user_data);

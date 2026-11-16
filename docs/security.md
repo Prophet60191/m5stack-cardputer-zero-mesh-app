@@ -107,6 +107,12 @@ stream; failed operations are never replayed on reconnect. Polling handles at
 most 32 events per UI tick. History is capped at 2,000 messages globally and
 trimmed immediately on per-thread retention changes.
 
+Native keyboard readers separately limit each device poll chain to 128 raw read
+attempts, including ignored/modifier/repeat records. Unread events resume on the
+next poll so a sustained stream cannot make that chain drain indefinitely.
+Pending key holds are tied to their source device and canceled on owned cleanup,
+without synthetic short-click actions or canceling an unrelated device's hold.
+
 ACK state is stored before broadcast. Retries update one message and ignore old
 attempt ACKs; malformed replies never imply success. No-ACK sends have no pending
 ACK state. Pending delivery times out as failed after 60 seconds. Deletion and
