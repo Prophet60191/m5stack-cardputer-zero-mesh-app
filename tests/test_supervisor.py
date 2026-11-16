@@ -330,10 +330,18 @@ class SupervisorTests(unittest.TestCase):
                 self.s._check_persisted_profile()
 
     def test_operation_queue_is_bounded(self):
-        self.s._stop.set(); self.s._worker.join(1)
-        for _ in range(30): self.s.dispatch(self.c, {'intent': 'radio.start'})
-        self.assertEqual(self.s._work.qsize(), 16)
-        self.assertIn('busy', self.c.events[-1]['text'])
+        entered, release = threading.Event(), threading.Event()
+        self.s._submit(lambda: (entered.set(), release.wait(2)))
+        self.assertTrue(entered.wait(1))
+        try:
+            # Keep the owner alive but busy; never enqueue real hardware work.
+            for _ in range(30): self.s.dispatch(self.c, {'intent': 'status'})
+            self.assertEqual(self.s._work.qsize(), 16)
+            self.assertIn('busy', self.c.events[-1]['text'])
+            self.s._stop.set(); before = len(self.c.events)
+            self.s.dispatch(self.c, {'intent': 'status'})
+            self.assertEqual(len(self.c.events), before) # Shutdown accepts no work.
+        finally: release.set()
     def test_complete_oversized_frame_and_partial_line_disconnect(self):
         a, b = socket.socketpair()
         try:
