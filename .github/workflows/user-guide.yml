@@ -1,0 +1,62 @@
+name: User guide
+on:
+  push:
+    paths: ['docs/user-guide/**', 'scripts/user-guide/**', 'app-builder.json', '.github/workflows/user-guide.yml']
+  pull_request:
+    paths: ['docs/user-guide/**', 'scripts/user-guide/**', 'app-builder.json', '.github/workflows/user-guide.yml']
+  workflow_dispatch:
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo apt-get update && sudo apt-get install -y python3-venv fonts-dejavu-core poppler-utils
+      - run: python3 -m venv build/docs-venv && build/docs-venv/bin/pip install -r scripts/user-guide/requirements.txt
+      - run: build/docs-venv/bin/python scripts/user-guide/build.py
+      - name: Render every page for visual review
+        run: |
+          mkdir -p build/user-guide-preview
+          pdftoppm -png -r 90 build/user-guide/Cardputer-Zero-Mesh-User-Guide.pdf build/user-guide-preview/manual
+          pdftoppm -png -r 120 -singlefile build/user-guide/Quick-Reference-Card.pdf build/user-guide-preview/quick-reference
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mesh-user-guide
+          path: build/user-guide/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mesh-user-guide-preview
+          path: build/user-guide-preview/*.png
+          if-no-files-found: error
+  attach-to-release:
+    if: github.event_name == 'release'
+    needs: render
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      GUIDE_TAG: ${{ github.event.release.tag_name }}
+      GUIDE_RUN: ${{ github.run_id }}
+    steps:
+      - name: Download the PDFs built from this release tag
+        run: gh run download "$GUIDE_RUN" --name mesh-user-guide --dir guide
+      - name: Verify tag version and attach assets
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          version = json.load(open('guide/guide-manifest.json'))['app_version']
+          if not re.fullmatch(r'v' + re.escape(version) + r'(?:-rc\.[1-9][0-9]*)?', os.environ['GUIDE_TAG']):
+              raise SystemExit('Release tag does not match reviewed guide version')
+          PY
+          cd guide
+          sha256sum -c SHA256SUMS
+          gh release upload "$GUIDE_TAG" ./*.pdf ./SHA256SUMS ./guide-manifest.json --clobber

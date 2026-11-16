@@ -24,6 +24,9 @@ test -x /usr/bin/cardputerzero-mesh
 test ! -e /usr/bin/mesh_benchmarks
 ./mesh_benchmarks > synthetic-benchmarks.txt
 test -f /usr/share/doc/cardputerzero-mesh/docs/security.md
+test -f /usr/share/doc/cardputerzero-mesh/docs/user-guide/README.md
+test -f /usr/share/doc/cardputerzero-mesh/docs/user-guide/images/messages-list.png
+test -z "$(find /usr/share/doc/cardputerzero-mesh/docs -type f -iname '*.pdf' -print -quit)"
 test -f /etc/cardputerzero-mesh.conf
 test ! -e /usr/bin/template_app
 test ! -e /etc/sudoers.d/cardputerzero-mesh

@@ -74,7 +74,12 @@ if(APP_INSTALL_SYSTEMD_SERVICE)
     )
 endif()
 
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/docs" DESTINATION "${APP_DOC_DIR}")
+# Ship the Markdown guides and screenshots for offline reference. Generated PDFs
+# are release downloads, not device runtime files.
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/docs" DESTINATION "${APP_DOC_DIR}"
+    PATTERN "*.pdf" EXCLUDE
+    PATTERN ".DS_Store" EXCLUDE
+)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md" DESTINATION "${APP_DOC_DIR}")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
     DESTINATION "${APP_DOC_DIR}"

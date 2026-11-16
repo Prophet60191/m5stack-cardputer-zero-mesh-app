@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-16 — User documentation for 0.1.7
+
+- Add seven illustrated user guides, a guide index and a prominent README link.
+  Review the text against current controls; clarify channel/DM privacy, incoming
+  position precision, byte limits, acknowledgments and disk-history erasure limits.
+- Generate the versioned offline manual and one-page quick reference from the
+  same Markdown. Keep generated PDFs outside Git and the device package; ship
+  Markdown/screenshots for offline reference. Add documented builds and CI checks.
+
+Validation: all seven chapters, 24 images and local links/anchors checked;
+37-page manual and one-page quick reference rendered and visually inspected.
+Debian arm64 package/install/policy checks and all 86 backend cases pass locally.
+
 ## 0.1.7 — 2026-11-16 (release candidate)
 
 - Prepare typed conversation rows in one pass, index history search once and

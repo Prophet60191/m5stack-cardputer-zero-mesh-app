@@ -50,6 +50,14 @@ These are native LVGL renders using synthetic data, not personal messages or dev
 |:--:|:--:|:--:|:--:|
 | ![Messages](docs/screenshots/messages.png) | ![Nodes](docs/screenshots/nodes.png) | ![Map](docs/screenshots/map.png) | ![Settings](docs/screenshots/settings.png) |
 
+## User guide & quick reference
+
+**[Read the illustrated user guide](docs/user-guide/README.md)** or go straight to
+the **[Quick Reference Card](docs/user-guide/00-Quick-Reference-Card.md)**.
+The guide covers first setup, keyboard controls, messages, nodes, the map,
+settings and troubleshooting. [Versioned PDF downloads](docs/user-guide/README.md#offline-downloads)
+are available for offline use and printing.
+
 ## Features
 
 - **Compact keyboard UI** — fixed conversation/channel header, complete footer help and grouped Settings with Radio first.
