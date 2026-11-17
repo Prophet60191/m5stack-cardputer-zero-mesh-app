@@ -503,11 +503,8 @@ static void qr_scan_ui_regression(const char* screenshot_path) {
     result(
         review.str_at("id"),
         R"("event":"channel.setup.preview","token":"plan2","channels":[{"name":"Synthetic","private":true}])");
-    option("Save reviewed setup");
-    capture("channel-import-confirm.png");
-    settings.on_enter(); // Confirmation defaults Back too.
-    option("Save reviewed setup");
-    option("Confirm save");
+    capture("channel-import-review.png");
+    option("Save reviewed setup"); // RX/no sharing saves directly from the reviewed summary.
     auto commit = last("channel.setup.commit");
     CHECK(commit.find("confirmed")->as_bool());
     auto count = sent.size();

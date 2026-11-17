@@ -28,7 +28,7 @@ class SettingsScreen : public BaseScreen {
     // One local draft across method, field editors, review and verified result.
     struct ChannelDraft {
         std::string source, name, url, import_token, profile_name, region, preset;
-        int slot = 0, hop = 3;
+        int slot = 0, hop = 3, position_target = 0;
         double override_frequency = 0, frequency_offset = 0;
         bool use_preset = true, tx = false, position = false, mqtt = false, profile_only = false;
         bool context_ready = false;

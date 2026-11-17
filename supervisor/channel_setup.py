@@ -142,10 +142,13 @@ class ChannelSetup:
             ch.settings.module_settings.position_precision = 0
             ch.settings.uplink_enabled = ch.settings.downlink_enabled = mqtt
             added.append(ch)
-        if position and len(added) != 1: raise ValueError('choose location sharing after importing multiple channels')
+        position_target = req.get('position_target', 0)
+        if type(position_target) is not int or not 0 <= position_target < len(added):
+            raise ValueError('select a valid new channel for automatic location')
         if position:
             for ch in channels.channels: ch.settings.module_settings.position_precision = 0
-            added[0].settings.module_settings.position_precision = 16 if self._private_channel(added[0]) else 15
+            target = added[position_target]
+            target.settings.module_settings.position_precision = 16 if self._private_channel(target) else 15
             config.position.position_broadcast_smart_enabled = True
             config.position.position_broadcast_secs = 900
         lora.tx_enabled = tx
@@ -157,7 +160,7 @@ class ChannelSetup:
             modules.mqtt.enabled = False
         public = any(not self._private_channel(ch) for ch in added)
         tuning_changed = self._setup_tuning(config) != self._setup_tuning(original[0])
-        public_position = position and public
+        public_position = position and not self._private_channel(added[position_target])
         warnings = []
         if public: warnings.append('Public channel: messages and metadata may be visible to others.')
         if tuning_changed: warnings.append('Radio tuning changes affect every channel on this radio.')
@@ -165,7 +168,7 @@ class ChannelSetup:
         if lora.frequency_offset: warnings.append('Existing radio frequency calibration offset is preserved.')
         if source == 'import' and lora.channel_num == 0: warnings.append("Imported Auto uses this device's primary name; set an explicit slot if the sender has a different primary.")
         if lora.channel_num == 0: warnings.append('Auto frequency uses the unchanged primary channel name.')
-        if position: warnings.append('Automatic location sharing moves to the new channel; GPS receiver stays unchanged.')
+        if position: warnings.append('Automatic location sharing moves to ' + (added[position_target].settings.name or 'Default') + '; GPS receiver stays unchanged.')
         if public_position: warnings.append('Public automatic location is limited to roughly 730 m precision.')
         if mqtt: warnings.append('MQTT connects to the configured broker; other forwarding-enabled channels may also forward.')
         if tx: warnings.append('TX/RX permits firmware broadcasts as well as your messages. Check antenna and region.')
@@ -186,7 +189,7 @@ class ChannelSetup:
             self._setup_plans[client] = plan
         return {'event': 'channel.setup.preview', 'token': token, 'tuning': self._setup_tuning(config),
                 'channels': [{'index': ch.index, 'name': ch.settings.name or 'Default', 'private': self._private_channel(ch)} for ch in added],
-                'tx': tx, 'position': position, 'mqtt': mqtt, 'profile_only': profile_only,
+                'tx': tx, 'position': position, 'position_channel': (added[position_target].settings.name or 'Default') if position else '', 'mqtt': mqtt, 'profile_only': profile_only,
                 'profile_name': name, 'tuning_changed': tuning_changed,
                 'tx_confirmation': plan['tx_confirmation'], 'public_position': public_position, 'warnings': warnings}
 

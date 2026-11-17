@@ -218,9 +218,9 @@ a separate `suggested_tuning`, never implicitly adopted. Fixed frequencies and
 device calibration are not silently imported. The legacy import path is unchanged.
 
 `channel.setup.preview {id,base,source,name?,import_token?,tuning,tx,position,mqtt,
-profile_only,profile_name}` validates a complete local draft and returns
+profile_only,profile_name,position_target?}` validates a complete local draft and returns
 `channel.setup.preview {id,token,channels,tuning,tx,position,mqtt,profile_only,
-profile_name,tuning_changed,tx_confirmation,public_position,warnings}`. Source is
+profile_name,tuning_changed,tx_confirmation,public_position,position_channel,warnings}`. Source is
 public/private/import; generated keys stay in the supervisor. Tuning contains
 region/preset/use_preset/slot/hop and an existing override_frequency or zero to
 clear it. Calibration is preserved. Keys/URLs are absent from replies.
@@ -249,3 +249,8 @@ channel save is explicit partial success. An unknown/timed-out result must be
 inspected before trying a fresh setup; no automatic configuration/RF replay.
 There are at most eight setup plans, each based on at most 128 KiB of preferences.
 No arbitrary path, command, executable or shell argument is accepted.
+
+For multi-channel imports, `position_target` is the zero-based ordinal among
+newly added channels (default 0), validated against the token-bound import order.
+Only that channel gets automatic precision; its actual privacy classification
+determines public-location consent and precision.

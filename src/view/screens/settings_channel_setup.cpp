@@ -95,8 +95,23 @@ void SettingsScreen::channel_setup_form() {
         add(-1, "Calibration offset (preserved): " + std::to_string(d.frequency_offset));
     add(Hop, "Hop limit: " + std::to_string(d.hop));
     add(Tx, std::string("Transmit mode: ") + (d.tx ? "TX/RX" : "Receive only"));
-    add(Position,
-        std::string("Automatic location: ") + (d.position ? "New channel only" : "Off on new channel"));
+    std::string location = "Off on new channel";
+    if (d.position) {
+        location = d.name.empty() ? "Default" : d.name;
+        if (d.source == "import") {
+            int ordinal = 0;
+            if (const auto *channels = d.preview.find("channels"))
+                for (const auto &ch : channels->arr) {
+                    if (flag(ch, "existing"))
+                        continue;
+                    if (ordinal++ == d.position_target) {
+                        location = ch.str_at("name") + (flag(ch, "private") ? " [Private]" : " [Public]");
+                        break;
+                    }
+                }
+        }
+    }
+    add(Position, "Automatic location: " + location);
     add(Mqtt,
         std::string("Internet forwarding: ") + (d.mqtt ? "On (configured MQTT)" : "Off on new channel"));
     add(Destination, std::string("Save to: ") + (d.profile_only ? "Separate profile only" : "Current setup"));
@@ -199,6 +214,12 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
     if (pending.rfind("flow:", 0) != 0)
         return false;
     auto &d = channel_draft_;
+    const auto save = [&] {
+        request_service("flow:commit", "channel.setup.commit",
+                        ",\"token\":" + quote(d.token) +
+                            ",\"confirmed\":true,\"tuning_confirmed\":true,\"antenna_confirmed\":true,"
+                            "\"public_position_confirmed\":true,\"mqtt_confirmed\":true");
+    };
     const std::string label =
         choice >= 0 && choice < static_cast<int>(options_.size()) ? options_[choice] : "";
     if (pending == "flow:discard") {
@@ -208,6 +229,8 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
             channel_setup_form();
     } else if (pending == "flow:method") {
         view_model().cancel_service_request();
+        d.position = false;
+        d.position_target = 0;
         d.import_token.clear();
         d.preview = {};
         d.suggested = {};
@@ -291,9 +314,21 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
         case Mqtt:
             if (d.profile_only)
                 d.error = "Separate profiles start location/MQTT Off";
-            else if (channel_field_ == Position)
+            else if (channel_field_ == Position) {
+                if (d.source == "import" && d.preview.int_at("new") > 1) {
+                    std::vector<std::string> choices = {"Off on new channels"};
+                    if (const auto *channels = d.preview.find("channels"))
+                        for (const auto &ch : channels->arr)
+                            if (!flag(ch, "existing"))
+                                choices.push_back("Share: " + ch.str_at("name") +
+                                                  (flag(ch, "private") ? " [Private]" : " [Public]"));
+                    open_picker("Automatic location: choose one channel", choices, "flow:position-target",
+                                d.position ? d.position_target + 1 : 0);
+                    return true;
+                }
                 d.position = !d.position;
-            else
+                d.position_target = 0;
+            } else
                 d.mqtt = !d.mqtt;
             channel_setup_form();
             break;
@@ -327,7 +362,8 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
                             ",\"source\":" + quote(d.source) + ",\"name\":" + quote(d.name) +
                                 ",\"import_token\":" + quote(d.import_token) + ",\"base\":" + quote(d.base) +
                                 ",\"tuning\":" + tuning + ",\"tx\":" + boolean(d.tx) +
-                                ",\"position\":" + boolean(d.position) + ",\"mqtt\":" + boolean(d.mqtt) +
+                                ",\"position\":" + boolean(d.position) + ",\"position_target\":" +
+                                std::to_string(d.position_target) + ",\"mqtt\":" + boolean(d.mqtt) +
                                 ",\"profile_only\":" + boolean(d.profile_only) +
                                 ",\"profile_name\":" + quote(d.profile_name));
             break;
@@ -358,6 +394,10 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
     } else if (pending == "flow:tx") {
         d.tx = choice == 1;
         channel_setup_form();
+    } else if (pending == "flow:position-target") {
+        d.position = choice > 0;
+        d.position_target = choice > 0 ? choice - 1 : 0;
+        channel_setup_form();
     } else if (pending == "flow:destination") {
         d.profile_only = choice == 1;
         if (d.profile_only)
@@ -376,6 +416,11 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
         if (choice == 0)
             channel_setup_form();
         else if (choice == static_cast<int>(options_.size()) - 1) {
+            if (!flag(d.result, "tx_confirmation") && !flag(d.result, "public_position") &&
+                !flag(d.result, "mqtt")) {
+                save();
+                return true;
+            }
             std::vector<std::string> rows = {"Back to review"};
             if (flag(d.result, "tx_confirmation"))
                 rows.push_back("[ ] Antenna attached; region correct");
@@ -397,10 +442,7 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
             if (!checked)
                 view_model().apply_notice("Confirm each item above before saving");
             else
-                request_service("flow:commit", "channel.setup.commit",
-                                ",\"token\":" + quote(d.token) +
-                                    ",\"confirmed\":true,\"tuning_confirmed\":true,\"antenna_confirmed\":"
-                                    "true,\"public_position_confirmed\":true,\"mqtt_confirmed\":true");
+                save();
         } else {
             options_[choice].replace(0, 3, options_[choice].rfind("[x]", 0) == 0 ? "[ ]" : "[x]");
             rebuild_picker();

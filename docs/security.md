@@ -231,9 +231,10 @@ save/sync deadline and reports unconfirmed state in the local log. See the
 
 ## Unified channel setup (0.1.13)
 
-The local form owns no keys or radio state; generated/imported keys remain in
-connection-bound supervisor plans. Pasted URLs are masked, kept only as a local
-editing draft and never logged. Eight-plan and 128 KiB snapshot bounds apply;
+The supervisor owns authoritative radio state and decoded/generated keys in
+connection-bound plans. A pasted share URL necessarily contains key material
+in UI memory as well as the supervisor; it is masked while editing and never
+logged. Masking does not encrypt or securely erase process memory. Eight-plan and 128 KiB snapshot bounds apply;
 expired/replaced/cancelled/disconnected/stale reviews cannot commit. Keys and URLs
 never appear in plan/result payloads. Same-user socket access remains a control
 trust boundary, not isolation from other programs owned by that user.

@@ -93,7 +93,7 @@ static void screenshot(lv_obj_t *root, const std::string &dir, const std::string
     lv_draw_buf_destroy(shot);
 }
 static const std::string context =
-    R"("event":"channel.setup.context","base":"synthetic-base","radio":"off","tx":false,"tuning":{"region":"US","preset":"LONG_FAST","use_preset":true,"slot":20,"hop":3})";
+    R"("event":"channel.setup.context","base":"synthetic-base","radio":"online","tx":false,"tuning":{"region":"US","preset":"LONG_FAST","use_preset":true,"slot":20,"hop":3})";
 static void result(viewmodel::BaseViewModel &vm, const json::Value &sent, const std::string &data) {
     vm.apply_service(parse("{\"id\":\"" + sent.str_at("id") + "\"," + data + "}"));
 }
@@ -102,7 +102,8 @@ static void run(const std::string &dir, bool dark) {
     app::AssetManager assets;
     vm.set_dark_mode(dark);
     vm.set_connected(true);
-    vm.apply_status("off", "US", "Synthetic");
+    vm.apply_status("online", "US", "Synthetic");
+    vm.apply_health("receive-only", "");
     vm.apply_setup(parse(R"({"event":"setup","ready":true})"));
     std::vector<json::Value> sent;
     bool accept = true;
@@ -179,10 +180,16 @@ static void run(const std::string &dir, bool dark) {
     screenshot(s.root(), dir, dark ? "channel-setup-review-dark.png" : "channel-setup-review.png");
     choose(s, "Back to form");
     CHECK(labels(s.root()).find("Channel name: Field") != std::string::npos);
+    choose(s, "Add by:");
+    choose(s, "Create public");
+    choose(s, "Transmit mode:");
+    choose(s, "TX/RX");
+    choose(s, "Automatic location:");
+    choose(s, "Internet forwarding:");
     choose(s, "Review setup");
     result(
         vm, sent.back(),
-        R"("event":"channel.setup.preview","token":"plan2","channels":[{"name":"Field","private":true}],"tx_confirmation":true,"public_position":true,"mqtt":true)");
+        R"("event":"channel.setup.preview","token":"plan2","channels":[{"name":"Field","private":false}],"tx_confirmation":true,"public_position":true,"mqtt":true)");
     choose(s, "Save reviewed setup");
     auto before = sent.size();
     choose(s, "Confirm save");
@@ -203,14 +210,15 @@ static void run(const std::string &dir, bool dark) {
         vm, commit,
         R"("event":"channel.setup.saved","added":1,"verified":"radio","channels":[{"index":1,"identity":"new-group"}],"profile":"synthetic-profile")");
     CHECK(labels(s.root()).find("verified by the radio") != std::string::npos);
+    vm.apply_health("tx-rx", "");
     screenshot(s.root(), dir, dark ? "channel-setup-complete-dark.png" : "channel-setup-complete.png");
-    vm.set_channels({{1, "Field", true, "SECONDARY", 0, "new-group"}});
+    vm.set_channels({{1, "Field", false, "SECONDARY", 15, "new-group"}});
     choose(s, "Open conversation");
     choose(s, "Open channel 1");
     CHECK(vm.current_page() == model::AppPage::Messages);
     {
         screen::MessagesScreen messages(vm, assets);
-        CHECK(labels(messages.root()).find("1: Field [Private]") != std::string::npos);
+        CHECK(labels(messages.root()).find("1: Field [Public]") != std::string::npos);
     }
     CHECK(vm.take_group_target().empty());
     // New method/destination remain local, profile-only forces safe defaults.
@@ -276,6 +284,23 @@ static void run(const std::string &dir, bool dark) {
     CHECK(labels(s.root()).find("35") != std::string::npos);
     // Destruction and malformed/late replies must not touch deleted objects.
     s.on_back();
+    choose(s, "Discard and close");
+    vm.set_connected(true);
+    choose(s, "Add a channel");
+    result(vm, sent.back(), context);
+    choose(s, "Paste share URL");
+    lv_textarea_set_text(input(s.root()), "https://meshtastic.org/e/#synthetic");
+    s.on_enter();
+    result(
+        vm, sent.back(),
+        R"("event":"channel.preview","new":2,"token":"multi","channels":[{"name":"Private","private":true},{"name":"Public","private":false}])");
+    choose(s, "Automatic location:");
+    choose(s, "Share: Public");
+    choose(s, "Review setup");
+    CHECK(sent.back().find("position")->as_bool());
+    CHECK(sent.back().int_at("position_target") == 1);
+    s.on_back();
+    choose(s, "Cancel setup");
     choose(s, "Discard and close");
 }
 int main(int argc, char **argv) {

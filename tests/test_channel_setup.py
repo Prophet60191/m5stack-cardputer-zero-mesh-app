@@ -248,4 +248,17 @@ class ChannelSetupTests(unittest.TestCase):
         self.assertEqual(result['verified'],'stored');self.assertIn('Channel saved',result['warning'])
         self.assertEqual(self.s._settings.load()[1].channels[1].role,2)
 
+    def test_multichannel_import_selects_one_location_target_and_its_privacy(self):
+        self.prepare();data=apponly_pb2.ChannelSet();data.settings.add(name='Private',psk=b'T'*32);data.settings.add(name='Public',psk=b'\x01')
+        url='https://meshtastic.org/e/#'+base64.urlsafe_b64encode(data.SerializeToString()).decode().rstrip('=')
+        self.s._begin_import(self.c,'multi')
+        imported=self.s._preview_import(self.c,{'id':'multi','setup':True},url)
+        p=self.preview(source='import',import_token=imported['token'],position=True,position_target=0)
+        self.assertFalse(p['public_position']);self.assertEqual(p['position_channel'],'Private')
+        p=self.preview(source='import',import_token=imported['token'],position=True,position_target=1)
+        self.assertTrue(p['public_position']);self.assertEqual(p['position_channel'],'Public')
+        with self.assertRaises(ValueError):self.commit(p,public_position_confirmed=False)
+        self.commit(p);cfg,chs=self.s._settings.load()
+        self.assertEqual([ch.settings.module_settings.position_precision for ch in chs.channels],[0,0,15,0,0,0,0,0])
+
 if __name__=='__main__':unittest.main()

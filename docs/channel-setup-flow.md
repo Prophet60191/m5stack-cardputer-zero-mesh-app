@@ -66,3 +66,29 @@ frequency/calibration precedence. The [official channel documentation](https://m
 distinguishes radio-wide modem configuration from channel keys/groups. Current
 documentation is not a qualification of a newer firmware/client combination;
 this app keeps its existing pinned 2.7.26/2.7.11 dependencies.
+
+First device candidate `c5777c2` passed exact-source code/docs CI and was installed
+from archive SHA256 `b68e6a2e90fbee5a540dc60392f7e8b150f136212690d0b0c8fb451ce4dad7de`.
+All 104 regular package files match hashes/modes/owners; native framebuffer/keyboard
+startup and the exact CI UI replay pass on the device. Actual owner-API tests
+verify cancellation, profile-only preservation, one live RX-only retune/channel
+save and offline save, then restore original channels/tuning/profiles. INI, keys,
+GPS/TX/privacy and all19 messages/3 draft-pin threads/preferences survive. Normal
+profile apply introduced only empty settings/module submessages in disabled
+slots; all channel values match. Transmit bookkeeping changed during restarts.
+An initial test attempted the socket before service readiness; retry after the
+readiness gate passed, with no supervisor restart. No test RF message sent.
+
+Final review adds in-form selection of one automatic-location target for
+multi-channel QR imports, so that case also stays in one place. Consent/precision
+use the actual chosen channel. Native/backend coverage is extended accordingly;
+this final source needs matching CI/artifact installation and qualification.
+Pasted URLs are explicitly recognized as secret-bearing UI memory; masking is
+not encryption or secure erasure. Remaining physical/RF checks are recorded
+separately from source, native replay and owner readback.
+
+Ordinary receive-only saves now apply directly from the reviewed summary. The
+extra acknowledgment page is shown only when TX/antenna, public location or MQTT
+consent is actually needed; routine local/profile saves do not add a second
+generic confirmation. The summary still defaults to Back, and repeated Return
+while saving cannot duplicate the operation.

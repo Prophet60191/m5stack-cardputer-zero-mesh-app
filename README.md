@@ -67,6 +67,7 @@ are available for offline use and printing.
 - **Threaded messaging** — a conversation per channel and per node, with mesh versus recipient acknowledgments, unconfirmed sends and failure reasons and **resend** for the ones the mesh drops.
 - **First-run setup** — select a region and public/private primary channel; initialize receive-only, then explicitly enable TX with antenna confirmation. Requires the qualified meshtasticd 2.7.26 build and client 2.7.11.
 - **Durable chats** — bounded private SQLite history, identity-bound drafts, pinned chats, case-sensitive conversation search (`/`), and local-time quiet hours. Saved history can be disabled and erased.
+- **Complete channel setup** — scan/paste/create in one form with tuning, privacy, optional named profile, review and verified Save. Prepare while Off or save a separate profile without retuning; open the resulting conversation directly.
 - **Channel manager and mesh profiles** — create/rename/rotate/enable/disable/remove channels with actual readback; preview and apply named local profiles while Off. Profile application leaves TX, location and MQTT Off.
 - **Diagnostics** — current connection, firewall, versions and GPS age; optional sanitized export excludes keys, chats, IDs and coordinates.
 - **Quick messages** — one-key canned replies ("OK", "On my way", "Need help"&hellip;), editable in Settings.

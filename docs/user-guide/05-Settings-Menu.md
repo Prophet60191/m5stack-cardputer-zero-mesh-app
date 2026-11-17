@@ -112,7 +112,8 @@ while you edit fields, scan, paste or review.
    preserved or explicitly cleared to use slots. Calibration stays unchanged.
 5. New-channel location and forwarding start Off. Existing channels' sharing
    stays unchanged unless you choose automatic location for the new channel;
-   that moves automatic sharing exclusively to it. The GPS receiver is unchanged.
+   that moves automatic sharing exclusively to it. For a multi-channel QR, the form
+   asks which new channel should receive location. The GPS receiver is unchanged.
    Enabling MQTT can also activate other already-forwarding channels and uses
    the configured broker; it does not configure broker credentials.
 6. Choose **Current setup** or **Separate profile; keep active setup**. An optional
@@ -128,12 +129,13 @@ while you edit fields, scan, paste or review.
 
 ![Channel Setup Review](images/settings-channel-setup-review.png)
 
-8. Confirm any required antenna/region, public location and MQTT acknowledgments,
-   then select **Confirm save**. Saving tuning confirms its effect on every
+8. Ordinary receive-only saves apply directly from the review. If antenna/region,
+   public location or MQTT acknowledgments are required, check each item and select
+   **Confirm save**. Saving tuning confirms its effect on every
    channel. A running radio restarts once; pending message ACKs are interrupted
    without automatic resend. Esc during Save asks you to wait for confirmation.
 
-![Channel Setup Confirmation](images/settings-channel-setup-confirm.png)
+![Extra Consent When Enabling TX, Public Location or MQTT](images/settings-channel-setup-confirm.png)
 
 9. **Saved and verified by the radio** means actual readback passed. If Radio was
    Off, **Saved on device; live check when Radio is On** distinguishes stored
@@ -216,7 +218,8 @@ Set the display name other radios see for you. Your 4-character short name is au
 2. Edit **Channel name** to `Trip2026`. Keep current radio tuning if your group
    already uses it; otherwise enter the group's matching settings in this form.
 3. Leave location/forwarding Off, optionally name a mesh profile, and select
-   **Review setup → Save reviewed setup → Confirm save**.
+   **Review setup → Save reviewed setup**, completing any additional
+   acknowledgments shown.
 4. After live confirmation, choose **Open conversation**. Share the new group's
    QR from Messages (`o` → **Share channel (QR)**). If saved offline, turn Radio
    On with its antenna attached before messaging.

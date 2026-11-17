@@ -1,6 +1,6 @@
 # Independent review remediation — 2026-11-15
 
-Initial review candidate: **0.1.1**; current candidate: **0.1.12** (latest evidence below).
+Initial review candidate: **0.1.1**; current candidate: **0.1.13** (latest evidence below).
 The [maintenance record](maintenance-pass.md) covers the subsequent measured cleanup.
 The [13-item report follow-up](report-followup.md) records the subsequent
 verification, corrections and qualified claims.
@@ -287,3 +287,12 @@ describes all seven corrections, selected cleanup, regression evidence and
 remaining qualification. Local source and package gates pass, including 102
 backend tests. Installed-runtime evidence is added there separately. No new
 outdoor GPS fix, public-peer delivery or physical IPv6 qualification is implied.
+
+## 0.1.13 unified channel setup
+
+The [flow implementation record](channel-setup-flow.md) separates source tests,
+first-candidate hardware readback and the final candidate's qualification. The
+form preserves local entries, makes shared radio effects explicit, binds/cancels
+reviews and verifies saved settings, with explicit partial/uncertain results.
+Existing profiles/chats are preserved; no new outdoor GPS, public-peer RF or
+physical IPv6 qualification is implied.
