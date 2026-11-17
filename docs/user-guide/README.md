@@ -22,7 +22,7 @@ URL contains its secret key: share it only with the intended group.
 
 ## Offline downloads
 
-The last published PDFs cover 0.1.11; the Markdown here includes 0.1.12 save-confirmation behavior. Download both PDFs from the **[0.1.11 candidate documentation release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.11-rc.1)**:
+Download both reviewed PDFs from the **[0.1.12 candidate release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.12-rc.1)**:
 
 - **Cardputer-Zero-Mesh-User-Guide.pdf** — combined illustrated manual, with
   contents, internal links and chapter bookmarks.

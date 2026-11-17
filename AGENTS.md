@@ -21,14 +21,17 @@ privacy settings, protocol, or package integration.
   `docs/keyboard.md`. Keep the reusable decoder and raw evdev-to-textarea checks
   together; direct text insertion is not proof of physical-key translation.
 
-## Current maintenance
+## Maintenance closeout and next work
 
-The second maintenance assessment is recorded in
-[`docs/maintenance-pass.md`](docs/maintenance-pass.md#deferred-second-pass--2026-11-16).
-The owner resumed this work on 2026-11-17 after Wireless Surveyor finished.
-Address its seven items and evaluate the listed simplification candidates;
-record actual regressions, measurements and remaining hardware limits. Preserve
-features, the modular UI/supervisor boundary and all privacy/lifecycle safeguards.
-Use separate build folders; preserve both saved mesh profiles and all user data.
-GPS dongle support is a later task. Keep ADB enabled under the standing owner
+The owner resumed the second pass after Surveyor finished. All seven maintenance
+items and the simplification review are complete; see
+[`docs/maintenance-pass.md`](docs/maintenance-pass.md#second-pass-implementation--2026-11-17)
+for source/package correspondence, regressions, device measurements and limits.
+Functional/package source is `2e0035c`; later closeout changes are documentation
+only. Candidate 0.1.12 is installed and the owner confirmed physical navigation.
+Preserve features, the modular UI/supervisor boundary, both saved mesh profiles
+and all privacy/lifecycle safeguards. Keep ADB enabled under the standing owner
 instruction. Leave Surveyor code and shared hardware ownership intact.
+GPS dongle support is the next separate task; do not claim automatic USB priority
+or a qualified outdoor GPS fix. Establish receiver model/interface and explicit
+source/fallback behavior before implementation.

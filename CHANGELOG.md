@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.12 — 2026-11-17 (release candidate; qualification in progress)
+## 0.1.12 — 2026-11-17 (release candidate)
 
 - Protect pending drafts/pins through rejected writes, stale replies and
   reconnect snapshots. Add correlated local save acceptance, including no-op
@@ -20,8 +20,12 @@
   attribution and the modular UI/supervisor boundary. GPS dongle support remains
   a separate later task.
 
-Validation and installed-runtime evidence are recorded in the maintenance
-record after completion; no hardware GPS fix or public-peer result is implied.
+Validation: all 102 backend tests, native/arm64 sanitizer and package/install/
+upgrade/firewall gates, exact-source CI and Store preflight pass. The verified CI
+package is installed; all 98 files match, saved settings/profiles/chats survive,
+and the owner confirmed navigation/red borders/Esc. Ten-minute receive-only
+qualification: 61 healthy samples, no failures/restarts. See the maintenance
+record for measurements and limits; outdoor GPS/public-peer/IPv6 remain deferred.
 
 ## 2026-11-16 — Deferred second maintenance assessment
 
