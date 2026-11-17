@@ -105,9 +105,16 @@ Inventory clarification: the device has **one persisted named profile plus its
 active working setup**. Earlier references to “both saved profiles” conflated
 those two configurations; the tests compare the actual persisted profile set.
 
-The owner explicitly deferred the physical Add a channel form check. That check
-and a new camera scan remain pending; the private recipient ACK does not replace
-them. Public-peer RF and outdoor GPS are still unqualified.
+The owner subsequently completed the five-step physical form check: F/X field
+scrolling with readable heading/help, `Test/1` name entry (including the specified
+Sym+N slash check), Review → Back to form retention, and Esc → Discard and close.
+They confirmed the name disappeared only after discarding, as intended. A live
+read-only comparison confirms no test channel was saved and the original radio,
+channel/profile files, identity and privacy still match the pre-test backup;
+the device is Online/RX with all 20 messages retained. This is not a full physical
+keyboard-map sweep. The new camera scan is the next check; a synthetic TestQR013
+image containing no real key or radio tuning was prepared. Public-peer RF and
+outdoor GPS remain unqualified.
 
 The earlier `c5777c2` candidate also passed owner/API, native UI and a separate
 61-sample ten-minute RX check before the final multi-location/consent refinement.
@@ -126,8 +133,9 @@ state. The final installation/qualification used a fresh private backup.
 The initial configuration/stability qualification used no RF messages. The
 private-peer follow-up above subsequently qualified one directed test message
 and its recipient-radio acknowledgment. No traceroute or location request was
-sent. Physical-key/form acceptance and a new camera scan remain deferred at the
-owner's request. Public-peer compatibility/delivery is not claimed.
+sent. The specified physical form/name-entry/discard sequence passed by owner report;
+a full keyboard sweep and a new camera scan remain unqualified. Public-peer
+compatibility/delivery is not claimed.
 Outdoor GPS, USB GPS priority/fallback and physical IPv6 qualification remain
 unperformed. Leak detection for LVGL global caches remains disabled; sanitizer
 passes are not a general leak audit. ADB and hotplug remain active/enabled under

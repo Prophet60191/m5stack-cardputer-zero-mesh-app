@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-17 — Physical form/discard confirmation
+
+- Owner completed the specified field scrolling, Test/1 name entry, Review/Back
+  retention and Esc/Discard check. The test name disappeared only on discard,
+  which is the intended unsaved-draft behavior.
+- Read-only device verification confirms original radio/channel/profile/identity
+  and privacy files remain unchanged, Online/RX, with all 20 messages retained.
+- Prepare a harmless synthetic TestQR013 for the next physical camera check.
+  No full keyboard sweep or new camera result is claimed; no runtime change.
+
 ## 2026-11-17 — Private-peer qualification follow-up
 
 - With owner-confirmed antenna/T-Deck readiness, one private directed test

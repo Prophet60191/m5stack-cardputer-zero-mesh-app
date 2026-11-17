@@ -29,8 +29,10 @@ in [`docs/channel-setup-flow.md`](docs/channel-setup-flow.md). All 119 backend
 tests and native/arm64/package gates pass. Later closeout changes are docs only.
 Preserve settings/profiles/chats, keep ADB enabled and leave Surveyor/EN1 service
 ownership intact. One private T-Deck message received a persisted Recipient ACK; original radio,
-profile and data preservation are verified. The owner deferred the physical form
-check; new camera and public-peer checks remain unperformed.
+profile and data preservation are verified. The owner subsequently passed the
+specified physical form/`Test/1` entry/Review/Discard check; saved state remains
+unchanged. Camera TestQR013 is prepared for the next check; a complete physical
+keyboard sweep and public-peer checks remain unperformed.
 GPS dongle work is next: establish receiver model/interface and explicit source,
 priority and fallback before implementing. Do not claim automatic USB support.
 
