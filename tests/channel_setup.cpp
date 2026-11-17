@@ -210,7 +210,7 @@ static void run(const std::string &dir, bool dark) {
         vm, commit,
         R"("event":"channel.setup.saved","added":1,"verified":"radio","channels":[{"index":1,"identity":"new-group"}],"profile":"synthetic-profile")");
     CHECK(labels(s.root()).find("verified by the radio") != std::string::npos);
-    vm.apply_health("tx-rx", "");
+    vm.apply_health("transmit", "");
     screenshot(s.root(), dir, dark ? "channel-setup-complete-dark.png" : "channel-setup-complete.png");
     vm.set_channels({{1, "Field", false, "SECONDARY", 15, "new-group"}});
     choose(s, "Open conversation");
