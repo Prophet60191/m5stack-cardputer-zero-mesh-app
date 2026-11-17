@@ -197,7 +197,7 @@ separate task; receiver model/source selection and a real outdoor fix remain ope
 **Status: resumed by the owner on 2026-11-17 after Surveyor finished.** The
 following is the recorded assessment and acceptance plan; implementation results
 will be recorded separately. Preserve Surveyor, shared resource ownership and
-both saved mesh profiles. GPS dongle support follows this maintenance task.
+saved mesh profiles and the active setup. GPS dongle support follows this maintenance task.
 
 Baseline: Mesh 0.1.11, commit `f1c2c77b9ccb1a26ff366539af7d51f371a3e8af`.
 The source tree was clean during the assessment. Findings below come from

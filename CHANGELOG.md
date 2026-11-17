@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-17 — Private-peer qualification follow-up
+
+- With owner-confirmed antenna/T-Deck readiness, one private directed test
+  message received and persisted Recipient ACK (zero reported intermediate hops).
+- Temporarily disable the public secondary and use the known private tuning;
+  restore the original receive-only setup/public channel afterward. Preserve all
+  19 original messages, three thread rows, profile/settings/INI; the delivered
+  test message is the expected twentieth. No peer configuration change.
+- Defer physical form/key/camera acceptance at the owner's request. Clarify the
+  inventory: one persisted named profile plus an active working setup; earlier
+  "both saved profiles" wording conflated those. No runtime code/package change.
+
 ## 0.1.13 — 2026-11-17 (release candidate)
 
 - Replace separate add/import/create dialogs with one local channel setup form:
@@ -23,7 +35,8 @@ Debian package/install/upgrade/firewall/preflight checks pass. The verified CI
 package is installed; all 104 files match, owner/API and native UI replay pass,
 and existing channels/profiles/INI and all 19 messages/3 thread rows are preserved.
 Final ten-minute receive-only test: 61 healthy samples, zero failures/restarts.
-No RF delivery or new physical-key/camera acceptance is claimed. See
+Initial closeout excluded RF delivery; the private-peer follow-up above adds
+recipient-radio ACK evidence. Physical-key/camera acceptance remains deferred. See
 [the implementation/qualification record](docs/channel-setup-flow.md).
 
 

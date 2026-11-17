@@ -28,7 +28,9 @@ complete form, verified saves, preservation cases and qualification limits are
 in [`docs/channel-setup-flow.md`](docs/channel-setup-flow.md). All 119 backend
 tests and native/arm64/package gates pass. Later closeout changes are docs only.
 Preserve settings/profiles/chats, keep ADB enabled and leave Surveyor/EN1 service
-ownership intact. No new RF-delivery/physical-key/camera acceptance is claimed.
+ownership intact. One private T-Deck message received a persisted Recipient ACK; original radio,
+profile and data preservation are verified. The owner deferred the physical form
+check; new camera and public-peer checks remain unperformed.
 GPS dongle work is next: establish receiver model/interface and explicit source,
 priority and fallback before implementing. Do not claim automatic USB support.
 
@@ -41,7 +43,7 @@ for source/package correspondence, regressions, device measurements and limits.
 Functional/package source is `2e0035c`; later closeout changes are documentation
 only. Candidate 0.1.12 passed its own installation and owner-confirmed physical navigation;
 0.1.13 supersedes it as documented above.
-Preserve features, the modular UI/supervisor boundary, both saved mesh profiles
+Preserve features, the modular UI/supervisor boundary, saved mesh profiles and the active setup
 and all privacy/lifecycle safeguards. Keep ADB enabled under the standing owner
 instruction. Leave Surveyor code and shared hardware ownership intact.
 GPS dongle support is the next separate task; do not claim automatic USB priority

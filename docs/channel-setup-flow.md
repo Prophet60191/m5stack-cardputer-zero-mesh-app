@@ -75,9 +75,39 @@ new stable identity against current channels, avoiding numeric-slot retargeting.
 | Installed files/security | All 104 regular files match archive hash/mode/root owner; dpkg verify clean; actual supervisor UID1000, capabilities zero, NoNewPrivileges enabled |
 | Device owner/API | Cancelled review changes nothing; profile-only preserves running setup; live RX-only add/retune verifies channel identity and tuning; offline synthetic QR import remains Off; original channels/tuning/profiles restored afterward |
 | Device UI | Matching CI native setup replay passes in both themes with installed Noto fonts; actual native GUI opens framebuffer and built-in keyboard using the exact installed executable; launcher restored without supervisor restart |
-| Preservation | Private consistent SQLite/file backups retained; both original profiles, keys/roles/tuning, identity, TX/GPS/privacy, INI and all 19 messages/3 thread rows/preferences preserved |
+| Preservation | Private consistent SQLite/file backups retained; original saved profile and active setup, keys/roles/tuning, identity, TX/GPS/privacy, INI and all 19 original messages/3 thread rows/preferences preserved |
 | Stability | Final installed source: 61 healthy samples over 600 seconds, zero failures/restarts, one supervisor PID; maximum firewall-verdict age 1.99 seconds |
 | Documentation | 28 synthetic screenshots, all links/version/image checks, visually reviewed 40-page manual and one-page reference; exact CI PDFs copied to Desktop with the previous edition archived |
+
+## Private-peer follow-up — 2026-11-17
+
+After the owner confirmed the antenna and powered-on T-Deck, one private directed
+message was sent through the installed supervisor intent API. Its delivery event
+and persisted conversation record both report **Recipient ACK**, with zero
+reported intermediate hops. This qualifies recipient-radio acknowledgment, not
+a read receipt, screen rendering or a typed application reply.
+
+The test used the existing private key/name and the previously qualified
+US/MEDIUM_FAST/slot-45 tuning. The public secondary was temporarily disabled
+before TX was enabled, with location/MQTT Off. The T-Deck configuration was not
+changed. The original US/LONG_FAST/slot-20 receive-only setup and public secondary
+were then restored through the owner API. An owner-local recovery action also
+covered unexpected QA-helper termination; no message was automatically retried.
+
+All 19 original stored messages remain unchanged; the delivered test message is
+the expected twentieth. All three thread rows and the preferences row, original
+profile file, channel/configuration bytes, identity and INI match the fresh
+pre-test backup. Only normal transmit-history bookkeeping differs. The temporary
+restore profile was removed; the supervisor had zero restarts, and ADB/hotplug
+remain enabled. Device IDs, keys, names, raw events and backups stay private.
+
+Inventory clarification: the device has **one persisted named profile plus its
+active working setup**. Earlier references to “both saved profiles” conflated
+those two configurations; the tests compare the actual persisted profile set.
+
+The owner explicitly deferred the physical Add a channel form check. That check
+and a new camera scan remain pending; the private recipient ACK does not replace
+them. Public-peer RF and outdoor GPS are still unqualified.
 
 The earlier `c5777c2` candidate also passed owner/API, native UI and a separate
 61-sample ten-minute RX check before the final multi-location/consent refinement.
@@ -93,10 +123,11 @@ state. The final installation/qualification used a fresh private backup.
 
 ## Limits and official references
 
-No RF message, traceroute or location request was sent. No peer compatibility,
-ACK/delivery, physical-key acceptance or new camera scan result is claimed for
-this change; the optional physical/peer checks were unanswered during this run.
-The RX-only save/readback tests exercise configuration rather than end-to-end RF.
+The initial configuration/stability qualification used no RF messages. The
+private-peer follow-up above subsequently qualified one directed test message
+and its recipient-radio acknowledgment. No traceroute or location request was
+sent. Physical-key/form acceptance and a new camera scan remain deferred at the
+owner's request. Public-peer compatibility/delivery is not claimed.
 Outdoor GPS, USB GPS priority/fallback and physical IPv6 qualification remain
 unperformed. Leak detection for LVGL global caches remains disabled; sanitizer
 passes are not a general leak audit. ADB and hotplug remain active/enabled under
