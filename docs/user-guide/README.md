@@ -22,7 +22,7 @@ URL contains its secret key: share it only with the intended group.
 
 ## Offline downloads
 
-The last published PDFs cover 0.1.12; the Markdown here includes the new 0.1.13 channel setup. Download both PDFs from the **[0.1.12 candidate release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.12-rc.1)**:
+Download the reviewed 0.1.13 PDFs from the **[0.1.13 candidate release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.13-rc.1)**:
 
 - **Cardputer-Zero-Mesh-User-Guide.pdf** — combined illustrated manual, with
   contents, internal links and chapter bookmarks.

@@ -1,94 +1,111 @@
-# Unified channel setup — implementation record
+# Unified channel setup — implementation and qualification
 
-Status: in progress, 2026-11-17. Owner approved one guided place for scan/paste,
-public/private creation, channel details, shared tuning, privacy, optional named
-profile and opening the resulting conversation. Preserve existing profiles/chats,
-Radio first, keyboard behavior and modular ownership. GPS dongle work stays later.
+Implemented and installed, 2026-11-17. Mesh 0.1.13 brings scan/paste, public/private
+creation, channel details, shared tuning, privacy, optional named profiles and
+opening the resulting conversation into one flow. Radio remains first in
+Settings. GPS dongle support remains a separate later task.
 
-Implementation uses a local Settings draft (`settings_channel_setup.cpp`) across
-field editors/review, with no writes before explicit Save. The supervisor owns
-connection-bound, bounded/expiring previews, hidden generated/imported keys,
-strict validation and a single complete preference transaction. Tuning applies
-to every channel. Separate-profile-only keeps the live setup/radio untouched
-and starts RX/location/MQTT Off. An active apply restarts once if already Online;
-offline apply stays Off and distinguishes stored verification from live readback.
-Failed apply attempts restore previous preferences and stop the radio; failed
-recovery is explicit. Optional profile failure must never claim it was saved.
+## Behavior and ownership
 
-Existing channel.preview/scan accepts optional setup:true to prepare while Off,
-without powering hardware. Legacy preview/import behavior stays compatible. QR
-radio suggestions are optional, never applied implicitly. New location/MQTT
-choices are Off; TX defaults to current mode and enabling TX or retuning with TX
-needs explicit antenna/region acknowledgment. Public location/MQTT effects get
-separate confirmations. Missing, expired, cancelled or stale previews cannot save.
+Settings keeps a local draft across field editors, review and validation errors;
+no settings change before explicit Save. Fixed headings/help remain visible while
+fields scroll. Escape from editors/review keeps entries and an imported token;
+closing the entire flow cancels both. Routine receive-only saves apply directly
+from Review. Transmission/antenna, public location and MQTT require their relevant
+explicit acknowledgments. Repeated Return cannot submit another pending save.
 
-Pending verification: focused backend and real-LVGL form/lifetime/bounds tests,
-existing regressions/sanitizers, Debian arm64 package/install/upgrade/policy,
-source-correlated CI, private device backup/install and actual UI checks. Use a
-compatible peer only if needed; inspect current peer/project policy first and
-never repurpose EN1 or enable its deprecated transport. Keep ADB enabled. No RF
-or hardware test has yet been performed for this change.
+The supervisor validates and owns generated/imported keys, connection-bound
+previews (maximum eight, 120-second expiry), source fingerprints, cancellation and
+serialized writes. It reserves each preview request before worker preparation,
+so cancellation during preparation also wins before any write. Stale, cancelled,
+expired and disconnected previews cannot commit. Keys/URLs are not returned in
+preview/result events. Pasted URLs necessarily exist in UI memory; masking is
+not encryption or secure erasure.
 
-Custom frequency handling: show an existing fixed frequency/calibration offset,
-preserve it exactly or explicitly clear the fixed-frequency override to use
-slots. Arbitrary new fixed frequencies are not accepted by this flow. Changing
-region while retaining a fixed frequency is rejected. Imported fixed frequency
-and device calibration are never copied silently. Imported Auto still depends
-on this device's primary name; the review explains when an explicit matching
-slot is needed. The tested device currently has no override/offset.
+Radio tuning is shared by every channel. QR tuning is an explicit suggestion,
+never silently adopted. Auto still depends on the unchanged primary channel name.
+Existing fixed frequency/calibration are displayed and preserved; a fixed
+frequency may be explicitly cleared, but this form cannot introduce arbitrary
+new frequencies. Changing region with an existing fixed frequency is rejected.
+Imported fixed frequencies and calibration offsets are not silently copied.
 
-First working checks: all 102 pre-existing backend tests pass; 12 new planner/
-commit/privacy/rollback cases pass after correcting rollback of an originally
-absent consent file. Four native sanitizer CTests pass after migrating legacy
-QR/public-creation UI cases to the unified flow and retaining cancellation,
-correlation, keyboard, privacy and existing manager-edit coverage. Header/footer
-bounds and light/dark synthetic renders reviewed; no live test/install yet.
+New channel location/MQTT default Off. Multi-channel imports can select exactly
+one new automatic-location channel within the form; consent/precision follow its
+actual privacy. Choosing that target disables automatic location on other
+channels. Existing sharing is otherwise preserved. GPS receiver configuration
+is independent. TX defaults to the current mode; enabling it or retuning while
+TX requires antenna/region consent. Firmware may broadcast when TX is allowed.
 
-Review follow-up: cancelled queued previews use a separate connection/request
-reservation so cancellation during preparation wins before any write. Escape
-from review/field editors preserves the imported QR token and local entries;
-closing the whole form cancels both. An unrelated form-validation error does
-not discard a still-valid imported key. New picker navigation changes selection
-in place; obsolete standalone QR/import/create UI branches were removed while
-the older socket API remains supported.
+Separate-profile-only saves start RX/location/MQTT Off and leave the live setup
+and radio unchanged. Active saves stop/apply once, verify persisted preferences
+and restart once only if previously Online, then verify actual radio readback.
+An offline save stays Off and reports stored verification. Failed apply attempts
+restore previous preferences/consent and stop the radio; failed restoration is
+explicit. Optional profile/history follow-up failures report partial success
+without implying the channel should be added again. Unknown results require
+inspection before retry; configuration and RF actions are never replayed
+automatically. This recovery is not a power-loss-atomic transaction across every
+file or a guarantee that an interrupted write can always be restored.
 
-Final local gates: all 118 backend tests, four macOS ASAN/UBSAN CTests and three
-Debian arm64 sanitizer CTests pass, together with Release/package/fresh-install/
-actual 0.1.8-upgrade/firewall checks. No claim of a general leak audit (LVGL
-global-cache leak detection remains disabled). The reviewed guide builds with
-28 synthetic screenshots, 40 manual pages and a one-page quick reference; all
-local links/version/image checks pass and rendered pages were inspected. Shared
-guide changes pass all 22 tests. Device and exact-source CI remain pending.
+The old socket import API remains compatible. Optional `setup:true` permits QR
+capture/preview while Off without powering the Cap. Obsolete standalone native
+scan/import/create branches were removed. Conversation opening resolves the
+new stable identity against current channels, avoiding numeric-slot retargeting.
 
-Implementation references: the qualified firmware's [RadioInterface.cpp](https://github.com/meshtastic/firmware/blob/54e0d8d/src/mesh/RadioInterface.cpp)
+## Exact source and artifacts
+
+- Runtime/package source and `v0.1.13-rc.1` tag:
+  `88fd8e53b55a7247807ae2d7facb550a7ef484df`.
+- Installed archive: `cardputerzero-mesh_0.1.13-rev1_arm64.deb`, SHA256
+  `1aa987ad6b79ed3e35ac6c8b42d8c532c8c58f698f1d10c7f2857d108647370a`.
+- [Exact-source code/package CI](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/44150240654)
+  and [guide CI](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/44150240657)
+  pass. Later closeout edits are documentation only.
+- Reusable draft/scope/cancellation/partial-result lessons are in app-guide
+  `a64d24b4e37e5e647c1d211f957751333978dda5`; its 22 tests and matching CI pass.
+  No Store or upstream submission was made.
+
+## Verification
+
+| Scope | Observed result |
+|---|---|
+| Backend | All 119 tests pass, including 17 setup planning, privacy, rollback, staleness, cancellation and multi-location cases |
+| Native/offline | Four macOS ASAN/UBSAN CTests, five Linux desktop CI CTests and three Debian arm64 sanitizer CTests pass; real LVGL, keyboard/input, legacy import/edit and lifetime/bounds regressions retained |
+| Debian package | Release build, archive/license inspection, fresh install, actual 0.1.8 upgrade, service/policy/firewall checks and non-publishing Store preflight pass (zero errors; optional localization advisory remains) |
+| Installed files/security | All 104 regular files match archive hash/mode/root owner; dpkg verify clean; actual supervisor UID1000, capabilities zero, NoNewPrivileges enabled |
+| Device owner/API | Cancelled review changes nothing; profile-only preserves running setup; live RX-only add/retune verifies channel identity and tuning; offline synthetic QR import remains Off; original channels/tuning/profiles restored afterward |
+| Device UI | Matching CI native setup replay passes in both themes with installed Noto fonts; actual native GUI opens framebuffer and built-in keyboard using the exact installed executable; launcher restored without supervisor restart |
+| Preservation | Private consistent SQLite/file backups retained; both original profiles, keys/roles/tuning, identity, TX/GPS/privacy, INI and all 19 messages/3 thread rows/preferences preserved |
+| Stability | Final installed source: 61 healthy samples over 600 seconds, zero failures/restarts, one supervisor PID; maximum firewall-verdict age 1.99 seconds |
+| Documentation | 28 synthetic screenshots, all links/version/image checks, visually reviewed 40-page manual and one-page reference; exact CI PDFs copied to Desktop with the previous edition archived |
+
+The earlier `c5777c2` candidate also passed owner/API, native UI and a separate
+61-sample ten-minute RX check before the final multi-location/consent refinement.
+Its archive is not the final installer above. One initial QA attempt connected
+before socket readiness; retry after a readiness gate passed, without a service
+restart. No implementation failure was inferred from that test-startup race.
+
+Normal profile apply introduced only empty settings/module submessages in
+previously disabled slots during the first qualification; every channel value
+and identity was independently compared. Normal transmit-history bookkeeping
+changed during radio restarts. These are not claims of byte-identical runtime
+state. The final installation/qualification used a fresh private backup.
+
+## Limits and official references
+
+No RF message, traceroute or location request was sent. No peer compatibility,
+ACK/delivery, physical-key acceptance or new camera scan result is claimed for
+this change; the optional physical/peer checks were unanswered during this run.
+The RX-only save/readback tests exercise configuration rather than end-to-end RF.
+Outdoor GPS, USB GPS priority/fallback and physical IPv6 qualification remain
+unperformed. Leak detection for LVGL global caches remains disabled; sanitizer
+passes are not a general leak audit. ADB and hotplug remain active/enabled under
+the owner's standing instruction. Surveyor, EN1's radio/service, shared drivers,
+network policy and the backup timer were not changed.
+
+The qualified firmware's [RadioInterface.cpp](https://github.com/meshtastic/firmware/blob/54e0d8d/src/mesh/RadioInterface.cpp)
 shows shared tuning, primary-name Auto hashing, slot modulo semantics and fixed
 frequency/calibration precedence. The [official channel documentation](https://meshtastic.org/docs/configuration/radio/channels/)
-distinguishes radio-wide modem configuration from channel keys/groups. Current
-documentation is not a qualification of a newer firmware/client combination;
-this app keeps its existing pinned 2.7.26/2.7.11 dependencies.
-
-First device candidate `c5777c2` passed exact-source code/docs CI and was installed
-from archive SHA256 `b68e6a2e90fbee5a540dc60392f7e8b150f136212690d0b0c8fb451ce4dad7de`.
-All 104 regular package files match hashes/modes/owners; native framebuffer/keyboard
-startup and the exact CI UI replay pass on the device. Actual owner-API tests
-verify cancellation, profile-only preservation, one live RX-only retune/channel
-save and offline save, then restore original channels/tuning/profiles. INI, keys,
-GPS/TX/privacy and all19 messages/3 draft-pin threads/preferences survive. Normal
-profile apply introduced only empty settings/module submessages in disabled
-slots; all channel values match. Transmit bookkeeping changed during restarts.
-An initial test attempted the socket before service readiness; retry after the
-readiness gate passed, with no supervisor restart. No test RF message sent.
-
-Final review adds in-form selection of one automatic-location target for
-multi-channel QR imports, so that case also stays in one place. Consent/precision
-use the actual chosen channel. Native/backend coverage is extended accordingly;
-this final source needs matching CI/artifact installation and qualification.
-Pasted URLs are explicitly recognized as secret-bearing UI memory; masking is
-not encryption or secure erasure. Remaining physical/RF checks are recorded
-separately from source, native replay and owner readback.
-
-Ordinary receive-only saves now apply directly from the reviewed summary. The
-extra acknowledgment page is shown only when TX/antenna, public location or MQTT
-consent is actually needed; routine local/profile saves do not add a second
-generic confirmation. The summary still defaults to Back, and repeated Return
-while saving cannot duplicate the operation.
+distinguishes radio-wide modem configuration from channel keys/groups. These
+references do not qualify a newer firmware/client combination; this app keeps
+its existing pinned 2.7.26/2.7.11 dependencies.

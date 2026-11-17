@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.13 — 2026-11-17 (release candidate; qualification in progress)
+## 0.1.13 — 2026-11-17 (release candidate)
 
 - Replace separate add/import/create dialogs with one local channel setup form:
   scan/paste/public/private, hidden key handling, global tuning, privacy, optional
@@ -18,7 +18,13 @@
   UI branches. Add native and backend setup/cancellation/privacy/recovery tests
   and update the user guide with synthetic screenshots.
 
-See [the implementation/qualification record](docs/channel-setup-flow.md).
+Validation: all 119 backend tests, native/arm64 sanitizers, exact-source CI and
+Debian package/install/upgrade/firewall/preflight checks pass. The verified CI
+package is installed; all 104 files match, owner/API and native UI replay pass,
+and existing channels/profiles/INI and all 19 messages/3 thread rows are preserved.
+Final ten-minute receive-only test: 61 healthy samples, zero failures/restarts.
+No RF delivery or new physical-key/camera acceptance is claimed. See
+[the implementation/qualification record](docs/channel-setup-flow.md).
 
 
 ## 0.1.12 — 2026-11-17 (release candidate)

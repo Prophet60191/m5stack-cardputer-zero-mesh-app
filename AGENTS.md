@@ -21,13 +21,16 @@ privacy settings, protocol, or package integration.
   `docs/keyboard.md`. Keep the reusable decoder and raw evdev-to-textarea checks
   together; direct text insertion is not proof of physical-key translation.
 
-## Current work — unified channel setup
+## Unified channel setup closeout — 2026-11-17
 
-The owner approved the complete channel setup flow, then testing/deployment.
-Implementation and remaining qualification are in
-[`docs/channel-setup-flow.md`](docs/channel-setup-flow.md). Preserve existing
-settings/profiles/chats, keep ADB enabled, and qualify peer compatibility without
-reconfiguring another project's radio/service. GPS dongle work follows this task.
+Candidate 0.1.13 is installed from exact runtime/package source `88fd8e5`; its
+complete form, verified saves, preservation cases and qualification limits are
+in [`docs/channel-setup-flow.md`](docs/channel-setup-flow.md). All 119 backend
+tests and native/arm64/package gates pass. Later closeout changes are docs only.
+Preserve settings/profiles/chats, keep ADB enabled and leave Surveyor/EN1 service
+ownership intact. No new RF-delivery/physical-key/camera acceptance is claimed.
+GPS dongle work is next: establish receiver model/interface and explicit source,
+priority and fallback before implementing. Do not claim automatic USB support.
 
 ## Maintenance closeout and next work
 
@@ -36,7 +39,8 @@ items and the simplification review are complete; see
 [`docs/maintenance-pass.md`](docs/maintenance-pass.md#second-pass-implementation--2026-11-17)
 for source/package correspondence, regressions, device measurements and limits.
 Functional/package source is `2e0035c`; later closeout changes are documentation
-only. Candidate 0.1.12 is installed and the owner confirmed physical navigation.
+only. Candidate 0.1.12 passed its own installation and owner-confirmed physical navigation;
+0.1.13 supersedes it as documented above.
 Preserve features, the modular UI/supervisor boundary, both saved mesh profiles
 and all privacy/lifecycle safeguards. Keep ADB enabled under the standing owner
 instruction. Leave Surveyor code and shared hardware ownership intact.

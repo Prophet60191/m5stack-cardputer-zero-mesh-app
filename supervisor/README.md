@@ -6,6 +6,8 @@ This directory contains the Linux radio backend for the native Mesh UI:
 |---|---|
 | `supervisor.py` | Same-user intent socket, validated explicit-channel actions and authoritative session state |
 | `application_services.py` | Setup, channel/profile management, TX confirmation and sanitized diagnostics |
+| `channel_setup.py` | Complete draft validation, expiring reviewed plans and verified/recoverable channel setup |
+| `channel_import.py` | Bounded private QR/URL preview and compatible legacy import |
 | `radio_settings.py` | Private recoverable preferences, opaque channel identity and local saved profiles |
 | `state_store.py` | Bounded SQLite conversations, drafts and pins; no automatic resend queue |
 | `user_service.py` | Fixed transient user-service lifecycle, private operation lock, stop/restart and recovery policy |
