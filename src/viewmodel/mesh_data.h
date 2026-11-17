@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <tuple>
 
 namespace viewmodel {
 
@@ -33,6 +34,14 @@ struct NodeInfo {
     int satellites = -1;
     double channelUtilization = -1;
     double airUtilization = -1;
+    bool operator==(const NodeInfo &o) const {
+        return std::tie(id, name, shortName, snr, hasSnr, lastHeard, hops, isSelf, favorite, hasBattery,
+                        battery, voltage, hasPos, lat, lon, positionTime, satellites, channelUtilization,
+                        airUtilization) == std::tie(o.id, o.name, o.shortName, o.snr, o.hasSnr, o.lastHeard,
+                                                    o.hops, o.isSelf, o.favorite, o.hasBattery, o.battery,
+                                                    o.voltage, o.hasPos, o.lat, o.lon, o.positionTime,
+                                                    o.satellites, o.channelUtilization, o.airUtilization);
+    }
 };
 
 struct ChannelInfo {

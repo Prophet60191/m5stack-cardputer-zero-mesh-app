@@ -649,6 +649,12 @@ if(MESH_BUILD_BENCHMARKS)
     target_link_libraries(mesh_benchmarks PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
         ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
 endif()
+if(BUILD_TESTING)
+    add_executable(mesh_maintenance_regressions tests/maintenance_followup.cpp)
+    target_link_libraries(mesh_maintenance_regressions PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
+        ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
+    add_test(NAME mesh_maintenance_regressions COMMAND mesh_maintenance_regressions)
+endif()
 if(BUILD_TESTING AND USE_DESKTOP)
     add_executable(mesh_keyboard_regressions tests/keyboard.cpp)
     target_link_libraries(mesh_keyboard_regressions PRIVATE ${PROJECT_NAME}_platform)

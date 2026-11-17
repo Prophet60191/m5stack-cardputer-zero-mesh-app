@@ -41,6 +41,10 @@ private:
 
     void build_content(lv_obj_t* content) override;
     void rebuild();
+    void refresh_values();
+    void select_setting(int index);
+    std::vector<lv_obj_t *> value_labels_;
+    std::vector<lv_obj_t *> list_rows_;
     std::string value_for(int row);
     void row_action(int row);
     void open_picker(const std::string& title, std::vector<std::string> options,

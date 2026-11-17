@@ -217,3 +217,14 @@ upgrade removes the old package-owned wrapper and static unit, rather than
 leaving aliases, configuration links or installer-created hidden units.
 Store validation of the archive does not validate dynamically created service
 properties; these are covered by dedicated tests and a separate device probe.
+
+## Local conversation acceptance (0.1.12)
+
+Pending drafts/pins are retained until correlated supervisor acceptance, including
+unchanged saves; transport enqueue alone is not persistence. Acceptance identifies
+RAM-only history opt-out versus durable storage. Retry is bounded and limited to
+local conversation state, never RF sends. Multiple clients use last accepted
+write wins, with pending edits protected from older snapshots/results; this is
+not collaborative text merging. Graceful exit waits within a shared two-second
+save/sync deadline and reports unconfirmed state in the local log. See the
+[protocol](supervisor-protocol.md) and [maintenance evidence](maintenance-pass.md).

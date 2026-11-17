@@ -15,6 +15,7 @@
 
 #include <functional>
 #include <chrono>
+#include <ctime>
 #include <map>
 #include <set>
 #include <string>
@@ -73,6 +74,7 @@ public:
     void set_connected(bool connected);
     void apply_status(const std::string& radio, const std::string& region, const std::string& owner);
     void set_nodes(std::vector<NodeInfo> nodes);
+    lv_subject_t *node_names_subject() { return node_names_version_.native(); }
     void set_channels(std::vector<ChannelInfo> channels);
     void set_messages(std::vector<MessageInfo> messages);
     void add_message(MessageInfo message);
@@ -80,6 +82,9 @@ public:
     int channel_for_thread(const std::string& key) const;
     std::string channel_fields(int index) const;
     void apply_health(const std::string& mode, const std::string& detail);
+    lv_subject_t *health_subject() { return health_version_.native(); }
+    lv_subject_t *clock_subject() { return clock_version_.native(); }
+    long presentation_time() const { return presentation_time_; }
     const std::string& radio_mode() const { return radio_mode_; }
     const std::string& radio_detail() const { return radio_detail_; }
     lv_subject_t* services_subject() { return services_version_.native(); }
@@ -91,9 +96,11 @@ public:
     const json::Value& setup() const { return setup_; }
     void apply_setup(const json::Value& event);
     void apply_threads(const json::Value& event);
+    void apply_thread_result(const json::Value &event);
     std::string draft(const std::string& key) const;
     void save_draft(const std::string& key, const std::string& text);
     void flush_drafts();
+    bool thread_state_pending() const { return !dirty_drafts_.empty(); }
     bool pinned(const std::string& key) const;
     void remember_conversation(const std::string& key);
     std::vector<ConversationRow> conversation_rows(const std::string& search = "") const;
@@ -216,7 +223,8 @@ public:
     lv_subject_t* config_state_subject() { return config_state_.native(); }
     const char* config_state() const { return config_state_.value(); }
     void config_unknown();
-    void tick(std::chrono::steady_clock::time_point at = std::chrono::steady_clock::now());
+    void tick(std::chrono::steady_clock::time_point at = std::chrono::steady_clock::now(),
+              long wall = static_cast<long>(std::time(nullptr)));
 
     // Direct-message target: when set, the Messages screen sends to this node.
     void set_dm_target(const std::string& id, const std::string& name);
@@ -226,6 +234,8 @@ public:
 
 private:
     std::string radio_mode_, radio_detail_;
+    reactive::IntSubject health_version_{0}, clock_version_{0};
+    long presentation_time_ = static_cast<long>(std::time(nullptr));
     reactive::IntSubject services_version_{0};
     json::Value service_event_, setup_;
     std::string service_request_id_, service_intent_, import_request_id_;
@@ -233,11 +243,20 @@ private:
     std::map<std::string, std::string> drafts_;
     std::map<std::string, std::string> sent_draft_keys_;
     std::set<std::string> dirty_drafts_;
+    struct ThreadSave {
+        std::string request, draft;
+        bool pinned;
+        long long deadline;
+    };
+    std::map<std::string, ThreadSave> thread_saves_;
+    std::set<std::string> blocked_saves_;
+    bool draft_send_failed_ = false;
     long long draft_deadline_ = 0;
     std::set<std::string> pinned_;
     bool history_enabled_ = true;
     int quiet_start_ = -1, quiet_end_ = -1;
-    void send_thread_state(const std::string& key);
+    bool send_thread_state(const std::string &key, long long now);
+    void flush_drafts_at(long long now);
     void publish_all();
     bool send_intent(const std::string& line);
 
@@ -251,6 +270,7 @@ private:
     reactive::StringSubject<40> owner_subject_{""};
     reactive::BoolSubject connected_subject_{false};
     reactive::IntSubject nodes_version_subject_{0};
+    reactive::IntSubject node_names_version_{0};
     reactive::IntSubject channels_version_subject_{0};
     reactive::IntSubject messages_version_subject_{0};
     reactive::IntSubject unread_version_subject_{0};
@@ -296,8 +316,8 @@ private:
     std::string last_notice_;
     std::function<void()> on_persist_;
     void persist();
-    void trim_thread(const std::string& key);
-    void trim_all_threads();
+    bool trim_thread(const std::string &key);
+    bool trim_all_threads();
     void prune_unread();
     std::string last_incoming_from_;
     std::string last_incoming_text_;

@@ -57,6 +57,7 @@ lv_obj_t* BaseScreen::root() const {
 viewmodel::BaseViewModel& BaseScreen::view_model() {
     return view_model_;
 }
+const viewmodel::BaseViewModel &BaseScreen::view_model() const { return view_model_; }
 
 app::AssetManager& BaseScreen::assets() {
     return assets_;

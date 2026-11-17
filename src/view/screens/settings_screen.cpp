@@ -8,6 +8,7 @@
 #include "asset_manager.h"
 #include "bindings.h"
 #include "theme.h"
+#include "list_selection.h"
 
 #include <cstdlib>
 #include <cerrno>
@@ -96,6 +97,7 @@ void SettingsScreen::build_content(lv_obj_t* content) {
     lv_subject_add_observer_obj(view_model().connected_subject(), on_change, list_, this);
     // Re-render when any bound value changes.
     lv_subject_add_observer_obj(view_model().radio_state_subject(), on_change, list_, this);
+    lv_subject_add_observer_obj(view_model().health_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().region_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().owner_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().modem_preset_subject(), on_change, list_, this);
@@ -111,10 +113,13 @@ void SettingsScreen::build_content(lv_obj_t* content) {
     lv_subject_add_observer_obj(view_model().dark_mode_subject(), on_change, list_, this);
 }
 
-void SettingsScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
+void SettingsScreen::on_change(lv_observer_t *observer, lv_subject_t *subject) {
     auto* self = static_cast<SettingsScreen*>(lv_observer_get_user_data(observer));
     if (self && self->overlay_mode_ == Overlay::None) {
-        self->rebuild();
+        if (subject == self->view_model().dark_mode_subject())
+            self->rebuild();
+        else
+            self->refresh_values();
     }
 }
 
@@ -160,6 +165,8 @@ std::string SettingsScreen::value_for(int row) {
 }
 
 void SettingsScreen::rebuild() {
+    value_labels_.clear();
+    list_rows_.clear();
     lv_obj_clean(list_);
     const auto colors = view::palette(view_model().is_dark_mode());
     const lv_font_t* font = assets().load_standard_font(14, app::StandardFontWeight::Regular);
@@ -185,15 +192,10 @@ void SettingsScreen::rebuild() {
         lv_obj_set_style_pad_ver(row, 4, 0);
         lv_obj_set_style_pad_hor(row, 6, 0);
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        if (i == selected_) {
-            lv_obj_set_style_radius(row, 6, 0);
-            lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
-            lv_obj_set_style_bg_color(row, colors.button, 0);
-            lv_obj_set_style_border_side(row, LV_BORDER_SIDE_LEFT, 0);
-            lv_obj_set_style_border_width(row, 3, 0);
-            lv_obj_set_style_border_color(row, colors.primary, 0);
+        list_rows_.push_back(row);
+        view::widgets::style_list_row(row, colors, i == selected_);
+        if (i == selected_)
             sel_row = row;
-        }
         auto* label = lv_label_create(row);
         lv_label_set_text(label, kRows[i].label);
         lv_obj_set_style_text_font(label, font, 0);
@@ -201,12 +203,26 @@ void SettingsScreen::rebuild() {
 
         const std::string value = value_for(kRows[i].key);
         auto* val = lv_label_create(row);
+        value_labels_.push_back(val);
         lv_label_set_text(val, value.c_str());
         lv_obj_set_style_text_font(val, font, 0);
         lv_obj_set_style_text_color(val, colors.text_disabled, 0);
     }
     lv_obj_update_layout(list_);
     if (sel_row) lv_obj_scroll_to_view(sel_row, LV_ANIM_OFF);
+}
+
+void SettingsScreen::select_setting(int index) {
+    view::widgets::select_list_row(list_rows_, selected_, index, view::palette(view_model().is_dark_mode()));
+    selected_ = index;
+}
+
+void SettingsScreen::refresh_values() {
+    for (size_t i = 0; i < value_labels_.size(); ++i) {
+        const auto value = value_for(kRows[i].key);
+        if (value != lv_label_get_text(value_labels_[i]))
+            lv_label_set_text(value_labels_[i], value.c_str());
+    }
 }
 
 void SettingsScreen::row_action(int row) {
@@ -607,7 +623,8 @@ void SettingsScreen::on_up() {
         return;
     }
     if (overlay_mode_ != Overlay::None) return;
-    if (selected_ > 0) { --selected_; rebuild(); }
+    if (selected_ > 0)
+        select_setting(selected_ - 1);
 }
 
 void SettingsScreen::on_down() {
@@ -621,7 +638,8 @@ void SettingsScreen::on_down() {
         return;
     }
     if (overlay_mode_ != Overlay::None) return;
-    if (selected_ < kRowCount - 1) { ++selected_; rebuild(); }
+    if (selected_ < kRowCount - 1)
+        select_setting(selected_ + 1);
 }
 
 void SettingsScreen::on_enter() {

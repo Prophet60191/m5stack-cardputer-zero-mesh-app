@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 using Clock = std::chrono::steady_clock;
@@ -20,13 +21,15 @@ template<class Fn> static double median_us(Fn fn, int count = 21) {
     std::sort(samples.begin(), samples.end()); return samples[samples.size()/2];
 }
 
-int main() {
+int main(int argc, char** argv) {
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
+    const bool maintenance_only = argc == 2 && std::strcmp(argv[1], "--maintenance") == 0;
     lv_init(); auto* display = lv_display_create(320,170);
     {
         viewmodel::BaseViewModel vm;
         vm.set_command_sink([](const std::string&) { return true; });
         vm.set_connected(true);
-        for (int peers : {32, 256, 2000}) {
+        if (!maintenance_only) for (int peers : {32, 256, 2000}) {
             std::vector<viewmodel::MessageInfo> messages;
             for (int i = 0; i < 2000; ++i) {
                 viewmodel::MessageInfo m;
@@ -44,6 +47,47 @@ int main() {
             }
         }
         vm.set_channels({{1,"Synthetic",true,"PRIMARY",0,"synthetic-channel"}});
+        for (int peers : {1, 32, 256, 2000}) {
+            std::vector<viewmodel::MessageInfo> messages;
+            for (int i = 0; i < 2000; ++i) {
+                viewmodel::MessageInfo m;
+                m.id = std::to_string(i);
+                m.to = "broadcast";
+                m.channelIdentity = "synthetic-" + std::to_string(i % peers);
+                m.text = "Synthetic";
+                messages.push_back(std::move(m));
+            }
+            vm.load_messaging_prefs(false, 1, false, true);
+            const auto us = median_us([&] { vm.set_messages(messages); }, 7);
+            std::printf("retention messages=2000 peers=%d cap=1 retained=%zu median_us=%.3f\n", peers,
+                        vm.messages().size(), us);
+        }
+        vm.load_messaging_prefs(false, 0, false, true);
+        for (int peers : {32, 256}) {
+            vm.set_channels({});
+            std::vector<viewmodel::MessageInfo> messages;
+            for (int i = 0; i < 2000; ++i) {
+                viewmodel::MessageInfo m;
+                char peer[16];
+                std::snprintf(peer, sizeof(peer), "!%08x", 0x10000000 + i % peers);
+                m.from = peer;
+                m.to = "self";
+                m.id = std::to_string(i);
+                m.text = "Synthetic";
+                messages.push_back(m);
+            }
+            vm.set_messages(messages);
+            app::AssetManager assets;
+            screen::MessagesScreen screen(vm, assets);
+            const auto us = median_us(
+                [&] {
+                    screen.on_down();
+                    screen.on_up();
+                },
+                7);
+            std::printf("conversation_navigation peers=%d roundtrip_median_us=%.3f\n", peers, us);
+        }
+        vm.set_channels({{1, "Synthetic", true, "PRIMARY", 0, "synthetic-channel"}});
         vm.set_messages({});
         vm.save_draft("ch:synthetic-channel","Synthetic draft"); vm.flush_drafts();
         json::Value event;

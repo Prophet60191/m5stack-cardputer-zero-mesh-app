@@ -1,6 +1,6 @@
 # Quick Reference Card
 
-> For Mesh **0.1.11 (release candidate)** · Updated **2026-11-16** · [Guide index](README.md)
+> For Mesh **0.1.12 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 ## Hardware Safety Rules
 
@@ -32,6 +32,7 @@
 | Yellow **starting** | Startup and safety checks |
 | Green **RX** | Listening only; sending blocked |
 | Green **TX/RX** | Sending and receiving enabled |
+| Green **Online ?** | Online, but receive/transmit mode is unconfirmed; check Diagnostics |
 | Red **error** | Check the notice or Settings → Diagnostics |
 | Grey **unknown** | Background service state not confirmed |
 | **✉ N** | Unread count for unmuted chats |

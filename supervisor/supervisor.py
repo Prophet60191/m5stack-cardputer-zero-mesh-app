@@ -869,12 +869,17 @@ class Supervisor(ApplicationServices, ChannelImport):
                 name = req.get("thread")
                 state = self._store.clean_thread(name, req.get("state"))
                 with self._lock:
-                    if self._threads.get(name) == state: return
-                    if name not in self._threads and len(self._threads) >= 256:
-                        raise ValueError("conversation state limit reached")
-                    self._store.set_thread(name, state)
-                    self._threads[name] = state
-                    self._broadcast(self._thread_state())
+                    if self._threads.get(name) != state:
+                        if name not in self._threads and len(self._threads) >= 256:
+                            raise ValueError("conversation state limit reached")
+                        self._store.set_thread(name, state)
+                        self._threads[name] = state
+                        self._broadcast(self._thread_state())
+                    # Optional correlated acceptance is independent of full-state
+                    # broadcasts. Unchanged saves still complete, without a write.
+                    if rid is not None:
+                        reply({"event": "thread.saved", "thread": name,
+                               "durable": bool(self._store.preference("history.enabled", True))})
             elif intent == "thread.delete":
                 with self._lock:
                     self._store.delete_thread(req.get("thread"))

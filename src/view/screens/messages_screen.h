@@ -5,6 +5,7 @@
 #pragma once
 
 #include "base_screen.h"
+#include "mesh_data.h"
 
 #include <string>
 #include <vector>
@@ -33,6 +34,8 @@ private:
     void rebuild();
     void rebuild_list();
     void rebuild_thread();
+    void select_message(int index);
+    void select_conversation(int index);
     void open_thread(const std::string& key, const std::string& peer_id, const std::string& peer_name);
     void open_picker();
     void close_picker();
@@ -48,6 +51,7 @@ private:
     std::string channel_name(int index);          // display name for a channel index
     std::string group_name(const std::string& key);  // "# <channel>" for a group thread
     static void on_change(lv_observer_t* observer, lv_subject_t* subject);
+    static void on_nodes(lv_observer_t *, lv_subject_t *);
 
     // Action menus (reuse the one popup-list primitive) + read-only overlay.
     void open_thread_menu();
@@ -82,7 +86,9 @@ private:
     std::string peer_name_;
     int selected_ = 0;             // selection in the list / picker
     int msg_sel_ = -1;             // thread: -1 = compose row, 0..n-1 = a bubble
+    std::string selected_message_;
     bool composing_ = false;
+    bool subscribing_ = true;
     bool searching_ = false;
     std::string search_;
     std::string dm_channel_id_;
@@ -101,9 +107,15 @@ private:
     std::vector<std::string> menu_labels_;
     std::vector<int> menu_actions_;
 
-    std::vector<std::string> conv_key_, conv_peer_, conv_name_;   // conversations list
+    struct Conversation {
+        std::string key, peer, name;
+    };
+    std::vector<Conversation> conversations_;
+    std::vector<lv_obj_t *> conversation_rows_;
     std::vector<std::string> picker_id_, picker_name_;            // node picker
     std::vector<lv_obj_t*> thread_rows_;                          // bubble rows (for highlight/scroll)
+    std::vector<lv_obj_t *> thread_bubbles_;
+    std::vector<std::string> thread_keys_;
     std::vector<std::string> thread_msg_ids_;                     // parallel message ids
 };
 

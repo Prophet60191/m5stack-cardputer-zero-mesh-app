@@ -73,7 +73,7 @@ cd build/cp0-native
 cpack -G DEB -C Release
 ```
 
-Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.11-rev1_arm64.deb`.
+Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.12-rev1_arm64.deb`.
 The package contains the UI, assets, launcher, supervisor/guardian sources, both
 licenses, a fixed transient user-service controller, capability-limited firewall boot service, and canonical version metadata. The launcher starts the supervisor; it does not automatically start
 RF. Follow the README for platform permissions and pinned venv setup. The optional
@@ -96,6 +96,10 @@ cmake --preset darwin-arm64 -DBUILD_TESTING=ON
 cmake --build build/darwin-arm64 --config Debug
 ctest --test-dir build/darwin-arm64 -C Debug --output-on-failure
 ```
+
+`mesh_maintenance_regressions` runs on desktop and Linux device-target builds
+with a headless LVGL display, controlled clocks and synthetic state. It opens no
+radio socket, framebuffer or camera and is excluded from the installer.
 
 `mesh_regressions [output.png]` renders a wholly synthetic message screenshot
 using the real LVGL screen. Python tests use real pinned protobufs with fake radio
@@ -150,6 +154,9 @@ Configure with `-DMESH_BUILD_BENCHMARKS=ON`, build target `mesh_benchmarks`, the
 run it as an ordinary user. It uses synthetic history and a headless LVGL display;
 it opens no radio socket, framebuffer or camera. The isolated package gate also
 compiles/runs it and checks that the binary is excluded from the installed package.
+Use `mesh_benchmarks --maintenance` to restrict a device run to retention,
+conversation navigation and unchanged-thread measurements. Run before/after
+sequentially, with identical data/build flags and no other benchmark process.
 Timing results are informational, without timing thresholds in regression tests.
 See [the measurement record](maintenance-pass.md) for the actual-device baseline.
 

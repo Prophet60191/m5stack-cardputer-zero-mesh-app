@@ -121,6 +121,7 @@ void TitleBar::build() {
     refresh_device_status();
 
     lv_subject_add_observer_obj(view_model_.radio_state_subject(), radio_cb, core_obj_, this);
+    lv_subject_add_observer_obj(view_model_.health_subject(), radio_cb, core_obj_, this);
     lv_subject_add_observer_obj(view_model_.dark_mode_subject(), radio_cb, core_obj_, this);
     lv_subject_add_observer_obj(view_model_.nodes_version_subject(), nodes_cb, core_obj_, this);
     lv_subject_add_observer_obj(view_model_.unread_version_subject(), unread_cb, core_obj_, this);
@@ -138,7 +139,13 @@ void TitleBar::update_radio_dot() {
         else if (std::strcmp(state, "starting") == 0) color = colors.warning;
         else if (std::strcmp(state, "error") == 0) color = colors.error;
     }
-    lv_label_set_text(state_label_, state && std::strcmp(state, "online") == 0 ? (view_model_.radio_mode() == "receive-only" ? "RX" : "TX/RX") : (state ? state : "unknown"));
+    const char *label = state ? state : "unknown";
+    if (state && std::strcmp(state, "online") == 0) {
+        label = view_model_.radio_mode() == "receive-only" ? "RX"
+                : view_model_.radio_mode() == "transmit"   ? "TX/RX"
+                                                           : "Online ?";
+    }
+    lv_label_set_text(state_label_, label);
     lv_obj_set_style_bg_opa(radio_dot_, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(radio_dot_, color, 0);
 }

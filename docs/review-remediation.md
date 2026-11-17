@@ -1,6 +1,6 @@
 # Independent review remediation — 2026-11-15
 
-Initial review candidate: **0.1.1**; current candidate: **0.1.11** (latest evidence below).
+Initial review candidate: **0.1.1**; current candidate: **0.1.12** (latest evidence below).
 The [maintenance record](maintenance-pass.md) covers the subsequent measured cleanup.
 The [13-item report follow-up](report-followup.md) records the subsequent
 verification, corrections and qualified claims.
@@ -279,3 +279,11 @@ channel keys/tuning/TX/GPS/privacy settings, app preferences, conversations and
 drafts are unchanged. Saved messages survived. Actual radio-online/API/firewall
 readback and launcher refresh passed. No test texts, location requests or traces
 were sent. The previous outdoor GPS/public-RF/physical-IPv6 limits remain.
+
+## 0.1.12 second maintenance pass
+
+The [second-pass record](maintenance-pass.md#second-pass-implementation--2026-11-17)
+describes all seven corrections, selected cleanup, regression evidence and
+remaining qualification. Local source and package gates pass, including 102
+backend tests. Installed-runtime evidence is added there separately. No new
+outdoor GPS fix, public-peer delivery or physical IPv6 qualification is implied.

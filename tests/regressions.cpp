@@ -167,7 +167,16 @@ static void unchanged_thread_regression() {
     const auto revision=lv_subject_get_int(vm.messages_version_subject());vm.apply_threads(event);
     CHECK(vm.draft("ch:synthetic")=="new local draft");CHECK(lv_subject_get_int(vm.messages_version_subject())==revision);
     CHECK(screen.is_composing() && lv_obj_is_valid(input) && std::string(lv_textarea_get_text(input))=="new local draft");
-    vm.flush_drafts();CHECK(json::parse(R"({"event":"threads","history_enabled":true,"threads":{"ch:synthetic":{"draft":"new local draft","pinned":false}}})",event));
+    vm.flush_drafts();
+    json::Value save;
+    CHECK(json::parse(sent, save));
+    CHECK(json::parse("{\"event\":\"thread.saved\",\"id\":\"" + save.str_at("id") +
+                          "\",\"thread\":\"ch:synthetic\",\"durable\":true}",
+                      event));
+    vm.apply_thread_result(event);
+    CHECK(json::parse(
+        R"({"event":"threads","history_enabled":true,"threads":{"ch:synthetic":{"draft":"new local draft","pinned":false}}})",
+        event));
     for (int i=0;i<100;++i) vm.apply_threads(event);
     CHECK(lv_subject_get_int(vm.messages_version_subject())==revision);
     CHECK(json::parse(R"({"event":"threads","history_enabled":false,"threads":{"ch:synthetic":{"draft":"new local draft","pinned":true}}})",event));

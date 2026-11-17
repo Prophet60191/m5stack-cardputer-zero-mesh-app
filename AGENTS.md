@@ -20,3 +20,15 @@ privacy settings, protocol, or package integration.
 - Keyboard changes must use the official map and independent fixture linked in
   `docs/keyboard.md`. Keep the reusable decoder and raw evdev-to-textarea checks
   together; direct text insertion is not proof of physical-key translation.
+
+## Current maintenance
+
+The second maintenance assessment is recorded in
+[`docs/maintenance-pass.md`](docs/maintenance-pass.md#deferred-second-pass--2026-11-16).
+The owner resumed this work on 2026-11-17 after Wireless Surveyor finished.
+Address its seven items and evaluate the listed simplification candidates;
+record actual regressions, measurements and remaining hardware limits. Preserve
+features, the modular UI/supervisor boundary and all privacy/lifecycle safeguards.
+Use separate build folders; preserve both saved mesh profiles and all user data.
+GPS dongle support is a later task. Keep ADB enabled under the standing owner
+instruction. Leave Surveyor code and shared hardware ownership intact.

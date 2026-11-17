@@ -189,3 +189,20 @@ confirmed import), report uncertainty, and ignore late replies after dismissal.
 Unchanged `thread.state` updates are idempotent and need not broadcast another
 `threads` snapshot. Validation still runs before comparing state. Use `state.sync`
 for an explicit persistence barrier rather than waiting for an unchanged echo.
+
+Since 0.1.12, `thread.state` may include an `id` to request a small
+`thread.saved {id, thread, durable}` acceptance reply, including for an unchanged
+save. `durable:true` means the private store accepted the state with disk history
+enabled; `false` means RAM-only acceptance under the current opt-out preference.
+It is unrelated to RF delivery. Requests without an ID retain their previous
+behavior. Unchanged requests cause no disk write or full-state broadcast.
+
+The UI keeps local draft/pin changes protected until the matching save is
+accepted. A newer edit, deletion or connection change invalidates an older
+request; stale replies cannot clear newer pending work. Pending local state is
+retried at a bounded rate, with validation/storage failures retained locally and
+reported instead of repeatedly retried. A new edit or connection permits retry.
+Snapshots from other clients update confirmed state; still-pending local edits
+remain protected and the last accepted write is authoritative. There is no
+cross-client editing/merge protocol and no RF replay. Upgrade/restart the
+supervisor with the UI so the new acceptance reply is supported.

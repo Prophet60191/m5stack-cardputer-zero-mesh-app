@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.11 (release candidate)** · Updated **2026-11-16** · [Guide index](README.md)
+> For Mesh **0.1.12 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 
@@ -103,6 +103,13 @@ Even direct messages travel across one of your radio channels. The app never gue
 3. If you press **ESC** or leave before sending, your unfinished text is automatically saved as a **Draft** tied to that specific chat and channel.
    - *Tip:* For Direct Messages, each draft stays linked to the channel you were typing on. If you later open that DM on a different channel while empty, the screen reminds you: `Saved draft (edit on its original channel)`.
    - If a group channel was archived/removed, you can still read old messages there, but sending is blocked so you don't send on the wrong channel.
+
+Drafts and pin changes stay pending until the supervisor confirms acceptance.
+If the connection drops, newer local text is protected from an older reconnect
+snapshot and saving is retried when possible. An unavailable supervisor can
+still prevent saving before the app exits; an error means the state is not
+confirmed saved. With **Save conversations** off, acceptance is in memory only.
+Sending a message is a separate action and is never automatically replayed.
 
 While typing, **Fn+Z / Fn+C** moves the cursor left/right, **Fn+K / Fn+N**
 jumps to the start/end, and **Fn+Backspace** deletes to the right. **Fn+H** opens

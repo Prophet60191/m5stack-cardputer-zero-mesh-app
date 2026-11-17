@@ -1,6 +1,6 @@
 # Map Menu
 
-> For Mesh **0.1.11 (release candidate)** · Updated **2026-11-16** · [Guide index](README.md)
+> For Mesh **0.1.12 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 The **Map** screen is an offline, north-up radar centered on **you**, showing the direction and relative distance of every node that has shared a GPS position.
 
@@ -24,7 +24,7 @@ The Map is a glance-and-go live display—dots cannot be selected individually h
 
 ## How to Read the Radar Map
 
-Because the CardputerZero works completely off-grid without internet map tiles, the Map plots everyone cleanly on two concentric rings and updates automatically whenever new locations arrive:
+Because the CardputerZero works completely off-grid without internet map tiles, the Map plots everyone cleanly on two concentric rings and updates automatically whenever new locations arrive. Freshness colors also age while the screen stays open, without waiting for another packet:
 
 ### 1. You Are Always at the Center
 

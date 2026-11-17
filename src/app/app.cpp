@@ -106,6 +106,8 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
     const std::string type = ev.str_at("event");
     if (type == "threads") {
         vm.apply_threads(ev);
+    } else if (type == "thread.saved") {
+        vm.apply_thread_result(ev);
     } else if (type == "setup") {
         vm.apply_setup(ev);
         const auto* ready = ev.find("ready");
@@ -222,6 +224,7 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
     } else if (type == "notice") {
         vm.apply_notice(ev.str_at("text"));
     } else if (type == "error") {
+        vm.apply_thread_result(ev);
         vm.apply_service(ev);
         if (!ev.str_at("cid").empty()) vm.set_delivery(ev.str_at("cid"), viewmodel::kMsgFailed, -1, ev.str_at("text"));
         if (ev.str_at("intent").rfind("config.", 0) == 0) vm.config_unknown();
@@ -685,8 +688,16 @@ int Application::run() {
 
     if (screen_manager.is_composing()) screen_manager.key_back();
     view_model.flush_drafts();
-    if (supervisor.connected() && supervisor.send_line("{\"intent\":\"state.sync\",\"id\":\"quit-sync\"}")) {
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (view_model.thread_state_pending() && supervisor.connected() &&
+           std::chrono::steady_clock::now() < deadline) {
+        supervisor.poll();
+        view_model.tick();
+        lv_delay_ms(5);
+    }
+    if (view_model.thread_state_pending()) LOG_WARN("Unconfirmed local conversation state remains at exit");
+    if (supervisor.connected() && std::chrono::steady_clock::now() < deadline &&
+        supervisor.send_line("{\"intent\":\"state.sync\",\"id\":\"quit-sync\"}")) {
         while (!state_synced && supervisor.connected() && std::chrono::steady_clock::now() < deadline) {
             supervisor.poll();
             lv_delay_ms(5);

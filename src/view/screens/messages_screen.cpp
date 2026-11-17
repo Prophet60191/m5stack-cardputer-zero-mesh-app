@@ -7,6 +7,7 @@
 #include "asset_manager.h"
 #include "bindings.h"
 #include "theme.h"
+#include "list_selection.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -127,12 +128,15 @@ void MessagesScreen::build_content(lv_obj_t* content) {
         open_thread("dm:" + dm, dm, view_model().dm_target_name());
     } else {
         mode_ = Mode::List;
-        rebuild();
     }
     lv_subject_add_observer_obj(view_model().messages_version_subject(), on_change, body_, this);
     lv_subject_add_observer_obj(view_model().channels_version_subject(), on_change, body_, this);
+    lv_subject_add_observer_obj(view_model().node_names_subject(), on_nodes, body_, this);
     lv_subject_add_observer_obj(view_model().traceroute_subject(), traceroute_cb, body_, this);
     lv_subject_add_observer_obj(view_model().channel_share_subject(), channel_share_cb, body_, this);
+    subscribing_ = false;
+    if (dm.empty())
+        rebuild();
 }
 
 std::string MessagesScreen::peer_name_for(const std::string& id) {
@@ -190,12 +194,27 @@ int MessagesScreen::send_channel() {
 
 void MessagesScreen::on_change(lv_observer_t* observer, lv_subject_t* /*subject*/) {
     auto* self = static_cast<MessagesScreen*>(lv_observer_get_user_data(observer));
-    if (self) {
+    if (self && !self->subscribing_) {
         if (self->share_visible_ && !self->view_model().share_channel_valid()) {
             self->close_info();
             self->view_model().apply_notice("Channel changed; reopen its share code");
         }
         self->rebuild();
+    }
+}
+
+void MessagesScreen::on_nodes(lv_observer_t *observer, lv_subject_t *) {
+    auto *self = static_cast<MessagesScreen *>(lv_observer_get_user_data(observer));
+    if (!self || self->subscribing_)
+        return;
+    if (self->picker_)
+        self->rebuild_picker();
+    else if (self->mode_ == Mode::List)
+        self->rebuild_list();
+    else {
+        if (!self->peer_id_.empty())
+            self->peer_name_ = self->peer_name_for(self->peer_id_);
+        self->update_hint();
     }
 }
 
@@ -210,8 +229,14 @@ void MessagesScreen::rebuild() {
 // Conversations list
 // ---------------------------------------------------------------------------
 void MessagesScreen::rebuild_list() {
-    const std::string selected_key = selected_ > 0 && selected_ <= static_cast<int>(conv_key_.size())
-        ? conv_key_[selected_-1] : "";
+    const std::string selected_key = selected_ > 0 && selected_ <= static_cast<int>(conversations_.size())
+                                         ? conversations_[selected_ - 1].key
+                                         : "";
+    conversation_rows_.clear();
+    thread_rows_.clear();
+    thread_bubbles_.clear();
+    thread_keys_.clear();
+    thread_msg_ids_.clear();
     lv_obj_clean(body_);
     const auto colors = view::palette(view_model().is_dark_mode());
     const lv_font_t* name_font = assets().load_standard_font(14);
@@ -219,16 +244,18 @@ void MessagesScreen::rebuild_list() {
     const lv_font_t* sub_font = assets().load_standard_font(11, app::StandardFontWeight::Regular);
     if (!sub_font) sub_font = &lv_font_montserrat_12;
 
-    const auto conversations = view_model().conversation_rows(search_);
-    conv_key_.clear(); conv_peer_.clear(); conv_name_.clear();
-    for (const auto& row : conversations) {
-        conv_key_.push_back(row.key); conv_peer_.push_back(row.peer); conv_name_.push_back(row.name);
-    }
+    auto rows_data = view_model().conversation_rows(search_);
+    conversations_.clear();
+    conversations_.reserve(rows_data.size());
+    for (auto &row : rows_data)
+        conversations_.push_back({std::move(row.key), std::move(row.peer), std::move(row.name)});
     if (!selected_key.empty()) {
-        const auto selected = std::find(conv_key_.begin(),conv_key_.end(),selected_key);
-        if (selected != conv_key_.end()) selected_ = static_cast<int>(selected-conv_key_.begin())+1;
+        const auto selected = std::find_if(conversations_.begin(), conversations_.end(),
+                                           [&](const auto &row) { return row.key == selected_key; });
+        if (selected != conversations_.end())
+            selected_ = static_cast<int>(selected - conversations_.begin()) + 1;
     }
-    const int rows = 1 + static_cast<int>(conv_key_.size());   // +1 for "New message"
+    const int rows = 1 + static_cast<int>(conversations_.size()); // +1 for "New message"
     if (selected_ < 0) selected_ = 0;
     if (selected_ >= rows) selected_ = rows - 1;
 
@@ -243,15 +270,10 @@ void MessagesScreen::rebuild_list() {
         lv_obj_set_style_pad_ver(row, 3, 0);
         lv_obj_set_style_pad_hor(row, 4, 0);
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        if (i == selected_) {
-            lv_obj_set_style_radius(row, 6, 0);
-            lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
-            lv_obj_set_style_bg_color(row, colors.button, 0);
-            lv_obj_set_style_border_side(row, LV_BORDER_SIDE_LEFT, 0);
-            lv_obj_set_style_border_width(row, 3, 0);
-            lv_obj_set_style_border_color(row, colors.primary, 0);
+        conversation_rows_.push_back(row);
+        view::widgets::style_list_row(row, colors, i == selected_);
+        if (i == selected_)
             sel_row = row;
-        }
         return row;
     };
 
@@ -264,17 +286,19 @@ void MessagesScreen::rebuild_list() {
         lv_obj_set_style_text_color(label, colors.primary, 0);
     }
 
-    for (int i = 0; i < static_cast<int>(conv_key_.size()); ++i) {
+    for (int i = 0; i < static_cast<int>(conversations_.size()); ++i) {
         auto* row = make_row(i + 1);
         auto* name = lv_label_create(row);
-        lv_label_set_text(name, conv_name_[i].c_str());
+        lv_label_set_text(name, conversations_[i].name.c_str());
         lv_obj_set_style_text_font(name, name_font, 0);
         lv_obj_set_style_text_color(name, colors.text, 0);
         auto* sub = lv_label_create(row);
         char when[16];
         when[0] = '\0';
-        if (conversations[i].last_time > 0) fmt("%H:%M", when, sizeof(when), conversations[i].last_time);
-        lv_label_set_text(sub, (preview(conversations[i].preview) + (when[0] ? std::string(kDot) + when : "")).c_str());
+        if (rows_data[i].last_time > 0)
+            fmt("%H:%M", when, sizeof(when), rows_data[i].last_time);
+        lv_label_set_text(
+            sub, (preview(rows_data[i].preview) + (when[0] ? std::string(kDot) + when : "")).c_str());
         lv_label_set_long_mode(sub, LV_LABEL_LONG_DOT);
         lv_obj_set_width(sub, lv_pct(100));
         lv_obj_set_style_text_font(sub, sub_font, 0);
@@ -289,6 +313,8 @@ void MessagesScreen::rebuild_list() {
 // One thread (bubbles)
 // ---------------------------------------------------------------------------
 void MessagesScreen::rebuild_thread() {
+    const int previous_scroll = lv_obj_get_scroll_y(body_);
+    conversation_rows_.clear();
     lv_obj_clean(body_);
     const lv_font_t* text_font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
     if (!text_font) text_font = &lv_font_montserrat_14;
@@ -297,14 +323,29 @@ void MessagesScreen::rebuild_thread() {
     const auto colors = view::palette(view_model().is_dark_mode());
 
     thread_rows_.clear();
+    thread_bubbles_.clear();
+    thread_keys_.clear();
     thread_msg_ids_.clear();
+    if (msg_sel_ < 0)
+        selected_message_.clear();
+    const std::string selected_key = selected_message_;
+    if (!selected_key.empty())
+        msg_sel_ = -1;
 
     // Clamp the selection to this thread's message count.
     int count = 0;
     for (const auto& m : view_model().messages()) {
-        if (thread_of(m) == thread_key_) ++count;
+        if (thread_of(m) == thread_key_) {
+            const std::string key = m.id.empty() ? "" : m.from + "\n" + m.id;
+            if (!selected_key.empty() && key == selected_key)
+                msg_sel_ = count;
+            ++count;
+        }
     }
-    if (msg_sel_ >= count) msg_sel_ = count - 1;
+    if (msg_sel_ >= count)
+        msg_sel_ = -1;
+    if (msg_sel_ < 0)
+        selected_message_.clear();
     update_hint();
 
     bool any = false;
@@ -352,6 +393,8 @@ void MessagesScreen::rebuild_thread() {
         lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
 
         auto* bubble = lv_obj_create(col);
+        thread_bubbles_.push_back(bubble);
+        thread_keys_.push_back(m.id.empty() ? "" : m.from + "\n" + m.id);
         lv_obj_remove_style_all(bubble);
         lv_obj_set_width(bubble, LV_SIZE_CONTENT);
         lv_obj_set_height(bubble, LV_SIZE_CONTENT);
@@ -435,8 +478,36 @@ void MessagesScreen::rebuild_thread() {
         lv_obj_scroll_to_view(thread_rows_[msg_sel_], LV_ANIM_OFF);
     } else if (at_bottom_) {
         lv_obj_scroll_to_y(body_, LV_COORD_MAX, LV_ANIM_OFF);
-    }
+    } else
+        lv_obj_scroll_to_y(body_, previous_scroll, LV_ANIM_OFF);
     view_model().mark_thread_read(thread_key_);   // viewing a thread clears its unread
+}
+
+void MessagesScreen::select_conversation(int index) {
+    view::widgets::select_list_row(conversation_rows_, selected_, index,
+                                   view::palette(view_model().is_dark_mode()));
+    selected_ = index;
+}
+
+void MessagesScreen::select_message(int index) {
+    const auto colors = view::palette(view_model().is_dark_mode());
+    const auto style = [&](int i, bool selected) {
+        if (i < 0 || i >= static_cast<int>(thread_bubbles_.size()))
+            return;
+        auto *bubble = thread_bubbles_[i];
+        lv_obj_set_style_border_width(bubble, selected ? 2 : 0, 0);
+        lv_obj_set_style_border_color(bubble, colors.error, 0);
+        lv_obj_set_style_border_side(bubble, LV_BORDER_SIDE_FULL, 0);
+        lv_obj_set_style_border_opa(bubble, LV_OPA_COVER, 0);
+        lv_obj_set_style_pad_all(bubble, selected ? 5 : 7, 0);
+    };
+    style(msg_sel_, false);
+    msg_sel_ = index;
+    selected_message_ = index >= 0 ? thread_keys_[index] : "";
+    style(msg_sel_, true);
+    update_hint();
+    if (index >= 0)
+        lv_obj_scroll_to_view(thread_rows_[index], LV_ANIM_OFF);
 }
 
 void MessagesScreen::open_thread(const std::string& key, const std::string& peer_id,
@@ -458,6 +529,8 @@ void MessagesScreen::open_thread(const std::string& key, const std::string& peer
 // ---------------------------------------------------------------------------
 void MessagesScreen::open_picker() {
     selected_ = 0;
+    picker_id_.clear();
+    picker_name_.clear();
     picker_ = lv_obj_create(lv_obj_get_parent(body_));
     lv_obj_remove_style_all(picker_);
     lv_obj_set_size(picker_, lv_pct(100), lv_pct(100));
@@ -472,6 +545,8 @@ void MessagesScreen::open_picker() {
 }
 
 void MessagesScreen::rebuild_picker() {
+    const std::string selected_id =
+        selected_ >= 0 && selected_ < static_cast<int>(picker_id_.size()) ? picker_id_[selected_] : "";
     lv_obj_clean(picker_);
     const auto colors = view::palette(view_model().is_dark_mode());
     const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
@@ -494,9 +569,11 @@ void MessagesScreen::rebuild_picker() {
         picker_id_.push_back(n.id);
         picker_name_.push_back(n.name.empty() ? n.id : n.name);
     }
-    if (selected_ < 0) selected_ = 0;
+    if (!selected_id.empty()) {
+        const auto selected = std::find(picker_id_.begin(), picker_id_.end(), selected_id);
+        selected_ = selected == picker_id_.end() ? -1 : static_cast<int>(selected - picker_id_.begin());
+    }
     if (selected_ >= static_cast<int>(picker_id_.size())) selected_ = static_cast<int>(picker_id_.size()) - 1;
-    if (selected_ < 0) selected_ = 0;
 
     lv_obj_t* sel = nullptr;
     for (int i = 0; i < static_cast<int>(picker_id_.size()); ++i) {
@@ -543,17 +620,18 @@ void MessagesScreen::on_up() {
     if (menu_) { if (menu_sel_ > 0) { --menu_sel_; rebuild_menu(); } return; }
     if (picker_) { if (selected_ > 0) { --selected_; rebuild_picker(); } return; }
     if (mode_ == Mode::List) {
-        if (selected_ > 0) { --selected_; rebuild_list(); }
+        if (selected_ > 0)
+            select_conversation(selected_ - 1);
         return;
     }
     // Thread: dive from the compose row up into older messages.
     const int count = static_cast<int>(thread_rows_.size());
     if (count == 0) return;
-    if (msg_sel_ < 0) msg_sel_ = count - 1;
-    else if (msg_sel_ > 0) --msg_sel_;
-    else return;
+    if (msg_sel_ < 0)
+        select_message(count - 1);
+    else if (msg_sel_ > 0)
+        select_message(msg_sel_ - 1);
     at_bottom_ = false;
-    rebuild_thread();
 }
 
 void MessagesScreen::on_down() {
@@ -572,16 +650,21 @@ void MessagesScreen::on_down() {
         return;
     }
     if (mode_ == Mode::List) {
-    const int rows = 1 + static_cast<int>(conv_key_.size());
-        if (selected_ < rows - 1) { ++selected_; rebuild_list(); }
+        const int rows = 1 + static_cast<int>(conversations_.size());
+        if (selected_ < rows - 1)
+            select_conversation(selected_ + 1);
         return;
     }
     // Thread: come back toward the newest message, then to the compose row.
     const int count = static_cast<int>(thread_rows_.size());
     if (count == 0 || msg_sel_ < 0) return;
-    if (msg_sel_ < count - 1) ++msg_sel_;
-    else { msg_sel_ = -1; at_bottom_ = true; }
-    rebuild_thread();
+    if (msg_sel_ < count - 1)
+        select_message(msg_sel_ + 1);
+    else {
+        select_message(-1);
+        at_bottom_ = true;
+        lv_obj_scroll_to_y(body_, LV_COORD_MAX, LV_ANIM_OFF);
+    }
 }
 
 void MessagesScreen::on_enter() {
@@ -606,10 +689,14 @@ void MessagesScreen::on_enter() {
     if (mode_ == Mode::List) {
         if (selected_ == 0) { open_picker(); return; }
         const int i = selected_ - 1;
-        if (i >= 0 && i < static_cast<int>(conv_key_.size())) {
-            if (viewmodel::is_group_thread(conv_key_[i])) { view_model().clear_dm_target(); open_thread(conv_key_[i], "", ""); }
-            else { view_model().set_dm_target(conv_peer_[i], conv_name_[i]);
-                   open_thread(conv_key_[i], conv_peer_[i], conv_name_[i]); }
+        if (i >= 0 && i < static_cast<int>(conversations_.size())) {
+            if (viewmodel::is_group_thread(conversations_[i].key)) {
+                view_model().clear_dm_target();
+                open_thread(conversations_[i].key, "", "");
+            } else {
+                view_model().set_dm_target(conversations_[i].peer, conversations_[i].name);
+                open_thread(conversations_[i].key, conversations_[i].peer, conversations_[i].name);
+            }
         }
         return;
     }
@@ -629,7 +716,11 @@ bool MessagesScreen::on_back() {
     if (picker_) { close_picker(); return true; }
     if (mode_ == Mode::List && !search_.empty()) { search_.clear(); rebuild_list(); return true; }
     if (mode_ == Mode::Thread) {
-        if (msg_sel_ >= 0) { msg_sel_ = -1; at_bottom_ = true; rebuild_thread(); return true; }
+        if (msg_sel_ >= 0) {
+            select_message(-1);
+            at_bottom_ = true;
+            return true;
+        }
         mode_ = Mode::List;
         view_model().clear_dm_target();
         selected_ = 0;
@@ -730,9 +821,13 @@ const viewmodel::MessageInfo* MessagesScreen::message_by_id(const std::string& i
 }
 
 std::string MessagesScreen::details_text(const viewmodel::MessageInfo& m) {
+    const std::string historical =
+        (m.channelName.empty() ? "Default" : m.channelName) +
+        (m.channelIdentity.empty() ? " (legacy; privacy unknown)"
+                                   : (m.channelPrivate ? " [Private]" : " [Public]"));
     std::string s;
     if (m.outgoing) {
-        s += "To: " + (m.to == "broadcast" ? ("# " + channel_name(m.channel)) : peer_name_for(m.to)) + "\n";
+        s += "To: " + (m.to == "broadcast" ? ("# " + historical) : peer_name_for(m.to)) + "\n";
     } else {
         s += "From: " + (m.fromName.empty() ? m.from : m.fromName) + "\n";
     }
@@ -741,7 +836,7 @@ std::string MessagesScreen::details_text(const viewmodel::MessageInfo& m) {
         fmt("%b %d, %Y  %H:%M:%S", t, sizeof(t), m.time);
         s += std::string("Time: ") + t + "\n";
     }
-    s += std::string("Channel: ") + channel_name(m.channel) + "\n";
+    s += std::string("Channel: ") + historical + "\n";
     if (m.outgoing && m.status != 0) {
         s += "Status: " + status_text(m.status) + "\n";
     }

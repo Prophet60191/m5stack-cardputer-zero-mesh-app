@@ -1,6 +1,6 @@
 # Nodes Menu
 
-> For Mesh **0.1.11 (release candidate)** · Updated **2026-11-16** · [Guide index](README.md)
+> For Mesh **0.1.12 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 The **Nodes** screen is your live directory of every Meshtastic radio your device has heard on the mesh (up to 256 nodes), with your own radio always anchored at the top as **`(you)`**.
 
@@ -41,7 +41,7 @@ Each row gives you a quick summary:
   - **Hops:** Whether they reached you `direct` (0 hops) or through relays (`1 hops`, `2 hops`, etc.).
   - **Battery:** Their reported battery percentage (for example, `85%`).
 
-The list refreshes automatically every few seconds while the radio is on, and whenever a nearby node sends a message, position, or status update.
+The list refreshes when a nearby node sends a message, position, or status update. Age labels and the Active filter also advance while you leave the screen open. Incoming updates keep the same node selected; if it disappears, choose a node again before taking an action.
 
 ### Empty List Messages
 

@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.1.12 — 2026-11-17 (release candidate; qualification in progress)
+
+- Protect pending drafts/pins through rejected writes, stale replies and
+  reconnect snapshots. Add correlated local save acceptance, including no-op
+  saves, distinguishing durable storage from RAM-only history opt-out.
+- Preserve selected node/message identities through reorder and retention;
+  clear vanished targets safely. Update bubble/node selection styles in place.
+- Refresh RX/TX mode independently of Online status and show unknown mode
+  explicitly. Refresh open node details and GPS age/freshness without new RF
+  events, retaining detail identity/scroll and object-bound observer cleanup.
+- Attribute historical message details to stored channel identity and privacy,
+  with an explicit unknown legacy fallback when identity is missing.
+- Suppress unchanged node revisions, update Settings values in place, trim all
+  threads in one pass, and remove unused network status polling. Reuse typed
+  conversation rows and shared pure geographic formatting/calculation helpers.
+- Add offline source/UI/storage regressions and bounded synthetic retention
+  measurements. Preserve current features, radio policy, settings migration,
+  attribution and the modular UI/supervisor boundary. GPS dongle support remains
+  a separate later task.
+
+Validation and installed-runtime evidence are recorded in the maintenance
+record after completion; no hardware GPS fix or public-peer result is implied.
+
+## 2026-11-16 — Deferred second maintenance assessment
+
+- Record seven pending reliability and optimization items, source references,
+  failure scenarios and proposed validation in
+  [the maintenance backlog](docs/maintenance-pass.md#deferred-second-pass--2026-11-16).
+- Prioritize draft synchronization, stable selection, live status/freshness and
+  historical channel labels before reducing redraws, retention scans and unused
+  network polling. Document measured, feature-preserving simplification goals.
+- Defer implementation until the separate Wireless Surveyor work has stopped
+  and device access is coordinated; add the resume pointer to `AGENTS.md`.
+- Complete a follow-up source/test review: document the unchanged-save
+  acknowledgment constraint, five ordered change batches, existing coverage
+  versus missing acceptance cases, measurement methods and concrete small
+  simplification candidates. Preserve the published protocol until implementation.
+
+Documentation only. No runtime code, app version, shared guide, Surveyor files
+or device settings changed. Findings were traced in source and existing tests;
+no new runtime tests, builds, benchmarks or hardware checks were performed.
+
 ## 0.1.11 — 2026-11-16 (release candidate)
 
 - Bound native input work across each LVGL poll chain to 128 raw read attempts;

@@ -155,6 +155,10 @@ lv_subject_t* BaseViewModel::channel_share_subject() { return channel_share_subj
 
 // --- applied as supervisor events arrive (UI thread) ------------------------
 void BaseViewModel::set_connected(bool connected) {
+    // A request accepted by the old transport may or may not have committed.
+    // Keep its local edit protected; only current-connection results can finish it.
+    thread_saves_.clear();
+    blocked_saves_.clear();
     if (!connected && !service_request_id_.empty()) {
         json::Value error;
         json::parse("{\"event\":\"error\",\"id\":\"" + service_request_id_ + "\",\"text\":\"Connection lost; action result unknown. Check settings before retrying.\"}", error);
@@ -164,6 +168,7 @@ void BaseViewModel::set_connected(bool connected) {
     connected_subject_.set(connected);
     if (connected) send_intent("{\"intent\":\"message.retention\",\"cap\":" + std::to_string(retention_cap_) + ",\"silent\":true}");
     if (!connected) {
+        apply_health("unknown", radio_detail_);
         radio_state_subject_.set("unknown");
         config_unknown();
         cancel_channel_share();
@@ -182,12 +187,23 @@ void BaseViewModel::apply_status(const std::string& radio, const std::string& re
 void BaseViewModel::set_nodes(std::vector<NodeInfo> nodes) {
     if (nodes.size() > 256) nodes.resize(256);
     for (auto& n : nodes) {
-        if (!std::isfinite(n.lat) || !std::isfinite(n.lon) ||
-            n.lat < -90 || n.lat > 90 || n.lon < -180 || n.lon > 180) n.hasPos = false;
+        if (!std::isfinite(n.lat) || !std::isfinite(n.lon) || n.lat < -90 || n.lat > 90 || n.lon < -180 ||
+            n.lon > 180) {
+            n.hasPos = false;
+            n.lat = n.lon = 0;
+        }
+        n.favorite = favorites_.count(n.id) != 0;
     }
+    if (nodes_ == nodes)
+        return;
+    bool names_changed = nodes_.size() != nodes.size();
+    for (size_t i = 0; !names_changed && i < nodes.size(); ++i)
+        names_changed = std::tie(nodes_[i].id, nodes_[i].name, nodes_[i].isSelf) !=
+                        std::tie(nodes[i].id, nodes[i].name, nodes[i].isSelf);
     nodes_ = std::move(nodes);
-    apply_favorites();
     nodes_version_subject_.set(nodes_version_subject_.value() + 1);
+    if (names_changed)
+        node_names_version_.set(node_names_version_.value() + 1);
 }
 
 void BaseViewModel::apply_favorites() {
@@ -239,9 +255,9 @@ void BaseViewModel::set_channels(std::vector<ChannelInfo> channels) {
 void BaseViewModel::set_messages(std::vector<MessageInfo> messages) {
     if (messages.size() > 2000) messages.erase(messages.begin(), messages.end() - 2000);
     messages_ = std::move(messages);
-    messages_version_subject_.set(messages_version_subject_.value() + 1);
     trim_all_threads();
     prune_unread();
+    messages_version_subject_.set(messages_version_subject_.value() + 1);
 }
 
 void BaseViewModel::add_message(MessageInfo message) {
@@ -278,9 +294,9 @@ void BaseViewModel::add_message(MessageInfo message) {
 
     messages_.push_back(std::move(message));
     if (messages_.size() > 2000) messages_.erase(messages_.begin());
+    trim_thread(key);
     prune_unread();
     messages_version_subject_.set(messages_version_subject_.value() + 1);
-    trim_thread(key);   // honour the per-thread retention cap
 }
 
 void BaseViewModel::prune_unread() {
@@ -413,8 +429,13 @@ void BaseViewModel::clear_thread(const std::string& key) {
 void BaseViewModel::delete_thread(const std::string& key) {
     clear_thread(key);
     for (auto it = drafts_.begin(); it != drafts_.end();) {
-        if (it->first == key || it->first.rfind(key + "@", 0) == 0) { dirty_drafts_.erase(it->first); it = drafts_.erase(it); }
-        else ++it;
+        if (it->first == key || it->first.rfind(key + "@", 0) == 0) {
+            dirty_drafts_.erase(it->first);
+            thread_saves_.erase(it->first);
+            blocked_saves_.erase(it->first);
+            it = drafts_.erase(it);
+        } else
+            ++it;
     }
     pinned_.erase(key);
     send_intent("{\"intent\":\"thread.delete\",\"thread\":\"" + json::escape(key) + "\"}");
@@ -485,7 +506,10 @@ void BaseViewModel::set_retention_cap(int cap) {
     retention_cap_ = cap;
     persist();
     send_intent("{\"intent\":\"message.retention\",\"cap\":" + std::to_string(cap) + "}");
-    trim_all_threads();
+    if (trim_all_threads()) {
+        prune_unread();
+        messages_version_subject_.set(messages_version_subject_.value() + 1);
+    }
 }
 
 void BaseViewModel::set_mute_all(bool on) {
@@ -587,12 +611,14 @@ void BaseViewModel::load_messaging_prefs(bool show_signal, int retention, bool m
     want_ack_ = want_ack;
 }
 
-void BaseViewModel::trim_thread(const std::string& key) {
-    if (retention_cap_ <= 0) return;
+bool BaseViewModel::trim_thread(const std::string &key) {
+    if (retention_cap_ <= 0)
+        return false;
     int total = 0;
     for (const auto& m : messages_) if (thread_key_of(m) == key) ++total;
     int remove = total - retention_cap_;
-    if (remove <= 0) return;
+    if (remove <= 0)
+        return false;
     std::vector<MessageInfo> kept;
     kept.reserve(messages_.size());
     int skipped = 0;
@@ -601,14 +627,30 @@ void BaseViewModel::trim_thread(const std::string& key) {
         kept.push_back(std::move(m));
     }
     messages_.swap(kept);
-    messages_version_subject_.set(messages_version_subject_.value() + 1);
+    return true;
 }
 
-void BaseViewModel::trim_all_threads() {
-    if (retention_cap_ <= 0) return;
-    std::set<std::string> keys;
-    for (const auto& m : messages_) keys.insert(thread_key_of(m));
-    for (const auto& k : keys) trim_thread(k);
+bool BaseViewModel::trim_all_threads() {
+    if (retention_cap_ <= 0)
+        return false;
+    std::unordered_map<std::string, int> counts;
+    std::vector<bool> keep(messages_.size());
+    size_t count = 0;
+    for (size_t i = messages_.size(); i-- > 0;) {
+        if (++counts[thread_key_of(messages_[i])] <= retention_cap_) {
+            keep[i] = true;
+            ++count;
+        }
+    }
+    if (count == messages_.size())
+        return false;
+    std::vector<MessageInfo> kept;
+    kept.reserve(count);
+    for (size_t i = 0; i < messages_.size(); ++i)
+        if (keep[i])
+            kept.push_back(std::move(messages_[i]));
+    messages_.swap(kept);
+    return true;
 }
 
 void BaseViewModel::set_dm_target(const std::string& id, const std::string& name) {
@@ -645,9 +687,15 @@ void BaseViewModel::config_unknown() {
     config_state_.set("unknown");
 }
 
-void BaseViewModel::tick(std::chrono::steady_clock::time_point at) {
+void BaseViewModel::tick(std::chrono::steady_clock::time_point at, long wall) {
+    if (presentation_time_ != wall) {
+        presentation_time_ = wall;
+        clock_version_.set(clock_version_.value() + 1);
+    }
     const auto now = at.time_since_epoch();
-    if (!dirty_drafts_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() >= draft_deadline_) flush_drafts();
+    if (!dirty_drafts_.empty() &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(now).count() >= draft_deadline_)
+        flush_drafts_at(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
     if (!config_request_.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(now).count() > config_deadline_) {
         config_unknown();
         apply_notice("Radio confirmation timed out; settings unknown");
@@ -739,7 +787,10 @@ std::string BaseViewModel::channel_fields(int index) const {
     return ",\"channel_id\":\"" + json::escape(ch ? ch->identity : "") + "\"";
 }
 void BaseViewModel::apply_health(const std::string& mode, const std::string& detail) {
+    if (radio_mode_ == mode && radio_detail_ == detail)
+        return;
     radio_mode_ = mode; radio_detail_ = detail;
+    health_version_.set(health_version_.value() + 1);
 }
 bool BaseViewModel::service_request(const std::string& intent, const std::string& fields) {
     if (intent == "channel.scan" || intent == "channel.preview") cancel_import();
@@ -875,6 +926,10 @@ void BaseViewModel::apply_threads(const json::Value& event) {
     for (const auto& key : dirty_drafts_) {
         const auto it = drafts_.find(key);
         if (it != drafts_.end()) drafts[key] = it->second;
+        if (pinned(key))
+            pins.insert(key);
+        else
+            pins.erase(key);
     }
     if (drafts != drafts_ || pins != pinned_ || history_enabled != history_enabled_) {
         drafts_ = std::move(drafts); pinned_ = std::move(pins); history_enabled_ = history_enabled;
@@ -889,8 +944,13 @@ std::string BaseViewModel::draft(const std::string& key) const {
 bool BaseViewModel::pinned(const std::string& key) const { return pinned_.count(key); }
 void BaseViewModel::remember_conversation(const std::string& key) {
     if (drafts_.count(key)) return;
+    if (drafts_.size() >= 256) {
+        apply_notice("Conversation state limit reached");
+        return;
+    }
     drafts_[key] = "";
-    send_thread_state(key);
+    dirty_drafts_.insert(key);
+    flush_drafts();
 }
 std::vector<std::string> BaseViewModel::conversation_keys() const {
     std::set<std::string> keys = pinned_;
@@ -902,24 +962,86 @@ std::string BaseViewModel::conversation_draft(const std::string& key) const {
         (item.first == key || item.first.rfind(key + "@", 0) == 0)) return item.second;
     return "";
 }
-void BaseViewModel::send_thread_state(const std::string& key) {
-    send_intent("{\"intent\":\"thread.state\",\"thread\":\"" + json::escape(key) +
-        "\",\"state\":{\"draft\":\"" + json::escape(draft(key)) + "\",\"pinned\":" + (pinned(key) ? "true" : "false") + "}}");
+bool BaseViewModel::send_thread_state(const std::string &key, long long now) {
+    if (blocked_saves_.count(key))
+        return true;
+    const auto pending = thread_saves_.find(key);
+    if (pending != thread_saves_.end() && pending->second.deadline > now)
+        return true;
+    ThreadSave save{session_id_ + "thread" + std::to_string(++cid_counter_), draft(key), pinned(key),
+                    now + 2000};
+    thread_saves_[key] = save;
+    const std::string line = "{\"intent\":\"thread.state\",\"id\":\"" + save.request + "\",\"thread\":\"" +
+                             json::escape(key) + "\",\"state\":{\"draft\":\"" + json::escape(save.draft) +
+                             "\",\"pinned\":" + (save.pinned ? "true" : "false") + "}}";
+    if (!command_sink_ || !command_sink_(line)) {
+        thread_saves_.erase(key);
+        return false;
+    }
+    return true;
+}
+void BaseViewModel::apply_thread_result(const json::Value &event) {
+    const std::string request = event.str_at("id");
+    for (auto it = thread_saves_.begin(); it != thread_saves_.end(); ++it) {
+        if (request.empty() || it->second.request != request)
+            continue;
+        if (event.str_at("event") == "error") {
+            blocked_saves_.insert(it->first);
+            thread_saves_.erase(it);
+            return;
+        }
+        const auto *durable = event.find("durable");
+        if (event.str_at("event") != "thread.saved" || event.str_at("thread") != it->first || !durable ||
+            durable->type != json::Value::Bool)
+            return;
+        if (draft(it->first) == it->second.draft && pinned(it->first) == it->second.pinned)
+            dirty_drafts_.erase(it->first);
+        thread_saves_.erase(it);
+        return;
+    }
 }
 void BaseViewModel::save_draft(const std::string& key, const std::string& text) {
-    if (text.size() > 200 || drafts_[key] == text) return;
+    if (text.size() > 200 || draft(key) == text)
+        return;
+    if (!drafts_.count(key) && drafts_.size() >= 256) {
+        apply_notice("Conversation state limit reached");
+        return;
+    }
     drafts_[key] = text;
+    thread_saves_.erase(key);
+    blocked_saves_.erase(key);
     dirty_drafts_.insert(key);
     draft_deadline_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() + 650;
 }
 void BaseViewModel::flush_drafts() {
-    auto pending = dirty_drafts_;
-    dirty_drafts_.clear();
-    for (const auto& key : pending) send_thread_state(key);
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now().time_since_epoch())
+                         .count();
+    flush_drafts_at(now);
+}
+void BaseViewModel::flush_drafts_at(long long now) {
+    draft_deadline_ = now + 1000;
+    if (!connected_subject_.value())
+        return;
+    bool rejected = false;
+    for (const auto &key : dirty_drafts_)
+        if (!send_thread_state(key, now))
+            rejected = true;
+    if (rejected && !draft_send_failed_)
+        apply_notice("Draft is unsaved; waiting for the supervisor");
+    draft_send_failed_ = rejected;
 }
 void BaseViewModel::toggle_pin(const std::string& key) {
+    if (!drafts_.count(key) && drafts_.size() >= 256) {
+        apply_notice("Conversation state limit reached");
+        return;
+    }
+    drafts_.try_emplace(key, "");
     if (pinned(key)) pinned_.erase(key); else pinned_.insert(key);
-    send_thread_state(key);
+    dirty_drafts_.insert(key);
+    thread_saves_.erase(key);
+    blocked_saves_.erase(key);
+    flush_drafts();
     messages_version_subject_.set(messages_version_subject_.value() + 1);
 }
 void BaseViewModel::set_quiet_hours(int start, int end) {

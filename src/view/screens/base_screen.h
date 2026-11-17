@@ -49,6 +49,7 @@ protected:
     virtual void build_content(lv_obj_t* content) = 0;
 
     viewmodel::BaseViewModel& view_model();
+    const viewmodel::BaseViewModel &view_model() const;
     app::AssetManager& assets();
 
 private:
