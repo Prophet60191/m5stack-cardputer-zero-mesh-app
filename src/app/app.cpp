@@ -112,7 +112,10 @@ void apply_supervisor_event(viewmodel::BaseViewModel& vm,
         vm.apply_setup(ev);
         const auto* ready = ev.find("ready");
         if (ready && !ready->as_bool()) vm.show_settings_page();
-    } else if (type == "profiles" || type == "profile.preview" || type == "diagnostics" || type == "channel.slots" || type == "channel.preview" || type == "channel.imported") {
+    } else if (type == "profiles" || type == "profile.preview" || type == "diagnostics" ||
+               type == "channel.slots" || type == "channel.setup.context" ||
+               type == "channel.setup.preview" || type == "channel.setup.saved" ||
+               type == "channel.preview" || type == "channel.imported") {
         vm.apply_service(ev);
     } else if (type == "_connected") {
         vm.set_connected(true);

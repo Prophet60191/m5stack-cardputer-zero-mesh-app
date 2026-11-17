@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.13 — 2026-11-17 (release candidate; qualification in progress)
+
+- Replace separate add/import/create dialogs with one local channel setup form:
+  scan/paste/public/private, hidden key handling, global tuning, privacy, optional
+  named profile, complete review and direct conversation opening. Radio remains
+  first in Settings; existing slot-edit actions stay available.
+- Prepare while Off; explicitly adopt supported QR tuning, preserve calibration
+  and show existing fixed-frequency overrides. Profile-only saves leave the
+  active setup untouched. Active saves verify persisted/live state and attempt
+  restoring the previous setup on failure; partial/uncertain results are explicit.
+- Bind/cancel/expire preview requests, reject stale setups and require explicit
+  global tuning, antenna, public location and MQTT acknowledgments. No automatic
+  transmissions or configuration replay. Preserve local entries on validation
+  errors, Escape and review return, with fixed keyboard help and in-place selection.
+- Keep the older socket import contract compatible; remove obsolete standalone
+  UI branches. Add native and backend setup/cancellation/privacy/recovery tests
+  and update the user guide with synthetic screenshots.
+
+See [the implementation/qualification record](docs/channel-setup-flow.md).
+
+
 ## 0.1.12 — 2026-11-17 (release candidate)
 
 - Protect pending drafts/pins through rejected writes, stale replies and

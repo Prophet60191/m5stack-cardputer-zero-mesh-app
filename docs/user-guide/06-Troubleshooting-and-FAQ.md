@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-> For Mesh **0.1.12 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.13 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 When something doesn't behave the way you expect out in the field, look up the message or symptom you see below.
 
@@ -15,7 +15,7 @@ This is the most common reason two Meshtastic radios won't talk. Walk through th
 3. **Frequency slot must match** (if set to `Auto`, both radios calculate the frequency from the Primary channel's name—so if one person renamed Primary slot `0` or uses a custom slot number, both must match!).
 4. **Channel name and secret key must match.**
 
-**Important tip about QR codes:** Importing a channel via **Scan QR code** or **Paste share URL** safely adds that channel without changing your radio's **Region**, **Modem preset**, or **Frequency slot**. If you scanned a friend's channel and still can't hear them, check that those three tuning settings match theirs!
+**Important tip about QR codes:** Scanning or pasting fills the unified setup form and keeps current tuning by default. Any tuning changes must be deliberately selected and reviewed before Save. If you scanned a friend's channel and still can't hear them, check that those three tuning settings match theirs!
 
 Also double-check that **both** devices show **`TX/RX`** (not `RX`) in the top-left bar if you are trying to send.
 
@@ -45,12 +45,12 @@ Also double-check that **both** devices show **`TX/RX`** (not `RX`) in the top-l
 
 | What You See | What It Means & How to Fix It |
 |---|---|
-| **`Turn Radio on in Settings before scanning.`** | Channel scanning and imports require the radio to be **On**. Turn **Radio** **On** in Settings, then try **Add a channel** again. |
-| **`No QR code found. Aim and retry.`** | The camera couldn't read a Meshtastic QR code within the 12-second scan window. **Fix:** Hold the device steady 15–25 cm away in good lighting (avoid screen glare) and press **Return / Enter** to retry. |
+| **`complete first-run setup before adding a channel`** | A valid starting setup is required. Complete First-run setup, then return to Add a channel. The new flow also works with Radio Off. |
+| **`No QR code found. Aim and retry.`** | The camera couldn't read a Meshtastic QR code within the 12-second scan window. **Fix:** Hold the device steady 15–25 cm away in good lighting (avoid screen glare) then choose **Add by → Scan QR code → Start scan** again. |
 | **`Camera unavailable` or timed out** | Another app may be using the camera, or your device does not have a camera attached. **Fix:** Close other camera apps or use **Add a channel → Paste share URL** instead. |
 | **`Preview failed`** (`not a Meshtastic channel share URL` / `invalid channel share data`) | The link you pasted isn't a valid `https://meshtastic.org/e/#...` channel share URL (or was cut off). **Fix:** Check the full link and paste it again to retry. |
 | **`Channels already present`** | You already have every channel contained in that QR code or link, so nothing needed to be added. |
-| **`channel preview expired; scan or paste again`** | A channel preview stays valid for **2 minutes** (and cancels if your radio settings/channels change while previewing). **Fix:** Scan the QR code or paste the link again and confirm right away. |
+| **`channel preview expired; scan or paste again`** | An imported QR/link stays available in this form for up to **10 minutes**; the final setup review lasts **2 minutes**. Changes elsewhere invalidate stale reviews. **Fix:** Scan the QR code or paste the link again and review again before saving. |
 | **`all channel slots are occupied` / `not enough free channel slots`** | All 7 secondary channel slots (`1`–`7`) are occupied—including any **Disabled** slots, which still keep their saved key. **Fix:** Open **Settings → Channel manager** and **Remove** an unused secondary slot first. |
 
 ---
@@ -73,7 +73,7 @@ Also double-check that **both** devices show **`TX/RX`** (not `RX`) in the top-l
 
 - **`Turn the radio on before changing settings` / `Unknown`:** Radio-hardware settings (Modem preset, Hop limit, Frequency slot, Share position, MQTT, GPS receiver) show `Unknown` while the radio is turned **Off** and require the radio to be **On** before changing.
 - **`Pending...`:** The app is waiting up to 45 seconds for the radio to save and read back your change. Give it a few seconds (tuning changes restart the radio automatically).
-- **`Action timed out` or `Working` screen stops:** Background radio requests wait up to 60 seconds (90 seconds when importing a channel). If the radio was busy or disconnected, press **ESC** and try again—or inspect **Settings → Diagnostics** to verify `API: connected`.
+- **`Action timed out` or `Working` screen stops:** Background requests wait up to 60 seconds (90 seconds for the complete channel Save). A timed-out Save is uncertain: inspect Channels and Diagnostics before retrying. If the radio was busy or disconnected, press **ESC** and try again—or inspect **Settings → Diagnostics** to verify `API: connected`.
 - **`Connection lost; action result unknown. Check settings before retrying.`:** The background radio service disconnected or restarted while a Settings action (such as scanning, importing, or opening Channel manager) was running. **Fix:** Check **Settings → Channels** or **Channel manager** to verify what took effect before trying again.
 
 ---

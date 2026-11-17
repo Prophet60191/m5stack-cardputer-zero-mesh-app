@@ -282,18 +282,19 @@ static void public_channel_flow() {
     CHECK(sent.str_at("intent") == "channel.slots");
     vm.apply_service(
         parse("{\"event\":\"channel.slots\",\"id\":\"" + sent.str_at("id") + "\",\"channels\":[]}"));
+    screen.on_enter(); // unified add flow
+    CHECK(sent.str_at("intent") == "channel.setup.context");
+    vm.apply_service(
+        parse("{\"id\":\"" + sent.str_at("id") +
+              "\",\"event\":\"channel.setup.context\",\"base\":\"synthetic\",\"tx\":false,\"tuning\":{"
+              "\"region\":\"US\",\"preset\":\"LONG_FAST\",\"slot\":20,\"hop\":3,\"use_preset\":true}}"));
     screen.on_down();
-    screen.on_enter(); // public creation option
-    auto *input = textarea(screen.root());
-    CHECK(input);
-    lv_textarea_set_text(input, "LongFast");
-    screen.on_enter();
-    CHECK(labels(screen.root()).find("Create public") != std::string::npos);
+    screen.on_down();
     screen.on_down();
     screen.on_enter();
-    CHECK(sent.str_at("intent") == "channel.manage");
-    CHECK(sent.str_at("kind") == "public" && sent.str_at("name") == "LongFast" &&
-          sent.str_at("action") == "create");
+    CHECK(labels(screen.root()).find("Add by: public") != std::string::npos);
+    CHECK(labels(screen.root()).find("Region (whole radio): US") != std::string::npos);
+    CHECK(labels(screen.root()).find("Internet forwarding: Off") != std::string::npos);
 }
 static void freshness() {
     viewmodel::BaseViewModel vm;

@@ -56,6 +56,7 @@ from state_store import StateStore
 from radio_settings import RadioSettings, atomic_write
 from application_services import ApplicationServices
 from channel_import import ChannelImport
+from channel_setup import ChannelSetup
 
 
 HERE = Path(__file__).resolve().parent
@@ -194,7 +195,7 @@ class Client:
             pass
 
 
-class Supervisor(ApplicationServices, ChannelImport):
+class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
     def __init__(self) -> None:
         self._lock = threading.RLock()          # guards clients, state, messages, iface
         self._life_lock = threading.RLock()      # serializes radio start/stop as a whole
@@ -803,14 +804,16 @@ class Supervisor(ApplicationServices, ChannelImport):
                 return
         # Camera work owns no radio state. Cancellation and private local draft
         # writes must stay responsive even while an admin readback is waiting.
-        if intent in ("channel.scan", "channel.import.cancel", "thread.state", "thread.delete", "history.set"):
+        if intent in ("channel.scan", "channel.import.cancel", "channel.setup.cancel", "thread.state", "thread.delete", "history.set"):
             self._dispatch(client, req)
             return
         if intent == "channel.preview": self._begin_import(client, rid)
+        if intent == "channel.setup.preview": self._setup_begin(client, rid)
         try:
             self._submit(lambda: self._dispatch(client, req))
         except queue.Full:
             if intent == "channel.preview": self._cancel_import(client, rid)
+            if intent == "channel.setup.preview": self._setup_cancel(client, rid)
             client.send({"event": "error", "intent": intent, "id": req.get("id"),
                          "cid": req.get("cid"), "text": "radio busy; retry later"})
 
@@ -860,6 +863,18 @@ class Supervisor(ApplicationServices, ChannelImport):
                 if req.get("confirmed") is not True: raise ValueError("confirm deleting this saved mesh profile")
                 self._settings.delete_profile(req.get("profile"))
                 reply({"event": "profiles", "profiles": self._settings.list_profiles()})
+            elif intent == "channel.setup.context":
+                reply(self._setup_context())
+            elif intent == "channel.setup.preview":
+                reply(self._setup_preview(client, req))
+            elif intent == "channel.setup.commit":
+                reply(self._setup_commit(client, req))
+                self._broadcast(self._setup_payload())
+                if self._iface is not None:
+                    self._broadcast(self._channels())
+                    self._broadcast(self._config_payload())
+            elif intent == "channel.setup.cancel":
+                self._setup_cancel(client, req.get("request"))
             elif intent == "channel.slots":
                 reply(self._channel_slots())
             elif intent == "channel.manage":

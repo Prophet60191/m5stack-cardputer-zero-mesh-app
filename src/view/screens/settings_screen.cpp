@@ -253,7 +253,9 @@ void SettingsScreen::row_action(int row) {
             open_picker("Hop limit", hops, "hop", lv_subject_get_int(view_model().hop_limit_subject()) - 1);
             break;
         }
-        case S_AddChannel: open_picker("Add a channel", {"Scan QR code", "Paste share URL"}, "addmenu", 0); break;
+        case S_AddChannel:
+            channel_setup_start();
+            break;
         case S_NodeName: open_text("Node name", s_of(view_model().owner_subject()), "name"); break;
         case S_SharePosition: {
             if (std::string(view_model().config_state()) != "confirmed") {
@@ -339,6 +341,7 @@ void SettingsScreen::open_picker(const std::string& title, std::vector<std::stri
 }
 
 void SettingsScreen::rebuild_picker() {
+    picker_rows_.clear();
     lv_obj_clean(overlay_obj_);
     const auto colors = view::palette(view_model().is_dark_mode());
     const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
@@ -354,9 +357,25 @@ void SettingsScreen::rebuild_picker() {
     if (opt_sel_ < 0) opt_sel_ = 0;
     if (opt_sel_ >= static_cast<int>(options_.size())) opt_sel_ = static_cast<int>(options_.size()) - 1;
 
+    lv_obj_t *rows_parent = overlay_obj_;
+    if (pending_.rfind("flow:", 0) == 0) {
+        lv_obj_clear_flag(overlay_obj_, LV_OBJ_FLAG_SCROLLABLE);
+        rows_parent = lv_obj_create(overlay_obj_);
+        lv_obj_remove_style_all(rows_parent);
+        lv_obj_set_width(rows_parent, lv_pct(100));
+        lv_obj_set_height(rows_parent, 0);
+        lv_obj_set_flex_grow(rows_parent, 1);
+        lv_obj_set_flex_flow(rows_parent, LV_FLEX_FLOW_COLUMN);
+        lv_obj_clear_flag(rows_parent, LV_OBJ_FLAG_SCROLL_ELASTIC);
+        auto *hint = lv_label_create(overlay_obj_);
+        lv_label_set_text(hint, "F/X: move   Enter: select   Esc: back");
+        lv_obj_set_style_text_font(hint, font, 0);
+        lv_obj_set_style_text_color(hint, colors.text, 0);
+    }
     lv_obj_t* sel = nullptr;
     for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
-        auto* row = lv_label_create(overlay_obj_);
+        auto *row = lv_label_create(rows_parent);
+        picker_rows_.push_back(row);
         lv_label_set_text(row, options_[i].c_str());
         lv_obj_set_style_text_font(row, font, 0);
         lv_obj_set_width(row, lv_pct(100));
@@ -374,6 +393,26 @@ void SettingsScreen::rebuild_picker() {
     }
     lv_obj_update_layout(overlay_obj_);
     if (sel) lv_obj_scroll_to_view(sel, LV_ANIM_OFF);
+}
+
+void SettingsScreen::select_picker(int index) {
+    if (index < 0 || index >= static_cast<int>(picker_rows_.size()))
+        return;
+    const auto colors = view::palette(view_model().is_dark_mode());
+    if (opt_sel_ >= 0 && opt_sel_ < static_cast<int>(picker_rows_.size())) {
+        auto *old = picker_rows_[opt_sel_];
+        lv_obj_set_style_bg_opa(old, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_text_color(old, colors.text, 0);
+        lv_obj_remove_local_style_prop(old, LV_STYLE_RADIUS, 0);
+        lv_obj_remove_local_style_prop(old, LV_STYLE_BG_COLOR, 0);
+    }
+    opt_sel_ = index;
+    auto *row = picker_rows_[index];
+    lv_obj_set_style_radius(row, 6, 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(row, colors.button, 0);
+    lv_obj_set_style_text_color(row, colors.primary, 0);
+    lv_obj_scroll_to_view(row, LV_ANIM_OFF);
 }
 
 void SettingsScreen::open_text(const std::string& title, const std::string& initial,
@@ -454,13 +493,6 @@ void SettingsScreen::open_info(const std::string& title, std::vector<std::string
     lv_obj_set_style_text_color(hint, colors.text, 0);
 }
 
-void SettingsScreen::open_scan_ready(const std::string& error) {
-    open_info(error.empty() ? "Scan QR code" : "Scan failed",
-              {error.empty() ? "Aim the camera at a Meshtastic channel QR code." : error, "Radio must be Online."},
-              error.empty() ? "Return: scan    Esc: back" : "Return: retry    Esc: back");
-    overlay_mode_ = Overlay::ScanReady;
-}
-
 void SettingsScreen::open_canned() {
     overlay_mode_ = Overlay::Canned;
     overlay_title_ = "Quick messages";
@@ -483,6 +515,7 @@ void SettingsScreen::open_canned() {
 }
 
 void SettingsScreen::teardown_overlay_obj() {
+    picker_rows_.clear();
     if (input_) {
         lv_group_t* g = lv_group_get_default();
         if (g) lv_group_remove_obj(input_);
@@ -492,6 +525,7 @@ void SettingsScreen::teardown_overlay_obj() {
 }
 
 void SettingsScreen::close_overlay() {
+    picker_rows_.clear();
     if (input_) {
         lv_group_t* g = lv_group_get_default();
         if (g) lv_group_remove_obj(input_);
@@ -507,16 +541,8 @@ void SettingsScreen::close_overlay() {
 }
 
 void SettingsScreen::apply_overlay() {
-    if (overlay_mode_ == Overlay::ScanBusy || overlay_mode_ == Overlay::Busy) {
-        return; // A held Return key must not dismiss or queue another scan.
-    } else if (overlay_mode_ == Overlay::ScanReady) {
-        if (!lv_subject_get_int(view_model().connected_subject()) || s_of(view_model().radio_state_subject()) != "online") {
-            close_overlay(); open_scan_ready("Turn Radio on in Settings before scanning."); return;
-        }
-        request_service("scan", "channel.scan");
-    } else if (overlay_mode_ == Overlay::ImportPreview) {
-        close_overlay();
-        open_picker("Add " + std::to_string(import_count_) + " channel(s)?", {"Cancel", "Confirm import (location/MQTT Off)"}, "import-confirm", 0);
+    if (overlay_mode_ == Overlay::Busy) {
+        return; // A held Return must not duplicate an in-flight operation.
     } else if (overlay_mode_ == Overlay::Picker) {
         if (opt_sel_ < 0 || opt_sel_ >= static_cast<int>(options_.size())) { close_overlay(); return; }
         const std::string choice = options_[opt_sel_];
@@ -552,15 +578,6 @@ void SettingsScreen::apply_overlay() {
         else if (pending_ == "retention") {
             view_model().set_retention_cap(choice == "All" ? 0 : std::atoi(choice.c_str()));
             close_overlay();
-        }
-        else if (pending_ == "addmenu") {
-            if (opt_sel_ == 0) {
-                close_overlay();
-                open_scan_ready();
-            } else {
-                close_overlay();
-                open_text("Paste share URL", "", "channel-url");
-            }
         } else {
             close_overlay();
         }
@@ -584,9 +601,6 @@ void SettingsScreen::apply_overlay() {
         if (extended_text(pending, value)) return;
         if (pending == "name" && !value.empty()) {
             view_model().set_owner(value, value.substr(0, 4));
-        } else if (pending == "channel-url" && !value.empty()) {
-            request_service("import-preview", "channel.preview", ",\"url\":\"" + json::escape(value) + "\"");
-            return;
         } else if (pending == "frequency-slot") {
             char* end = nullptr;
             errno = 0;
@@ -613,13 +627,20 @@ void SettingsScreen::apply_overlay() {
 
 // --- navigation -------------------------------------------------------------
 void SettingsScreen::on_up() {
-    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady || overlay_mode_ == Overlay::ImportPreview) && overlay_obj_) {
+    if ((overlay_mode_ == Overlay::Info) && overlay_obj_) {
         const int32_t room = lv_obj_get_scroll_top(overlay_obj_);
         if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? room : 40, LV_ANIM_OFF);
         return;
     }
     if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
-        if (opt_sel_ > 0) { --opt_sel_; rebuild_picker(); }
+        if (opt_sel_ > 0) {
+            if (pending_.rfind("flow:", 0) == 0)
+                select_picker(opt_sel_ - 1);
+            else {
+                --opt_sel_;
+                rebuild_picker();
+            }
+        }
         return;
     }
     if (overlay_mode_ != Overlay::None) return;
@@ -628,13 +649,20 @@ void SettingsScreen::on_up() {
 }
 
 void SettingsScreen::on_down() {
-    if ((overlay_mode_ == Overlay::Info || overlay_mode_ == Overlay::ScanReady || overlay_mode_ == Overlay::ImportPreview) && overlay_obj_) {
+    if ((overlay_mode_ == Overlay::Info) && overlay_obj_) {
         const int32_t room = lv_obj_get_scroll_bottom(overlay_obj_);
         if (room > 0) lv_obj_scroll_by(overlay_obj_, 0, room < 40 ? -room : -40, LV_ANIM_OFF);
         return;
     }
     if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
-        if (opt_sel_ < static_cast<int>(options_.size()) - 1) { ++opt_sel_; rebuild_picker(); }
+        if (opt_sel_ < static_cast<int>(options_.size()) - 1) {
+            if (pending_.rfind("flow:", 0) == 0)
+                select_picker(opt_sel_ + 1);
+            else {
+                ++opt_sel_;
+                rebuild_picker();
+            }
+        }
         return;
     }
     if (overlay_mode_ != Overlay::None) return;
@@ -648,6 +676,8 @@ void SettingsScreen::on_enter() {
 }
 
 bool SettingsScreen::on_back() {
+    if (channel_flow_)
+        return channel_setup_back();
     // Esc inside a quick-message editor returns to the list, not all the way out.
     if (overlay_mode_ == Overlay::Text && from_canned_) {
         from_canned_ = false;
@@ -656,7 +686,7 @@ bool SettingsScreen::on_back() {
         return true;
     }
     if (overlay_mode_ != Overlay::None) {
-        view_model().cancel_service_request(); import_token_.clear();
+        view_model().cancel_service_request();
         service_route_.clear(); close_overlay(); return true;
     }
     return false;
@@ -678,16 +708,25 @@ void SettingsScreen::services_cb(lv_observer_t* observer, lv_subject_t*) {
 void SettingsScreen::request_service(const std::string& route, const std::string& intent, const std::string& fields) {
     close_overlay();
     service_route_ = route;
-    if (route == "scan") {
-        open_info("Scanning QR code...", {"Keep the camera steady.", "Preview first; nothing is imported yet."}, "Esc: cancel scan");
-        overlay_mode_ = Overlay::ScanBusy;
+    if (route == "flow:scan" || route == "flow:commit" || route == "flow:context" || route == "flow:review" ||
+        route == "flow:import") {
+        open_info(route == "flow:scan"     ? "Scanning QR code..."
+                  : route == "flow:commit" ? "Saving channel setup..."
+                                           : "Checking channel setup...",
+                  {route == "flow:commit" ? "Applying and verifying settings. Please wait."
+                                          : "No settings are changed before Save."},
+                  route == "flow:commit" ? "Saving; wait for confirmation" : "Esc: cancel");
+        overlay_mode_ = Overlay::Busy;
     } else {
-        open_info(route == "import" ? "Importing channels..." : "Working", {"Waiting for supervisor...", "Esc leaves this view; action may finish."});
+        open_info("Working", {"Waiting for supervisor...", "Esc leaves this view; action may finish."});
         overlay_mode_ = Overlay::Busy;
     }
     if (!view_model().service_request(intent, fields)) {
         service_route_.clear(); close_overlay();
-        if (route == "scan") open_scan_ready("Supervisor unavailable; scan was not sent.");
+        if (route.rfind("flow:", 0) == 0) {
+            channel_draft_.error = "Supervisor unavailable; nothing was sent.";
+            channel_setup_form();
+        }
     }
 }
 void SettingsScreen::service_result() {
@@ -702,33 +741,8 @@ void SettingsScreen::service_result() {
     if (event.str_at("id").empty()) return; // Unsolicited setup changes are not replies.
     const auto route = service_route_;
     service_route_.clear(); close_overlay();
-    if (route == "scan" || route == "import-preview") {
-        if (event.str_at("event") == "error") {
-            if (route == "scan") open_scan_ready(event.str_at("text"));
-            else open_info("Preview failed", {event.str_at("text"), "Paste the URL again to retry."});
-        } else if (event.str_at("event") == "channel.preview" && event.int_at("new", -1) == 0) {
-            open_info("Channels already present", {"No changes made."});
-        } else if (event.str_at("event") == "channel.preview" && !event.str_at("token").empty() && event.int_at("new") > 0) {
-            import_token_ = event.str_at("token"); import_count_ = event.int_at("new");
-            std::vector<std::string> rows = {"Up/Down: read. Return: review."};
-            bool public_channel = false;
-            if (const auto* channels = event.find("channels")) for (const auto& ch : channels->arr)
-            {
-                rows.push_back(ch.str_at("name") + (flag(ch,"private") ? " [Private]" : " [Public]") + (flag(ch,"existing") ? " (existing)" : " (new)"));
-                if (!flag(ch,"private") && !flag(ch,"existing")) public_channel = true;
-            }
-            rows.push_back("Radio tuning stays unchanged.");
-            rows.push_back("New channels: location/MQTT Off.");
-            if (public_channel) rows.push_back("Public identity/telemetry can be visible.");
-            open_info("Preview " + std::to_string(import_count_) + " new channel(s)", rows, "Return: review import    Esc: cancel");
-            overlay_mode_ = Overlay::ImportPreview;
-        } else open_info("Preview failed", {"Unexpected reply; scan or paste again."});
-        return;
-    }
-    if (route == "import") {
-        import_token_.clear();
-        open_info(event.str_at("event") == "error" ? "Import failed" : "Import complete",
-            {event.str_at("event") == "error" ? event.str_at("text") : "Imported " + std::to_string(event.int_at("added")) + " channel(s)."});
+    if (route.rfind("flow:", 0) == 0) {
+        channel_setup_result(route, event);
         return;
     }
     if (event.str_at("event") == "error") { open_info("Action failed", {event.str_at("text")}); return; }
@@ -736,7 +750,8 @@ void SettingsScreen::service_result() {
         if (!flag(event, "ready")) { offered_setup_ = true; open_picker("First run: select your radio region", kRegions, "setup-region", 0); }
         else open_info("Setup ready", {"Region: " + event.str_at("region"), "Mode: " + event.str_at("mode"), "Firewall: " + std::string(flag(event,"firewall") ? "healthy" : "unavailable; radio stays off"), "Use Transmit mode to explicitly enable TX.", "Public channels expose identity and telemetry. Location and MQTT default Off."});
     } else if (route == "slots") {
-        service_items_.clear(); std::vector<std::string> rows = {"+ New private channel", "+ New public channel"};
+        service_items_.clear();
+        std::vector<std::string> rows = {"+ Add channel (scan or create)"};
         if (const auto* a = event.find("channels")) for (const auto& c : a->arr) {
             service_items_.push_back(c);
             rows.push_back(std::to_string(c.int_at("index")) + ": " + c.str_at("name", "Default") + " " + c.str_at("role") + (flag(c,"private") ? " Private" : " Public"));
@@ -764,11 +779,9 @@ void SettingsScreen::service_result() {
 }
 bool SettingsScreen::extended_picker(const std::string& input, int choice) {
     const std::string pending = input;
-    if (pending == "import-confirm") {
-        const auto token = import_token_;
-        if (choice == 1) request_service("import", "channel.add", ",\"confirmed\":true,\"token\":" + qstr(token));
-        else { view_model().cancel_import(); import_token_.clear(); close_overlay(); }
-    } else if (pending == "gps") {
+    if (channel_setup_choice(pending, choice))
+        return true;
+    if (pending == "gps") {
         close_overlay(); if (choice) view_model().set_gps_enabled(choice == 1);
     } else if (pending == "setup-region") {
         setup_region_ = options_[choice]; close_overlay();
@@ -782,9 +795,13 @@ bool SettingsScreen::extended_picker(const std::string& input, int choice) {
     } else if (pending == "tx") {
         close_overlay(); if (choice) request_service("setup", "radio.tx", std::string(",\"antenna_confirmed\":true,\"enabled\":") + (choice == 1 ? "true" : "false"));
     } else if (pending == "slots") {
-        if (choice < 2) { setup_kind_ = choice == 0 ? "private" : "public"; close_overlay(); open_text("New channel name (max 11 bytes)", "", "channel-create"); }
-        else if (choice - 2 < static_cast<int>(service_items_.size())) {
-            const auto c = service_items_[choice-2]; managed_channel_ = c.int_at("index"); channel_id_ = c.str_at("identity");
+        if (choice == 0) {
+            close_overlay();
+            channel_setup_start();
+        } else if (choice - 1 < static_cast<int>(service_items_.size())) {
+            const auto c = service_items_[choice - 1];
+            managed_channel_ = c.int_at("index");
+            channel_id_ = c.str_at("identity");
             channel_fields_ = ",\"channel\":" + std::to_string(managed_channel_) + ",\"channel_id\":" + qstr(channel_id_);
             close_overlay(); open_picker("Edit slot " + std::to_string(managed_channel_), {"Cancel", "Rename", "Rotate private key", "Disable", "Remove", "Enable"}, "channel-action", 0);
         }
@@ -806,15 +823,15 @@ bool SettingsScreen::extended_picker(const std::string& input, int choice) {
         close_overlay(); if (choice) { view_model().service_request("history.set", std::string(",\"enabled\":") + (view_model().history_enabled() ? "false" : "true")); }
     } else if (pending == "quiet") {
         close_overlay(); if (!choice) view_model().set_quiet_hours(-1,-1); else if (choice == 1) view_model().set_quiet_hours(22*60,7*60); else open_text("Local HH:MM-HH:MM (e.g. 22:00-07:00)", "", "quiet-times");
-    } else return false;
+    } else
+        return false;
     return true;
 }
 bool SettingsScreen::extended_text(const std::string& pending, const std::string& value) {
+    if (channel_setup_text(pending, value))
+        return true;
     if (pending == "setup-name") {
         channel_name_ = value; close_overlay(); open_picker(setup_region_ + " / Private: " + channel_name_ + " (RX only)", {"Cancel", "Save setup (no transmission)"}, "setup-confirm", 0);
-    } else if (pending == "channel-create") {
-        channel_action_ = "create"; channel_fields_ = ",\"kind\":" + qstr(setup_kind_) + ",\"name\":" + qstr(value);
-        close_overlay(); open_picker("Create new group? Location/MQTT Off.", {"Cancel", "Create " + setup_kind_}, "channel-confirm", 0);
     } else if (pending == "channel-rename") {
         channel_fields_ += ",\"name\":" + qstr(value); close_overlay(); open_picker("Rename changes the channel identity.", {"Cancel", "Confirm rename"}, "channel-confirm", 0);
     } else if (pending == "profile-save") {

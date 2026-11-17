@@ -123,8 +123,16 @@ void MessagesScreen::build_content(lv_obj_t* content) {
     lv_obj_add_flag(input_, LV_OBJ_FLAG_HIDDEN);
 
     // If we arrived here to DM someone, open straight into that thread.
+    const std::string group = view_model().take_group_target();
     const std::string& dm = view_model().dm_target_id();
-    if (!dm.empty()) {
+    if (!group.empty()) {
+        mode_ = Mode::List;
+        for (const auto &ch : view_model().channels())
+            if (ch.identity == group) {
+                open_thread("ch:" + group, "", "");
+                break;
+            }
+    } else if (!dm.empty()) {
         open_thread("dm:" + dm, dm, view_model().dm_target_name());
     } else {
         mode_ = Mode::List;

@@ -1,6 +1,6 @@
 # Settings Menu
 
-> For Mesh **0.1.12 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.13 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 The **Settings** screen is where you turn the radio on and off, set your region and channels, manage privacy and notifications, save mesh profiles, and check system health.
 
@@ -23,7 +23,7 @@ From the Home Carousel, roll to **Settings** with **Z** / **C** and press **Ente
 
 The app keeps radio hardware and saved setups cleanly separated, so some settings expect the radio to be **On** while a couple require it to be **Off**:
 
-- **Needs Radio ON:** `Region`, `Modem preset`, `Frequency slot`, `Hop limit`, `Channel manager`, `Add a channel` (QR scan or URL), `Node name`, `GPS receiver`, `Share position`, and `Internet (MQTT)`.
+- **Needs Radio ON:** `Region`, `Modem preset`, `Frequency slot`, `Hop limit`, `Channel manager`, `Node name`, `GPS receiver`, `Share position`, and `Internet (MQTT)`.
 - **Needs Radio OFF:** Applying a saved **Mesh profile**, or running the **First-run setup** wizard when no profile exists yet.
 - **Works Anytime (On or Off):** `Radio`, `Transmit mode`, saving or deleting a **Mesh profile**, `Channels`, `First-run setup` status check, `Diagnostics`, `About`, and all **Messages**, **Notifications**, and **Theme** preferences.
 
@@ -69,40 +69,86 @@ Save up to **16** named snapshots of your region, tuning, and channels on the de
 
 ### Channel Manager
 
-Inspect and edit all 8 channel slots (`0`–`7`) while the **Radio is On**:
+Open **Channel manager → `+ Add channel (scan or create)`** to use the same
+complete setup form as **Settings → Add a channel**. Existing slot edits still
+require Radio On; preparing and saving a new setup also works while Radio is Off.
 
 ![Channel Manager](images/settings-channel-manager.png)
 
-- **`+ New private channel`:** Creates a secondary group with a freshly generated secret key (give it a name up to 11 UTF-8 bytes).
-- **`+ New public channel`:** Creates a secondary channel using the standard public key.
-- **Select an existing slot (`0`–`7`)** to manage it:
-  - **Rename:** Change the channel name (up to 11 bytes). *Note:* Renaming slot `0` (your primary channel) requires setting an explicit non-zero **Frequency slot** first so renaming doesn't shift your radio frequency.
-  - **Rotate private key:** Replaces that slot's key with a brand-new secret key (older radios won't read new messages until updated).
-  - **Disable / Enable:** Temporarily pause or re-enable a slot without losing its saved name or secret key *(a Disabled slot still occupies that slot until you Remove it)*.
-  - **Remove:** Completely erases a secondary slot (`1`–`7`) so it is free for new channels or QR imports. *(Primary slot `0` cannot be disabled or removed.)*
-
-*Tip:* Creating or editing a channel always resets location sharing and MQTT forwarding to **Off** on that slot, and old chats remain separated under their original channel identity.
+Select an existing slot to **Rename**, **Rotate private key**, **Disable**,
+**Remove** or **Enable** it. Primary slot `0` cannot be disabled or removed.
+Renaming the primary with Auto frequency first requires an explicit frequency
+slot. Removing a secondary frees its slot; disabling retains its saved key.
+Old chats stay associated with their original channel identity.
 
 ### Add a Channel
 
-Join a channel shared by someone else while the **Radio is On** (new channels are placed into free secondary slots `1`–`7` and never overwrite your Primary slot `0`). Both **Scan QR code** and **Paste share URL** let you preview what will be added before saving anything:
+Everything needed to add a channel is collected in one flow. Nothing is written
+while you edit fields, scan, paste or review.
 
-- **Scan QR code:**
-  1. Open **Add a channel → Scan QR code**.
+1. Choose **Scan QR code**, **Paste share URL**, **Create private channel**, or
+   **Create public channel**. The private option generates a new random secret;
+   it does not join someone else's private group. Join an existing group by QR
+   or share URL. Keys remain hidden; pasted URLs are masked while typing.
+2. For scanning, aim the camera and select **Start scan (Return)**. Repeated
+   Return while busy does not start another scan. Esc cancels the scan and
+   returns to the form.
 
-     ![QR Scan Ready Screen](images/settings-qr-scan-ready.png)
+![QR Scan Ready](images/settings-qr-scan-ready.png)
 
-  2. Aim the CardputerZero's camera at a Meshtastic channel QR code and press **Enter / Return** (`Scanning QR code...` runs for up to 12 seconds; press **ESC** anytime to cancel the scan cleanly).
-- **Paste share URL:**
-  Type or paste a `https://meshtastic.org/e/#...` channel link and press **Enter**.
-- **Preview & Confirm:**
-  1. If any new channels are found, a **Preview** screen lists each channel as `[Private]` or `[Public]` and marks whether it is `(new)` or `(existing)`, confirming that radio tuning stays unchanged and location/MQTT default **Off** (plus a visibility reminder if any new channel is `[Public]`). If a link contains multiple channels, use **F / X** to scroll through the list.
+3. Check the imported names and Public/Private classifications, or edit the new
+   channel name (private names require 1–11 UTF-8 bytes). Imports keep existing
+   tuning by default. **Use radio settings from QR / link** appears when a
+   supported suggestion is available; selecting it changes the local form only.
 
-     ![Channel Import Preview Screen](images/settings-qr-preview.png)
+![Imported Channel in Setup Form](images/settings-qr-preview.png)
 
-  2. Press **Enter / Return** to open the **`Add N channel(s)?`** prompt (**`Cancel`** is highlighted first by default so an accidental tap never imports anything). Press **X** (Down) to highlight **`Confirm import (location/MQTT Off)`** and press **Enter** within **2 minutes** *(or leave it on **Cancel** / press **ESC** to make no changes)*.
-  3. While the radio writes and verifies the new slot(s), **`Importing channels...`** appears, followed by **`Import complete`** (`Imported N channel(s).`).
-  4. If every channel in the QR code or link is already on your radio, the screen tells you **`Channels already present`** and makes no changes.
+4. Review **Region**, **Modem**, **Frequency slot**, **Hop limit**, **Transmit mode**,
+   **Automatic location** and **Internet forwarding** in the same form. Radio
+   tuning and transmit mode affect the whole radio. Channels cannot listen on
+   different modem presets/frequencies simultaneously. Auto frequency uses the
+   unchanged primary channel name; use a matching explicit slot when the sender
+   has a different primary. An existing fixed frequency is displayed and can be
+   preserved or explicitly cleared to use slots. Calibration stays unchanged.
+5. New-channel location and forwarding start Off. Existing channels' sharing
+   stays unchanged unless you choose automatic location for the new channel;
+   that moves automatic sharing exclusively to it. The GPS receiver is unchanged.
+   Enabling MQTT can also activate other already-forwarding channels and uses
+   the configured broker; it does not configure broker credentials.
+6. Choose **Current setup** or **Separate profile; keep active setup**. An optional
+   **Profile name** saves a named snapshot alongside an applied setup. A separate
+   profile requires a name, leaves the active radio/setup untouched, and starts
+   receive-only with location/MQTT Off. It can be applied later from Mesh profiles.
+
+![Complete Channel Setup Form](images/settings-channel-setup-form.png)
+
+7. Select **Review setup**, read the complete summary and warnings, then select
+   **Save reviewed setup** (or **Save separate profile**). The first/default item
+   returns to the form and preserves entries.
+
+![Channel Setup Review](images/settings-channel-setup-review.png)
+
+8. Confirm any required antenna/region, public location and MQTT acknowledgments,
+   then select **Confirm save**. Saving tuning confirms its effect on every
+   channel. A running radio restarts once; pending message ACKs are interrupted
+   without automatic resend. Esc during Save asks you to wait for confirmation.
+
+![Channel Setup Confirmation](images/settings-channel-setup-confirm.png)
+
+9. **Saved and verified by the radio** means actual readback passed. If Radio was
+   Off, **Saved on device; live check when Radio is On** distinguishes stored
+   confirmation from radio readback. **Open conversation** can take you directly
+   to a new channel when it is live. An optional profile-save failure is reported
+   separately; it does not imply the channel failed or invite a duplicate import.
+
+![Channel Setup Complete](images/settings-channel-setup-complete.png)
+
+Esc from an editor returns to the form; Esc from the form offers **Keep editing**
+first or **Discard and close**. Discard before Save changes nothing. Validation
+errors retain the form. If configuration changes elsewhere, reload the current
+radio settings and review again. A failed active save stops the radio and tries
+to restore the previous settings; failed recovery or an uncertain result is
+reported explicitly. Inspect Channels/Diagnostics before retrying an uncertain save.
 
 ### Channels (Quick View)
 
@@ -166,32 +212,31 @@ Set the display name other radios see for you. Your 4-character short name is au
 
 ### Example 1: Creating a Private Group Channel for a Family Trip
 
-1. Turn **Radio** **On** in Settings (with your antenna attached).
-2. Scroll to **Channel manager** and press **Enter**.
-3. Highlight **`+ New private channel`** and press **Enter**.
-4. Type a short name—for example, `Trip2026`—and press **Enter**.
-5. Highlight **Create private** on the confirmation prompt (**Create new group? Location/MQTT Off.**) and press **Enter**.
-6. Wait a moment for readback confirmation. Your new `[Private]` channel is ready in [Messages](02-Messages-Menu.md), where you can share it by QR code (`o` → **Share channel (QR)**).
+1. Open **Settings → Add a channel → Create private channel**.
+2. Edit **Channel name** to `Trip2026`. Keep current radio tuning if your group
+   already uses it; otherwise enter the group's matching settings in this form.
+3. Leave location/forwarding Off, optionally name a mesh profile, and select
+   **Review setup → Save reviewed setup → Confirm save**.
+4. After live confirmation, choose **Open conversation**. Share the new group's
+   QR from Messages (`o` → **Share channel (QR)**). If saved offline, turn Radio
+   On with its antenna attached before messaging.
 
 ### Example 2: Scanning a Friend's Channel QR Code
 
-1. Make sure **Radio** is **On** in Settings.
-2. Scroll to **Add a channel** and press **Enter**, then pick **Scan QR code**.
-3. Aim the CardputerZero's camera at your friend's Meshtastic QR code and press **Enter / Return**.
-4. Keep steady while **`Scanning QR code...`** runs.
-5. Check the **Preview** screen to confirm the channel name and `[Private]` / `[Public]` label, press **Enter / Return**, and pick **Confirm import (location/MQTT Off)**.
-6. When **`Import complete`** confirms the import, press **ESC** and open **Messages → `+ New message`** to find the new channel.
+1. Open **Add a channel → Scan QR code**, aim the camera, and select **Start scan**.
+2. Review imported names/classification and matching radio settings in the form.
+   Keep tuning or deliberately use supported QR suggestions; never assume that
+   scanning alone proves you can reach the other radio.
+3. Select **Review setup**, read the effects, and confirm Save.
+4. After live readback, **Open conversation** opens the new chat directly.
 
-### Example 3: Switching Setups with Mesh Profiles
+### Example 3: Keeping a Separate Setup Without Retuning Now
 
-Suppose you keep one setup for local public chat and another for private family trips:
-
-1. Configure your town channels and tuning, then open **Settings → Mesh profiles → `+ Save current as profile`** and name it `Town Public`.
-2. Set up your private channels and tuning, then save a second profile named `Family Trip`.
-3. Whenever you want to switch later:
-   - Turn **Radio** **Off** at the top of Settings.
-   - Open **Mesh profiles**, select `Family Trip`, review the preview, and pick **Apply: radio Off, TX/location/MQTT Off**.
-   - Turn **Radio** back **On**, verify your antenna, and enable **Transmit mode** when ready to send.
+1. In the Add channel form, select **Save to → Separate profile; keep active setup**.
+2. Enter the desired channel/tuning and a profile name such as `Family Trip`.
+3. Review and save the profile. The active setup/radio remains unchanged.
+4. To use it later, turn Radio Off, select it in **Mesh profiles**, apply it, then
+   turn Radio On. Transmission/location/MQTT remain Off until explicitly enabled.
 
 ---
 

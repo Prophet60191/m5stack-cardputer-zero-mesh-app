@@ -99,11 +99,12 @@ def check_sources():
                     with PILImage.open(dest) as image:
                         if image.size != (320, 170) or set(image.info) - {'srgb'}:
                             raise ValueError(f'Unexpected screenshot dimensions/metadata: {dest.name}')
-    if len(referenced_images) != 24:
-        raise ValueError('Expected all 24 screenshots to be referenced')
+    expected_images = meta.get("screenshots_count", 24)
+    if type(expected_images) is not int or expected_images < 1 or len(referenced_images) != expected_images:
+        raise ValueError("Expected all reviewed screenshots to be referenced")
     if set((GUIDE / 'images').iterdir()) != referenced_images:
         raise ValueError('Unexpected or unreferenced files in the screenshot directory')
-    print(f'Source checks: 7 chapters, 24 images, local links/anchors, version {version}')
+    print(f'Source checks: 7 chapters, {expected_images} images, local links/anchors, version {version}')
     return meta
 
 

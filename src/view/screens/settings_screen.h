@@ -14,8 +14,8 @@ namespace screen {
 // A selectable settings list (Up/Down + Enter), with pickers, toggles, text
 // editors and info overlays for the rows.
 class SettingsScreen : public BaseScreen {
-public:
-    SettingsScreen(viewmodel::BaseViewModel& view_model, app::AssetManager& assets);
+  public:
+    SettingsScreen(viewmodel::BaseViewModel &view_model, app::AssetManager &assets);
     ~SettingsScreen() override;
 
     void on_up() override;
@@ -24,22 +24,43 @@ public:
     bool on_back() override;
     bool is_composing() override;
 
-private:
-    static void services_cb(lv_observer_t*, lv_subject_t*);
+  private:
+    // One local draft across method, field editors, review and verified result.
+    struct ChannelDraft {
+        std::string source, name, url, import_token, profile_name, region, preset;
+        int slot = 0, hop = 3;
+        double override_frequency = 0, frequency_offset = 0;
+        bool use_preset = true, tx = false, position = false, mqtt = false, profile_only = false;
+        bool context_ready = false;
+        json::Value preview, result, suggested;
+        std::string token, error, base;
+    } channel_draft_;
+    bool channel_flow_ = false;
+    int channel_field_ = 0;
+    std::vector<int> channel_fields_order_;
+    void channel_setup_start();
+    void channel_setup_form();
+    void channel_setup_review();
+    void channel_setup_finish();
+    bool channel_setup_choice(const std::string &pending, int choice);
+    bool channel_setup_text(const std::string &pending, const std::string &value);
+    bool channel_setup_back();
+    void channel_setup_result(const std::string &route, const json::Value &event);
+    void channel_setup_exit();
+    void channel_setup_tuning(const json::Value &value);
+    static void services_cb(lv_observer_t *, lv_subject_t *);
     void service_result();
-    void request_service(const std::string& route, const std::string& intent, const std::string& fields = "");
-    bool extended_picker(const std::string& pending, int choice);
-    bool extended_text(const std::string& pending, const std::string& value);
+    void request_service(const std::string &route, const std::string &intent, const std::string &fields = "");
+    bool extended_picker(const std::string &pending, int choice);
+    bool extended_text(const std::string &pending, const std::string &value);
     std::string service_route_, setup_region_, setup_kind_, channel_action_, channel_id_, profile_id_;
     std::string channel_fields_, channel_name_;
-    std::string import_token_;
-    int import_count_ = 0;
     int managed_channel_ = -1;
     bool offered_setup_ = false;
     std::vector<json::Value> service_items_;
-    enum class Overlay { None, Picker, Text, Info, Canned, ScanReady, ScanBusy, Busy, ImportPreview };
+    enum class Overlay { None, Picker, Text, Info, Canned, Busy };
 
-    void build_content(lv_obj_t* content) override;
+    void build_content(lv_obj_t *content) override;
     void rebuild();
     void refresh_values();
     void select_setting(int index);
@@ -47,26 +68,26 @@ private:
     std::vector<lv_obj_t *> list_rows_;
     std::string value_for(int row);
     void row_action(int row);
-    void open_picker(const std::string& title, std::vector<std::string> options,
-                     const std::string& pending, int initial);
-    void open_text(const std::string& title, const std::string& initial, const std::string& pending);
-    void open_info(const std::string& title, std::vector<std::string> rows,
-                   const char* hint = "Esc: back");
-    void open_scan_ready(const std::string& error = "");
+    void open_picker(const std::string &title, std::vector<std::string> options, const std::string &pending,
+                     int initial);
+    void open_text(const std::string &title, const std::string &initial, const std::string &pending);
+    void open_info(const std::string &title, std::vector<std::string> rows, const char *hint = "Esc: back");
     void open_canned();
     void teardown_overlay_obj();
     void rebuild_picker();
+    void select_picker(int index);
+    std::vector<lv_obj_t *> picker_rows_;
     void close_overlay();
     void apply_overlay();
-    static void on_change(lv_observer_t* observer, lv_subject_t* subject);
+    static void on_change(lv_observer_t *observer, lv_subject_t *subject);
 
-    lv_obj_t* list_ = nullptr;
-    lv_obj_t* overlay_obj_ = nullptr;
-    lv_obj_t* input_ = nullptr;
+    lv_obj_t *list_ = nullptr;
+    lv_obj_t *overlay_obj_ = nullptr;
+    lv_obj_t *input_ = nullptr;
     std::string overlay_title_;
     Overlay overlay_mode_ = Overlay::None;
-    int selected_ = 0;         // row selection
-    int opt_sel_ = 0;          // picker selection
+    int selected_ = 0; // row selection
+    int opt_sel_ = 0;  // picker selection
     std::vector<std::string> options_;
     std::vector<int> position_channels_;
     std::vector<std::string> position_channel_ids_;

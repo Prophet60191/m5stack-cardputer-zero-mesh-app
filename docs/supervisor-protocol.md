@@ -206,3 +206,46 @@ Snapshots from other clients update confirmed state; still-pending local edits
 remain protected and the last accepted write is authoritative. There is no
 cross-client editing/merge protocol and no RF replay. Upgrade/restart the
 supervisor with the UI so the new acceptance reply is supported.
+
+## Unified channel setup (0.1.13)
+
+`channel.setup.context {id}` reads the authoritative setup (also while Off),
+returning a nonsecret `base` fingerprint, tuning, current TX/radio state and
+capacity. `channel.preview` / `channel.scan` accept optional `setup:true` to
+prepare an import without powering the radio; that connection's imported URL
+stays private in the supervisor for up to ten minutes. Supported QR tuning is
+a separate `suggested_tuning`, never implicitly adopted. Fixed frequencies and
+device calibration are not silently imported. The legacy import path is unchanged.
+
+`channel.setup.preview {id,base,source,name?,import_token?,tuning,tx,position,mqtt,
+profile_only,profile_name}` validates a complete local draft and returns
+`channel.setup.preview {id,token,channels,tuning,tx,position,mqtt,profile_only,
+profile_name,tuning_changed,tx_confirmation,public_position,warnings}`. Source is
+public/private/import; generated keys stay in the supervisor. Tuning contains
+region/preset/use_preset/slot/hop and an existing override_frequency or zero to
+clear it. Calibration is preserved. Keys/URLs are absent from replies.
+
+A preview is connection/request-bound, lasts two minutes and checks the entire
+current setup fingerprint again before writing. Cancellation, replaced requests,
+disconnect, changed setup and missing consent reject the commit.
+`channel.setup.cancel {request?}` cancels that connection's pending review,
+including queued preparation; it cannot undo a commit already performing writes.
+
+`channel.setup.commit {id,token,confirmed:true,tuning_confirmed?,antenna_confirmed?,
+public_position_confirmed?,mqtt_confirmed?}` consumes the review once. Tuning
+changes need their own acknowledgment; enabling TX or retuning an enabled TX
+needs antenna/region confirmation; public location and MQTT effects need explicit
+consent. A separate-profile-only save requires a name and RX/location/MQTT Off;
+it does not stop or change the active setup. Active saves persist the complete
+configuration/channel/module pair, restart once if already Online and compare
+actual readback. Offline saves stay Off and verify stored bytes only. Failures
+stop the radio and attempt restoring the prior pair/consent; failed recovery is
+reported explicitly and does not restart the radio.
+
+Success returns `channel.setup.saved {id,added,verified,profile_only,profile,
+profile_error?,channels:[{index,identity}]}`. Verified is `radio` or `stored`, not
+a delivery/connectivity guarantee. An optional profile failure after a confirmed
+channel save is explicit partial success. An unknown/timed-out result must be
+inspected before trying a fresh setup; no automatic configuration/RF replay.
+There are at most eight setup plans, each based on at most 128 KiB of preferences.
+No arbitrary path, command, executable or shell argument is accepted.

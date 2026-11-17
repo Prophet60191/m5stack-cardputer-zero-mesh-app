@@ -21,6 +21,14 @@ privacy settings, protocol, or package integration.
   `docs/keyboard.md`. Keep the reusable decoder and raw evdev-to-textarea checks
   together; direct text insertion is not proof of physical-key translation.
 
+## Current work — unified channel setup
+
+The owner approved the complete channel setup flow, then testing/deployment.
+Implementation and remaining qualification are in
+[`docs/channel-setup-flow.md`](docs/channel-setup-flow.md). Preserve existing
+settings/profiles/chats, keep ADB enabled, and qualify peer compatibility without
+reconfiguring another project's radio/service. GPS dongle work follows this task.
+
 ## Maintenance closeout and next work
 
 The owner resumed the second pass after Surveyor finished. All seven maintenance

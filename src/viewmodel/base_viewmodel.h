@@ -89,7 +89,7 @@ public:
     const std::string& radio_detail() const { return radio_detail_; }
     lv_subject_t* services_subject() { return services_version_.native(); }
     bool service_request(const std::string& intent, const std::string& fields = "");
-    void cancel_service_request();
+    void cancel_service_request(bool preserve_import = false);
     void cancel_import();
     void apply_service(const json::Value& event);
     const json::Value& service_event() const { return service_event_; }
@@ -229,6 +229,15 @@ public:
     // Direct-message target: when set, the Messages screen sends to this node.
     void set_dm_target(const std::string& id, const std::string& name);
     void clear_dm_target();
+    void set_group_target(const std::string &identity) {
+        group_target_ = identity;
+        clear_dm_target();
+    }
+    std::string take_group_target() {
+        auto value = group_target_;
+        group_target_.clear();
+        return value;
+    }
     const std::string& dm_target_id() const { return dm_target_id_; }
     const std::string& dm_target_name() const { return dm_target_name_; }
 
@@ -238,7 +247,7 @@ private:
     long presentation_time_ = static_cast<long>(std::time(nullptr));
     reactive::IntSubject services_version_{0};
     json::Value service_event_, setup_;
-    std::string service_request_id_, service_intent_, import_request_id_;
+    std::string service_request_id_, service_intent_, import_request_id_, channel_setup_request_id_;
     long long service_deadline_ = 0;
     std::map<std::string, std::string> drafts_;
     std::map<std::string, std::string> sent_draft_keys_;
@@ -322,6 +331,7 @@ private:
     std::string last_incoming_from_;
     std::string last_incoming_text_;
     std::string last_incoming_thread_;
+    std::string group_target_;
     std::string dm_target_id_;
     std::string dm_target_name_;
     std::string session_id_;          // per-session client-id prefix (collision-free)

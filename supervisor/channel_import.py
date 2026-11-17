@@ -15,10 +15,12 @@ class ChannelImport:
     def _init_imports(self):
         self._import_lock = threading.RLock()
         self._import_previews = {}
+        self._setup_plans = {}
+        self._setup_latest = {}
         self._import_latest = {}
         self._scan_job = None
 
-    def _import_plan(self, url):
+    def _import_plan(self, url, node=None):
         from meshtastic.protobuf import apponly_pb2
         if not isinstance(url, str) or len(url) > 4096:
             raise ValueError("channel share URL must be at most 4096 characters")
@@ -35,7 +37,7 @@ class ChannelImport:
             if (not self._valid_channel_key(settings.psk) or len(settings.name.encode("utf-8")) > 11 or
                     (settings.name and not settings.name.isprintable())):
                 raise ValueError("invalid channel key or name (maximum 11 UTF-8 bytes)")
-        node = self._iface.localNode
+        node = node if node is not None else self._iface.localNode
         identities = {(ch.settings.name, bytes(ch.settings.psk), ch.settings.id) for ch in node.channels if ch.role}
         free = [ch for ch in node.channels if not self._channel_configured(ch) and ch.index != 0]
         pending, summaries, seen = [], [], set()
@@ -53,8 +55,8 @@ class ChannelImport:
         if len(pending) > len(free): raise ValueError("not enough free channel slots")
         return pending, free, summaries
 
-    def _import_fingerprint(self):
-        node = self._iface.localNode
+    def _import_fingerprint(self, node=None):
+        node = node if node is not None else self._iface.localNode
         data = (node.localConfig.lora.SerializeToString(), tuple(self._channel_signature(ch) for ch in node.channels))
         return hashlib.sha256(repr(data).encode()).hexdigest()
 
@@ -65,10 +67,15 @@ class ChannelImport:
         with self._life_lock:
             with self._import_lock:
                 if self._preview_cancelled(client, request): return None
-            self._require_online()
-            pending, free, summaries = self._import_plan(url)
-            fingerprint = self._import_fingerprint()
-            lora = self._iface.localNode.localConfig.lora
+            setup = req.get("setup", False)
+            if type(setup) is not bool: raise ValueError("setup must be boolean")
+            if setup: node = self._setup_node(self._setup_snapshot())
+            else:
+                self._require_online()
+                node = self._iface.localNode
+            pending, free, summaries = self._import_plan(url, node)
+            fingerprint = self._import_fingerprint(node)
+            lora = node.localConfig.lora
             tuning = {"region": lora.RegionCode.Name(lora.region),
                       "preset": lora.ModemPreset.Name(lora.modem_preset), "slot": lora.channel_num}
             with self._import_lock:
@@ -79,12 +86,24 @@ class ChannelImport:
                 token = secrets.token_hex(16) if pending else ""
                 if pending:
                     self._import_previews[client] = {"request": request, "token": token, "url": url,
-                        "fingerprint": fingerprint, "expires": time.monotonic() + 120}
+                        "fingerprint": fingerprint, "expires": time.monotonic() + (600 if setup else 120)}
                 else:
                     self._import_previews.pop(client, None)
                     self._import_latest.pop(client, None)
-        return {"event": "channel.preview", "token": token, "new": len(pending), "available": len(free),
-                "channels": summaries, **tuning}
+        result = {"event": "channel.preview", "token": token, "new": len(pending), "available": len(free),
+                  "channels": summaries, **tuning}
+        if setup:
+            from meshtastic.protobuf import apponly_pb2
+            encoded = url.split("#", 1)[1].rstrip("=")
+            data = apponly_pb2.ChannelSet.FromString(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+            if data.HasField("lora_config") and data.lora_config.use_preset and not data.lora_config.override_frequency:
+                imported = data.lora_config
+                result["suggested_tuning"] = {"region": imported.RegionCode.Name(imported.region) if imported.region else tuning["region"],
+                    "preset": imported.ModemPreset.Name(imported.modem_preset), "use_preset": True,
+                    "slot": imported.channel_num, "hop": imported.hop_limit or lora.hop_limit, "override_frequency": 0}
+            elif data.HasField("lora_config") and data.lora_config.override_frequency:
+                result["tuning_warning"] = "Link uses a fixed frequency; it is not imported. Verify the current frequency matches the sender."
+        return result
 
     def _confirm_import(self, client, req):
         if req.get("confirmed") is not True: raise ValueError("confirm the channel preview before importing")
@@ -102,12 +121,14 @@ class ChannelImport:
     def _start_scan(self, client, req):
         request = req.get("id")
         if not isinstance(request, str) or not request: raise ValueError("scan requires a request ID")
+        setup = req.get("setup", False)
+        if type(setup) is not bool: raise ValueError("setup must be boolean")
         with self._lock:
-            if self._iface is None or self._radio != "online": raise ValueError("turn the radio on before scanning channels")
+            if not setup and (self._iface is None or self._radio != "online"): raise ValueError("turn the radio on before scanning channels")
         with self._import_lock:
             if self._scan_job is not None: raise ValueError("camera is already scanning; cancel or wait, then retry")
             self._begin_import(client, request)
-            job = {"client": client, "request": request, "cancelled": threading.Event()}
+            job = {"client": client, "request": request, "setup": setup, "cancelled": threading.Event()}
             job["thread"] = threading.Thread(target=self._capture_preview, args=(job,), daemon=True)
             self._scan_job = job
             try: job["thread"].start()
@@ -122,7 +143,7 @@ class ChannelImport:
             url = self._scan_qr(cancelled)
             if cancelled.is_set() or self._stop.is_set(): return
             if not url: raise ValueError("No QR code found; aim the camera and retry")
-            result = self._preview_import(client, {"id": request}, url, cancelled)
+            result = self._preview_import(client, {"id": request, "setup": job["setup"]}, url, cancelled)
             with self._import_lock:
                 if result is not None and not cancelled.is_set(): self._send(client, {**result, "id": request})
         except Exception as exc:
@@ -135,6 +156,7 @@ class ChannelImport:
                 if self._scan_job is job: self._scan_job = None
 
     def _cancel_import(self, client, request=None):
+        self._setup_cancel(client, request)
         with self._import_lock:
             if request is None or self._import_latest.get(client) == request:
                 self._import_latest.pop(client, None)
@@ -156,6 +178,8 @@ class ChannelImport:
     def _stop_imports(self):
         with self._import_lock:
             self._import_previews.clear()
+            self._setup_plans.clear()
+            self._setup_latest.clear()
             self._import_latest.clear()
             job = self._scan_job
             if job: job["cancelled"].set()

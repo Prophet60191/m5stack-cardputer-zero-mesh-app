@@ -158,9 +158,12 @@ class RadioSettings:
             raise ValueError("invalid profile identity")
         return value
 
-    def save_profile(self, name, config, channels):
+    @staticmethod
+    def validate_profile_name(name):
         if not isinstance(name, str) or not name.strip() or not name.isprintable() or len(name.encode()) > 48:
             raise ValueError("profile name must contain 1..48 printable UTF-8 bytes")
+    def save_profile(self, name, config, channels):
+        self.validate_profile_name(name)
         self.profiles.mkdir(mode=0o700, exist_ok=True)
         if len(list(self.profiles.glob("*.json"))) >= 16: raise ValueError("profile limit reached")
         ident = uuid.uuid4().hex

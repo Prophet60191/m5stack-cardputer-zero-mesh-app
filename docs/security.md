@@ -228,3 +228,23 @@ write wins, with pending edits protected from older snapshots/results; this is
 not collaborative text merging. Graceful exit waits within a shared two-second
 save/sync deadline and reports unconfirmed state in the local log. See the
 [protocol](supervisor-protocol.md) and [maintenance evidence](maintenance-pass.md).
+
+## Unified channel setup (0.1.13)
+
+The local form owns no keys or radio state; generated/imported keys remain in
+connection-bound supervisor plans. Pasted URLs are masked, kept only as a local
+editing draft and never logged. Eight-plan and 128 KiB snapshot bounds apply;
+expired/replaced/cancelled/disconnected/stale reviews cannot commit. Keys and URLs
+never appear in plan/result payloads. Same-user socket access remains a control
+trust boundary, not isolation from other programs owned by that user.
+
+A full review is required before persistence. Global tuning/TX and public
+location/MQTT consequences are explicit. Existing TX is preserved unless chosen
+otherwise; new forwarding/location start Off. Only the newly selected position
+channel receives precision when sharing is enabled, with existing public consent
+validated and new public precision capped. Profile-only changes never alter the
+running setup. Failed active application stops RF and attempts restoration; a
+power interruption can leave the existing roll-forward recovery transaction,
+and startup still removes unapproved public location before power. Software
+cannot guarantee recovery from failed storage/hardware or power loss. Stored
+verification is distinguished from live readback and from actual peer delivery.

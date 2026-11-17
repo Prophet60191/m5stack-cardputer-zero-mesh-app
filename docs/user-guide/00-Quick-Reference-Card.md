@@ -1,6 +1,6 @@
 # Quick Reference Card
 
-> For Mesh **0.1.12 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.13 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 ## Hardware Safety Rules
 
@@ -56,7 +56,7 @@
 3. **Frequency:** Same effective slot; Auto also depends on the primary channel name.
 4. **Channel:** Same name and secret key. Keep private QRs/URLs secret.
 
-**QR import keeps your radio tuning unchanged.** For sending, enable Settings → Transmit mode after checking the antenna; look for **TX/RX**.
+**QR keeps current tuning by default; review any chosen changes before Save.** For sending, enable Settings → Transmit mode after checking the antenna; look for **TX/RX**.
 
 ---
 

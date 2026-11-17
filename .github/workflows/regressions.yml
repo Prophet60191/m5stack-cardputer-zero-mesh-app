@@ -102,3 +102,17 @@ jobs:
           name: cardputerzero-mesh-keyboard-replay-arm64
           path: ${{ runner.temp }}/cz-keyboard/
           if-no-files-found: error
+      - name: Stage the non-installed channel setup replay helper
+        run: |
+          mkdir -p "$RUNNER_TEMP/cz-channel-setup"
+          cp "$RUNNER_TEMP/cz-build/linux/mesh_channel_setup_regressions" "$RUNNER_TEMP/cz-channel-setup/"
+          cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$RUNNER_TEMP/cz-channel-setup/"
+          cp -R licenses "$RUNNER_TEMP/cz-channel-setup/"
+          cd "$RUNNER_TEMP/cz-channel-setup"
+          sha256sum mesh_channel_setup_regressions > SHA256SUMS
+          printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cardputerzero-mesh-channel-setup-replay-arm64
+          path: ${{ runner.temp }}/cz-channel-setup/
+          if-no-files-found: error

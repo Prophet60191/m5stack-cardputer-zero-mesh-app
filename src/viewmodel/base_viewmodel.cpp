@@ -796,9 +796,13 @@ bool BaseViewModel::service_request(const std::string& intent, const std::string
     if (intent == "channel.scan" || intent == "channel.preview") cancel_import();
     service_request_id_ = session_id_ + "service" + std::to_string(++cid_counter_);
     service_intent_ = intent;
+    if (intent == "channel.setup.preview")
+        channel_setup_request_id_ = service_request_id_;
     if (intent == "channel.scan" || intent == "channel.preview") import_request_id_ = service_request_id_;
-    service_deadline_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()
-        + (intent == "channel.add" ? 90000 : 60000);
+    service_deadline_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now().time_since_epoch())
+                            .count() +
+                        (intent == "channel.add" || intent == "channel.setup.commit" ? 90000 : 60000);
     service_event_ = {}; // An unsolicited setup update must not reuse an old result.
     if (send_intent("{\"intent\":\"" + json::escape(intent) + "\",\"id\":\"" + service_request_id_ + "\"" + fields + "}")) return true;
     service_request_id_.clear(); service_intent_.clear(); service_deadline_ = 0; import_request_id_.clear();
@@ -809,8 +813,14 @@ void BaseViewModel::cancel_import() {
     send_intent("{\"intent\":\"channel.import.cancel\",\"request\":\"" + import_request_id_ + "\"}");
     import_request_id_.clear();
 }
-void BaseViewModel::cancel_service_request() {
-    cancel_import();
+void BaseViewModel::cancel_service_request(bool preserve_import) {
+    if (!channel_setup_request_id_.empty()) {
+        send_intent("{\"intent\":\"channel.setup.cancel\",\"request\":\"" + channel_setup_request_id_ +
+                    "\"}");
+        channel_setup_request_id_.clear();
+    }
+    if (!preserve_import)
+        cancel_import();
     service_request_id_.clear(); service_intent_.clear(); service_deadline_ = 0;
 }
 void BaseViewModel::apply_service(const json::Value& event) {
@@ -823,9 +833,12 @@ void BaseViewModel::apply_service(const json::Value& event) {
         json::Value ident; ident.type = json::Value::Str; ident.str = service_request_id_;
         service_event_.obj["id"] = ident;
     }
-    if (event.str_at("event") == "error") cancel_import();
-    if (service_intent_ == "channel.add" ||
-        (event.str_at("event") == "channel.preview" && event.int_at("new") == 0)) import_request_id_.clear();
+    if (event.str_at("event") == "error" && service_intent_ != "channel.setup.preview" && service_intent_ != "channel.setup.context") cancel_import();
+    if (service_intent_ == "channel.setup.commit" && event.str_at("event") == "channel.setup.saved")
+        channel_setup_request_id_.clear();
+    if (service_intent_ == "channel.setup.commit" || service_intent_ == "channel.add" ||
+        (event.str_at("event") == "channel.preview" && event.int_at("new") == 0))
+        import_request_id_.clear();
     service_request_id_.clear(); service_intent_.clear(); service_deadline_ = 0;
     services_version_.set(services_version_.value() + 1);
 }
