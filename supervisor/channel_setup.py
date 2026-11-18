@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Connection-bound channel setup: prepare privately, review, then commit once.
+"""Connection-bound channel setup: validate privately, then commit once.
 
 No secret is returned to the UI. Tuning is global; a separate-profile save leaves
 active preferences/radio untouched. Only an explicit commit can persist changes.
@@ -74,7 +74,7 @@ class ChannelSetup:
                 raise ValueError('setup preview cancelled')
         original = self._setup_snapshot()
         if req.get('base') != self._setup_fingerprint(original):
-            raise ValueError('setup changed; reload current radio settings and review again')
+            raise ValueError('setup changed; reload current radio settings before saving')
         config, channels, modules = tuple(type(p).FromString(p.SerializeToString()) for p in original)
         if not self._public_position_approved(channels.channels):
             raise ValueError('existing public location sharing is unconfirmed; turn it off before setup')
@@ -211,14 +211,14 @@ class ChannelSetup:
     def _setup_commit(self, client, req):
         with self._import_lock:
             plan = self._setup_plans.get(client)
-            if not plan or req.get('token') != plan['token']: raise ValueError('review the setup again before saving')
-        if plan['expires'] <= time.monotonic(): raise ValueError('setup review expired; review again')
-        if req.get('confirmed') is not True: raise ValueError('confirm saving the reviewed setup')
+            if not plan or req.get('token') != plan['token']: raise ValueError('check the form and save again')
+        if plan['expires'] <= time.monotonic(): raise ValueError('setup validation expired; save again')
+        if req.get('confirmed') is not True: raise ValueError('confirm saving the setup')
         for needed, field in [(plan['tuning_changed'], 'tuning_confirmed'), (plan['tx_confirmation'], 'antenna_confirmed'),
                               (plan['public_position'], 'public_position_confirmed'), (plan['mqtt'], 'mqtt_confirmed')]:
             if needed and req.get(field) is not True: raise ValueError('confirm ' + field.replace('_', ' '))
         current = self._setup_snapshot()
-        if plan['fingerprint'] != self._setup_fingerprint(current): raise ValueError('setup changed; review again before saving')
+        if plan['fingerprint'] != self._setup_fingerprint(current): raise ValueError('setup changed; reload current radio settings before saving')
         # Cancellation/disconnect during a slow readback must win before writes.
         with self._import_lock:
             if self._setup_plans.get(client) is not plan or not getattr(client, 'alive', True):

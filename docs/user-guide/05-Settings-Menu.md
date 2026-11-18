@@ -1,6 +1,6 @@
 # Settings Menu
 
-> For Mesh **0.1.13 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 The **Settings** screen is where you turn the radio on and off, set your region and channels, manage privacy and notifications, save mesh profiles, and check system health.
 
@@ -84,7 +84,7 @@ Old chats stay associated with their original channel identity.
 ### Add a Channel
 
 Everything needed to add a channel is collected in one flow. Nothing is written
-while you edit fields, scan, paste or review.
+while you edit fields, scan or paste. The form itself is the review; there is no separate review page.
 
 1. Choose **Scan QR code**, **Paste share URL**, **Create private channel**, or
    **Create public channel**. The private option generates a new random secret;
@@ -96,7 +96,7 @@ while you edit fields, scan, paste or review.
 
 ![QR Scan Ready](images/settings-qr-scan-ready.png)
 
-3. Check the imported names and Public/Private classifications, or edit the new
+3. A successful scan shows **QR scanned (unsaved)** and the decoded channel name/classification first. Pasting shows **Link loaded (unsaved)**. Open the details row for a multi-channel import. Check those details, or edit the new
    channel name (private names require 1–11 UTF-8 bytes). Imports keep existing
    tuning by default. **Use radio settings from QR / link** appears when a
    supported suggestion is available; selecting it changes the local form only.
@@ -123,19 +123,22 @@ while you edit fields, scan, paste or review.
 
 ![Complete Channel Setup Form](images/settings-channel-setup-form.png)
 
-7. Select **Review setup**, read the complete summary and warnings, then select
-   **Save reviewed setup** (or **Save separate profile**). The first/default item
-   returns to the form and preserves entries.
+7. Press **1** from anywhere on the form to **Save channel**, or **Save profile**
+   for a separate profile. The fixed footer stays visible while fields scroll.
+   Inside a typing box, `1` is a normal character; Enter applies the local edit.
+   Save validates the form before writing. Ordinary receive-only channel additions
+   apply directly; you do not have to scroll to a Save row or open another review.
+8. If changing the active radio's shared tuning, enabling TX, public location or
+   MQTT, confirm only those specific effects. Mark the requested acknowledgments
+   and press **1** to save; **Back to form** keeps your entries. Invalid or
+   unsupported settings are rejected. Software cannot detect an antenna, so TX
+   still requires acknowledging that it is attached. A running radio restarts
+   once; pending ACKs are interrupted without automatic resend. During the actual
+   write, wait for the confirmed result.
 
-![Channel Setup Review](images/settings-channel-setup-review.png)
+![Specific Confirmation for Radio-Wide Changes](images/settings-channel-setup-radio-confirm.png)
 
-8. Ordinary receive-only saves apply directly from the review. If antenna/region,
-   public location or MQTT acknowledgments are required, check each item and select
-   **Confirm save**. Saving tuning confirms its effect on every
-   channel. A running radio restarts once; pending message ACKs are interrupted
-   without automatic resend. Esc during Save asks you to wait for confirmation.
-
-![Extra Consent When Enabling TX, Public Location or MQTT](images/settings-channel-setup-confirm.png)
+![Specific TX, Public Location and MQTT Choices](images/settings-channel-setup-confirm.png)
 
 9. **Saved and verified by the radio** means actual readback passed. If Radio was
    Off, **Saved on device; live check when Radio is On** distinguishes stored
@@ -148,7 +151,7 @@ while you edit fields, scan, paste or review.
 Esc from an editor returns to the form; Esc from the form offers **Keep editing**
 first or **Discard and close**. Discard before Save changes nothing. Validation
 errors retain the form. If configuration changes elsewhere, reload the current
-radio settings and review again. A failed active save stops the radio and tries
+radio settings before saving again. A failed active save stops the radio and tries
 to restore the previous settings; failed recovery or an uncertain result is
 reported explicitly. Inspect Channels/Diagnostics before retrying an uncertain save.
 
@@ -218,7 +221,7 @@ Set the display name other radios see for you. Your 4-character short name is au
 2. Edit **Channel name** to `Trip2026`. Keep current radio tuning if your group
    already uses it; otherwise enter the group's matching settings in this form.
 3. Leave location/forwarding Off, optionally name a mesh profile, and select
-   **Review setup → Save reviewed setup**, completing any additional
+   **1: Save channel**, completing any specific
    acknowledgments shown.
 4. After live confirmation, choose **Open conversation**. Share the new group's
    QR from Messages (`o` → **Share channel (QR)**). If saved offline, turn Radio
@@ -230,14 +233,14 @@ Set the display name other radios see for you. Your 4-character short name is au
 2. Review imported names/classification and matching radio settings in the form.
    Keep tuning or deliberately use supported QR suggestions; never assume that
    scanning alone proves you can reach the other radio.
-3. Select **Review setup**, read the effects, and confirm Save.
+3. Press **1: Save channel**. Confirm specific radio/privacy effects only if requested.
 4. After live readback, **Open conversation** opens the new chat directly.
 
 ### Example 3: Keeping a Separate Setup Without Retuning Now
 
 1. In the Add channel form, select **Save to → Separate profile; keep active setup**.
 2. Enter the desired channel/tuning and a profile name such as `Family Trip`.
-3. Review and save the profile. The active setup/radio remains unchanged.
+3. Check the form and press **1: Save profile**. The active setup/radio remains unchanged.
 4. To use it later, turn Radio Off, select it in **Mesh profiles**, apply it, then
    turn Radio On. Transmission/location/MQTT remain Off until explicitly enabled.
 

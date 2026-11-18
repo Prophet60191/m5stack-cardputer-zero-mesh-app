@@ -21,6 +21,15 @@ privacy settings, protocol, or package integration.
   `docs/keyboard.md`. Keep the reusable decoder and raw evdev-to-textarea checks
   together; direct text insertion is not proof of physical-key translation.
 
+## Current work — 0.1.14 channel setup usability
+
+Owner approved form-as-review, a persistent `1: Save channel/profile` footer,
+clear named QR success and removal of routine navigation tips from footers.
+Preserve HELP, validation and narrowly scoped radio/privacy/antenna consent;
+no generic second review page. Implementation/qualification is in
+[`docs/channel-setup-usability.md`](docs/channel-setup-usability.md). Device .13
+stays unchanged until the tested .14 package is installed. Keep ADB enabled.
+
 ## Unified channel setup closeout — 2026-11-17
 
 Candidate 0.1.13 is installed from exact runtime/package source `88fd8e5`; its
@@ -31,8 +40,9 @@ Preserve settings/profiles/chats, keep ADB enabled and leave Surveyor/EN1 servic
 ownership intact. One private T-Deck message received a persisted Recipient ACK; original radio,
 profile and data preservation are verified. The owner subsequently passed the
 specified physical form/`Test/1` entry/Review/Discard check; saved state remains
-unchanged. Camera TestQR013 is prepared for the next check; a complete physical
-keyboard sweep and public-peer checks remain unperformed.
+unchanged. Owner physical camera capture decoded TestQR013 and displayed its private
+classification; this exposed the .13 clarity problem being fixed above. A full
+physical keyboard sweep and public-peer checks remain unperformed.
 GPS dongle work is next: establish receiver model/interface and explicit source,
 priority and fallback before implementing. Do not claim automatic USB support.
 

@@ -3,7 +3,9 @@
 Implemented and installed, 2026-11-17. Mesh 0.1.13 brings scan/paste, public/private
 creation, channel details, shared tuning, privacy, optional named profiles and
 opening the resulting conversation into one flow. Radio remains first in
-Settings. GPS dongle support remains a separate later task.
+Settings. GPS dongle support remains a separate later task. The subsequent
+[0.1.14 usability work](channel-setup-usability.md) simplifies its presentation
+without removing validation.
 
 ## Behavior and ownership
 
@@ -112,9 +114,13 @@ They confirmed the name disappeared only after discarding, as intended. A live
 read-only comparison confirms no test channel was saved and the original radio,
 channel/profile files, identity and privacy still match the pre-test backup;
 the device is Online/RX with all 20 messages retained. This is not a full physical
-keyboard-map sweep. The new camera scan is the next check; a synthetic TestQR013
-image containing no real key or radio tuning was prepared. Public-peer RF and
-outdoor GPS remain unqualified.
+keyboard-map sweep. In the subsequent guided camera check, the owner pressed
+Return, returned to the unsaved form with Imported channels: 1 and hidden keys,
+and opened details showing TestQR013 [Private]. This confirms capture/decode and
+named preview for that one synthetic QR (no real key or tuning). Immediate busy
+message timing was not explicitly reported. The successful-but-unclear transition
+motivated the usability work linked above. Public-peer RF and outdoor GPS remain
+unqualified.
 
 The earlier `c5777c2` candidate also passed owner/API, native UI and a separate
 61-sample ten-minute RX check before the final multi-location/consent refinement.
@@ -134,8 +140,9 @@ The initial configuration/stability qualification used no RF messages. The
 private-peer follow-up above subsequently qualified one directed test message
 and its recipient-radio acknowledgment. No traceroute or location request was
 sent. The specified physical form/name-entry/discard sequence passed by owner report;
-a full keyboard sweep and a new camera scan remain unqualified. Public-peer
-compatibility/delivery is not claimed.
+a full keyboard sweep remains unqualified. One synthetic camera capture and
+named preview subsequently passed by owner report. Public-peer compatibility/
+delivery is not claimed.
 Outdoor GPS, USB GPS priority/fallback and physical IPv6 qualification remain
 unperformed. Leak detection for LVGL global caches remains disabled; sanitizer
 passes are not a general leak audit. ADB and hotplug remain active/enabled under

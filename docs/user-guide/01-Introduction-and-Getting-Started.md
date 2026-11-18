@@ -1,6 +1,6 @@
 # Introduction & Getting Started
 
-> For Mesh **0.1.13 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 Welcome to the **Cardputer Zero Mesh App**! This app turns your M5Stack CardputerZero and its LoRa radio Cap into a pocket-sized, off-grid communicator using the **Meshtastic** mesh network.
 
@@ -71,7 +71,7 @@ Press **ESC** to return toward the Home Carousel. In Messages, the first press c
 
 ### Bottom Hint Line & Pop-Up Banners
 
-- **Bottom Hint Line:** On lists, chats, and pop-up cards, a quiet reminder line at the bottom shows the keys that work right there (so you never have to guess).
+- **Action footer:** Useful screen actions stay visible while you scroll. In the channel form, **1: Save channel** (or **Save profile**) applies your choices. Press **HELP** for routine navigation keys.
 - **Pop-Up Banners:** Temporary banners slide in to keep you informed—such as showing a new incoming message while you are viewing the Map or Nodes screen, confirming a saved screenshot, reminding you about privacy when a Public channel is active, or flagging a radio notice.
 
 ---

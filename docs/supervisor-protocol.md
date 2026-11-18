@@ -254,3 +254,15 @@ For multi-channel imports, `position_target` is the zero-based ordinal among
 newly added channels (default 0), validated against the token-bound import order.
 Only that channel gets automatic precision; its actual privacy classification
 determines public-location consent and precision.
+
+
+### Form Save presentation (0.1.14)
+
+The native channel form is its own user review. Its persistent `1: Save channel`
+(or Save profile) action runs `channel.setup.preview` as private save validation;
+a normal valid save then sends one correlated commit without a second visible
+review page. Only changed active tuning, TX/antenna, public location or MQTT
+requires specific consent. Commit flags represent the actual accepted choices.
+Owner-side validation, connection binding, expiry, stale-state checks and
+recovery remain mandatory; removing a UI page does not remove them. A numeric
+shortcut stays text while composing and cannot replay a busy write.

@@ -1,6 +1,6 @@
 # Quick Reference Card
 
-> For Mesh **0.1.13 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 ## Hardware Safety Rules
 
@@ -23,6 +23,8 @@
 | **Inside a chat** | **Enter** Write / act on selected bubble; **q** Quick message; **o** Thread options; **F / X** Select bubbles |
 | **Nodes** | **Enter** Details; **s** Favorite; **m** DM; **Tab** All / Favorites / Active |
 | **Map** | North-up; dots are not selectable. Use Nodes for details. **ESC** returns Home. |
+
+**Channel form:** **1** saves the channel or separate profile from any scroll position. In typing boxes, `1` remains a number.
 
 ## Top Status Bar Decoder
 

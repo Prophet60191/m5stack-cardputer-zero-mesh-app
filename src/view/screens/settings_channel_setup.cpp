@@ -40,7 +40,6 @@ enum Field {
     Profile,
     Suggested,
     Reload,
-    Review,
     Cancel
 };
 } // namespace
@@ -49,7 +48,7 @@ void SettingsScreen::channel_setup_start() {
     view_model().cancel_service_request();
     channel_draft_ = {};
     channel_flow_ = true;
-    channel_field_ = Method;
+    channel_field_ = Name;
     request_service("flow:context", "channel.setup.context");
 }
 void SettingsScreen::channel_setup_tuning(const json::Value &value) {
@@ -74,17 +73,30 @@ void SettingsScreen::channel_setup_form() {
     };
     if (!d.error.empty())
         add(-1, "Problem: " + d.error);
+    if (d.source == "import") {
+        std::string names;
+        if (const auto *channels = d.preview.find("channels"))
+            for (const auto &ch : channels->arr) {
+                if (flag(ch, "existing"))
+                    continue;
+                if (!names.empty())
+                    names += "; ";
+                names += ch.str_at("name") + (flag(ch, "private") ? " [Private]" : " [Public]");
+            }
+        if (d.preview.int_at("new") > 1)
+            names = std::to_string(d.preview.int_at("new")) + " channels";
+        add(Name, names.empty() ? "Channel details: scan or paste first"
+                                : names + " (details)\nKey: imported, hidden");
+    } else {
+        add(Name,
+            "Channel name: " +
+                (d.name.empty() ? (d.source == "private" ? "Required (1..11 bytes)" : "Default (from preset)")
+                                : d.name) +
+                (d.source == "private" ? "\nKey: new random secret, hidden" : "\nKey: standard public key"));
+    }
     add(Method, "Add by: " + (d.source == "import" ? std::string("QR / share link")
                               : d.source.empty()   ? "Choose method"
                                                    : d.source));
-    add(Name, d.source == "import" ? "Imported channels: " + std::to_string(d.preview.int_at("new")) +
-                                         " (view / rescan)\nKeys: imported, hidden"
-                                   : "Channel name: " +
-                                         (d.name.empty() ? (d.source == "private" ? "Required (1..11 bytes)"
-                                                                                  : "Default (from preset)")
-                                                         : d.name) +
-                                         (d.source == "private" ? "\nKey: new random secret, hidden"
-                                                                : "\nKey: standard public key"));
     add(Region, "Region (whole radio): " + d.region);
     add(Preset, "Modem (whole radio): " + (d.use_preset ? d.preset : "Custom (preserved)"));
     add(Slot, d.override_frequency > 0
@@ -123,7 +135,6 @@ void SettingsScreen::channel_setup_form() {
     if (d.suggested.is_obj())
         add(Suggested, "Use radio settings from QR / link");
     add(Reload, "Reload current radio settings");
-    add(Review, "Review setup (nothing saved yet)");
     add(Cancel, "Cancel setup");
     int selected = 0;
     for (size_t i = 0; i < channel_fields_order_.size(); ++i)
@@ -131,27 +142,83 @@ void SettingsScreen::channel_setup_form() {
             selected = static_cast<int>(i);
     if (!d.error.empty())
         selected = 0;
-    open_picker("Add channel (unsaved)", rows, "flow:form", selected);
+    const char *title = d.source == "import" && d.preview.int_at("new") > 0
+                            ? (d.scanned ? "QR scanned (unsaved)" : "Link loaded (unsaved)")
+                            : "Add channel (unsaved)";
+    open_picker(title, rows, "flow:form", selected);
 }
-void SettingsScreen::channel_setup_review() {
-    close_overlay();
+namespace {
+constexpr unsigned kRadioConsent = 1, kAntennaConsent = 2, kPublicConsent = 4, kMqttConsent = 8;
+}
+bool SettingsScreen::on_key(uint32_t key) {
+    if (key != '1' || !channel_flow_ || is_composing())
+        return false;
+    if (pending_ == "flow:form" && service_route_.empty()) {
+        if (channel_draft_.context_ready)
+            channel_setup_save();
+        else
+            view_model().apply_notice("Reload current radio settings first");
+    } else if (pending_ == "flow:confirm")
+        channel_setup_choice(pending_, -1);
+    return true; // Busy/success/sub-pickers never turn a held shortcut into another action.
+}
+void SettingsScreen::channel_setup_save() {
     auto &d = channel_draft_;
-    std::vector<std::string> rows = {"Back to form (keep entries)"};
-    if (const auto *channels = d.result.find("channels"))
-        for (const auto &ch : channels->arr)
-            rows.push_back(ch.str_at("name") + (flag(ch, "private") ? " [Private]" : " [Public]") +
-                           " / SECONDARY");
-    rows.push_back("Region: " + d.region + " / " + d.preset);
-    rows.push_back("Slot: " + std::to_string(d.slot) + " / hops: " + std::to_string(d.hop));
-    rows.push_back(std::string("Mode: ") + (d.tx ? "TX/RX" : "RX only") +
-                   "; new location: " + (d.position ? "On" : "Off"));
-    rows.push_back(std::string("New forwarding: ") + (d.mqtt ? "On" : "Off") +
-                   "; profile: " + (d.profile_name.empty() ? "none" : d.profile_name));
-    if (const auto *warnings = d.result.find("warnings"))
-        for (const auto &w : warnings->arr)
-            rows.push_back(w.as_str());
-    rows.push_back(d.profile_only ? "Save separate profile" : "Save reviewed setup");
-    open_picker("Review: Save applies the effects below", rows, "flow:review", 0);
+    if (d.source == "import" && d.import_token.empty()) {
+        d.error = "Scan or paste a channel first";
+        channel_setup_form();
+        return;
+    }
+    required_consent_ = accepted_consent_ = 0;
+    const std::string tuning = "{\"region\":" + quote(d.region) + ",\"preset\":" + quote(d.preset) +
+                               ",\"use_preset\":" + boolean(d.use_preset) +
+                               ",\"slot\":" + std::to_string(d.slot) + ",\"hop\":" + std::to_string(d.hop) +
+                               ",\"override_frequency\":" + number(d.override_frequency) + "}";
+    request_service(
+        "flow:prepare", "channel.setup.preview",
+        ",\"source\":" + quote(d.source) + ",\"name\":" + quote(d.name) +
+            ",\"import_token\":" + quote(d.import_token) + ",\"base\":" + quote(d.base) +
+            ",\"tuning\":" + tuning + ",\"tx\":" + boolean(d.tx) + ",\"position\":" + boolean(d.position) +
+            ",\"position_target\":" + std::to_string(d.position_target) + ",\"mqtt\":" + boolean(d.mqtt) +
+            ",\"profile_only\":" + boolean(d.profile_only) + ",\"profile_name\":" + quote(d.profile_name));
+}
+void SettingsScreen::channel_setup_commit() {
+    const auto &d = channel_draft_;
+    request_service("flow:commit", "channel.setup.commit",
+                    ",\"token\":" + quote(d.token) + ",\"confirmed\":true,\"tuning_confirmed\":" +
+                        boolean(d.profile_only || (accepted_consent_ & kRadioConsent)) +
+                        ",\"antenna_confirmed\":" + boolean(accepted_consent_ & kAntennaConsent) +
+                        ",\"public_position_confirmed\":" + boolean(accepted_consent_ & kPublicConsent) +
+                        ",\"mqtt_confirmed\":" + boolean(accepted_consent_ & kMqttConsent));
+}
+void SettingsScreen::channel_setup_ready() {
+    auto &d = channel_draft_;
+    required_consent_ = accepted_consent_ = 0;
+    consent_rows_.clear();
+    std::vector<std::string> rows;
+    const auto add = [&](const std::string &text, unsigned bit = 0) {
+        rows.push_back(text);
+        consent_rows_.push_back(bit);
+        required_consent_ |= bit;
+    };
+    add("Back to form (keep entries)");
+    if (!d.profile_only && flag(d.result, "tuning_changed")) {
+        add("Radio: " + d.region + " / " + d.preset + "; slot " + std::to_string(d.slot) + "; hops " +
+            std::to_string(d.hop));
+        add("[ ] Apply radio change to every channel", kRadioConsent);
+    }
+    if (flag(d.result, "tx_confirmation"))
+        add("[ ] Antenna attached; enable TX/RX", kAntennaConsent);
+    if (flag(d.result, "public_position"))
+        add("[ ] Allow public location (~730 m)", kPublicConsent);
+    if (flag(d.result, "mqtt"))
+        add("[ ] Allow configured MQTT forwarding", kMqttConsent);
+    if (!required_consent_) {
+        channel_setup_commit();
+        return;
+    }
+    close_overlay();
+    open_picker("Confirm these changes", rows, "flow:confirm", 0);
 }
 void SettingsScreen::channel_setup_finish() {
     close_overlay();
@@ -163,6 +230,8 @@ void SettingsScreen::channel_setup_finish() {
         rows.push_back(flag(r, "profile_only")           ? "Profile saved; active setup unchanged."
                        : r.str_at("verified") == "radio" ? "Saved and verified by the radio."
                                                          : "Saved on device; live check when Radio is On.");
+        for (const auto &name : channel_draft_.prepared_names)
+            rows.push_back(std::string(flag(r, "profile_only") ? "Includes: " : "Added: ") + name);
         rows.push_back("New channels: " + std::to_string(r.int_at("added")));
         if (!r.str_at("profile").empty())
             rows.push_back("Named profile saved privately.");
@@ -214,12 +283,6 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
     if (pending.rfind("flow:", 0) != 0)
         return false;
     auto &d = channel_draft_;
-    const auto save = [&] {
-        request_service("flow:commit", "channel.setup.commit",
-                        ",\"token\":" + quote(d.token) +
-                            ",\"confirmed\":true,\"tuning_confirmed\":true,\"antenna_confirmed\":true,"
-                            "\"public_position_confirmed\":true,\"mqtt_confirmed\":true");
-    };
     const std::string label =
         choice >= 0 && choice < static_cast<int>(options_.size()) ? options_[choice] : "";
     if (pending == "flow:discard") {
@@ -348,26 +411,6 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
         case Reload:
             request_service("flow:context", "channel.setup.context");
             break;
-        case Review: {
-            if (d.source == "import" && d.import_token.empty()) {
-                d.error = "Scan or paste a channel first";
-                channel_setup_form();
-                break;
-            }
-            std::string tuning = "{\"region\":" + quote(d.region) + ",\"preset\":" + quote(d.preset) +
-                                 ",\"use_preset\":" + boolean(d.use_preset) +
-                                 ",\"slot\":" + std::to_string(d.slot) + ",\"hop\":" + std::to_string(d.hop) +
-                                 ",\"override_frequency\":" + number(d.override_frequency) + "}";
-            request_service("flow:review", "channel.setup.preview",
-                            ",\"source\":" + quote(d.source) + ",\"name\":" + quote(d.name) +
-                                ",\"import_token\":" + quote(d.import_token) + ",\"base\":" + quote(d.base) +
-                                ",\"tuning\":" + tuning + ",\"tx\":" + boolean(d.tx) +
-                                ",\"position\":" + boolean(d.position) + ",\"position_target\":" +
-                                std::to_string(d.position_target) + ",\"mqtt\":" + boolean(d.mqtt) +
-                                ",\"profile_only\":" + boolean(d.profile_only) +
-                                ",\"profile_name\":" + quote(d.profile_name));
-            break;
-        }
         case Cancel:
             open_picker("Discard this unsaved setup?", {"Keep editing", "Discard and close"}, "flow:discard",
                         0);
@@ -412,39 +455,17 @@ bool SettingsScreen::channel_setup_choice(const std::string &pending, int choice
                 "flow:method", 0);
         } else
             channel_setup_form();
-    } else if (pending == "flow:review") {
-        if (choice == 0)
-            channel_setup_form();
-        else if (choice == static_cast<int>(options_.size()) - 1) {
-            if (!flag(d.result, "tx_confirmation") && !flag(d.result, "public_position") &&
-                !flag(d.result, "mqtt")) {
-                save();
-                return true;
-            }
-            std::vector<std::string> rows = {"Back to review"};
-            if (flag(d.result, "tx_confirmation"))
-                rows.push_back("[ ] Antenna attached; region correct");
-            if (flag(d.result, "public_position"))
-                rows.push_back("[ ] Allow public location (~730 m)");
-            if (flag(d.result, "mqtt"))
-                rows.push_back("[ ] Allow MQTT forwarding effects");
-            rows.push_back("Confirm save (all radio effects reviewed)");
-            close_overlay();
-            open_picker("Confirm reviewed setup", rows, "flow:confirm", 0);
-        }
     } else if (pending == "flow:confirm") {
         if (choice == 0)
-            channel_setup_review();
-        else if (choice == static_cast<int>(options_.size()) - 1) {
-            bool checked = true;
-            for (size_t i = 1; i + 1 < options_.size(); ++i)
-                checked &= options_[i].rfind("[x]", 0) == 0;
-            if (!checked)
-                view_model().apply_notice("Confirm each item above before saving");
+            channel_setup_form();
+        else if (choice < 0) {
+            if ((accepted_consent_ & required_consent_) != required_consent_)
+                view_model().apply_notice("Confirm the changes above before saving");
             else
-                save();
-        } else {
-            options_[choice].replace(0, 3, options_[choice].rfind("[x]", 0) == 0 ? "[ ]" : "[x]");
+                channel_setup_commit();
+        } else if (choice > 0 && choice < static_cast<int>(consent_rows_.size()) && consent_rows_[choice]) {
+            accepted_consent_ ^= consent_rows_[choice];
+            options_[choice].replace(0, 3, (accepted_consent_ & consent_rows_[choice]) ? "[x]" : "[ ]");
             rebuild_picker();
         }
     } else if (pending == "flow:done") {
@@ -553,20 +574,39 @@ void SettingsScreen::channel_setup_result(const std::string &route, const json::
             return;
         }
         d.source = "import";
+        d.scanned = route == "flow:scan";
+        channel_field_ = Name;
         d.import_token = event.str_at("token");
         d.preview = event;
         if (const auto *tuning = event.find("suggested_tuning"))
             d.suggested = *tuning;
         channel_setup_form();
-    } else if (route == "flow:review") {
+    } else if (route == "flow:prepare") {
         if (event.str_at("event") != "channel.setup.preview" || event.str_at("token").empty()) {
             d.error = "Invalid review reply";
             channel_setup_form();
             return;
         }
+        const auto *channels = event.find("channels");
+        const bool valid_channels =
+            channels && channels->is_arr() && !channels->arr.empty() && channels->arr.size() <= 8 &&
+            std::all_of(channels->arr.begin(), channels->arr.end(), [](const auto &ch) {
+                const auto *name = ch.find("name");
+                const auto *privacy = ch.find("private");
+                return ch.is_obj() && name && name->type == json::Value::Str && !name->str.empty() &&
+                       name->str.size() <= 80 && privacy && privacy->type == json::Value::Bool;
+            });
+        if (!valid_channels) {
+            d.error = "Invalid channel validation; reconnect";
+            channel_setup_form();
+            return;
+        }
+        d.prepared_names.clear();
+        for (const auto &ch : channels->arr)
+            d.prepared_names.push_back(ch.str_at("name"));
         d.result = event;
         d.token = event.str_at("token");
-        channel_setup_review();
+        channel_setup_ready();
     } else if (route == "flow:commit") {
         if (event.str_at("event") != "channel.setup.saved" ||
             (event.str_at("verified") != "radio" && event.str_at("verified") != "stored") ||

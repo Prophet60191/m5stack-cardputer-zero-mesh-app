@@ -349,7 +349,7 @@ void NodesScreen::refresh_detail() {
                                  [&](const auto &n) { return n.id == detail_id_; });
     if (it == view_model().nodes().end()) {
         set_text(detail_heading_, "Node unavailable");
-        set_text(detail_hint_, "Esc: back");
+        lv_obj_add_flag(detail_hint_, LV_OBJ_FLAG_HIDDEN);
         for (const auto &field : detail_fields_)
             lv_obj_add_flag(lv_obj_get_parent(field.second), LV_OBJ_FLAG_HIDDEN);
         return;
@@ -394,8 +394,11 @@ void NodesScreen::refresh_detail() {
     const bool distance = n.hasPos && !n.isSelf && me != view_model().nodes().end();
     field("Distance", distance ? distance_text(haversine_km(me->lat, me->lon, n.lat, n.lon)) : "-", distance);
     field("Favourite", n.isSelf ? "-" : n.favorite ? "yes" : "no");
-    set_text(detail_hint_,
-             n.isSelf ? "Esc: back" : "m: message   \xC2\xB7   s: favourite   \xC2\xB7   Esc: back");
+    if (n.isSelf) lv_obj_add_flag(detail_hint_, LV_OBJ_FLAG_HIDDEN);
+    else {
+        lv_obj_remove_flag(detail_hint_, LV_OBJ_FLAG_HIDDEN);
+        set_text(detail_hint_, "m: Message   \xC2\xB7   s: Favourite");
+    }
 }
 
 void NodesScreen::on_clock(lv_observer_t *observer, lv_subject_t *) {

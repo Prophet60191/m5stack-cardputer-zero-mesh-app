@@ -65,7 +65,7 @@ static void screenshot(lv_obj_t *root, const std::string &dir, const std::string
     const auto check_head = [&](auto &&self, lv_obj_t *o) -> void {
         if (lv_obj_check_type(o, &lv_label_class)) {
             const std::string t = lv_label_get_text(o);
-            if (t.rfind("Review:", 0) == 0 || t == "Confirm reviewed setup" ||
+            if (t == "Confirm these changes" || t == "QR scanned (unsaved)" || t == "Link loaded (unsaved)" ||
                 t == "Channel setup complete" || t == "Add channel (unsaved)") {
                 lv_area_t r;
                 lv_obj_get_coords(o, &r);
@@ -121,6 +121,7 @@ static void run(const std::string &dir, bool dark) {
     auto n = sent.size();
     choose(s, "Channel name:");
     CHECK(s.is_composing());
+    CHECK(!s.on_key('1'));
     lv_textarea_set_text(input(s.root()), "Field");
     s.on_enter();
     CHECK(!s.is_composing());
@@ -150,7 +151,8 @@ static void run(const std::string &dir, bool dark) {
         s.on_down();
     lv_obj_update_layout(s.root());
     const auto find_hint = [&](auto &&self, lv_obj_t *o) -> lv_obj_t * {
-        if (lv_obj_check_type(o, &lv_label_class) && std::string(lv_label_get_text(o)).rfind("F/X:", 0) == 0)
+        if (lv_obj_check_type(o, &lv_label_class) &&
+            std::string(lv_label_get_text(o)).rfind("1: Save", 0) == 0)
             return o;
         for (uint32_t i = 0; i < lv_obj_get_child_count(o); ++i)
             if (auto *x = self(self, lv_obj_get_child(o, i)))
@@ -162,22 +164,26 @@ static void run(const std::string &dir, bool dark) {
     lv_area_t a;
     lv_obj_get_coords(hint, &a);
     CHECK(a.x1 >= 0 && a.x2 < 320 && a.y1 >= 30 && a.y2 < 170);
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     CHECK(sent.back().str_at("intent") == "channel.setup.preview");
     auto preview = sent.back();
     CHECK(preview.str_at("name") == "Field");
     CHECK(preview.find("tuning")->int_at("slot") == 25);
     CHECK(preview.str_at("profile_name") == "Field profile");
     CHECK(preview.str_at("base") == "synthetic-base");
+    const auto during_prepare = sent.size();
+    CHECK(s.on_key('1'));
+    CHECK(sent.size() == during_prepare);
     s.on_enter();
     CHECK(sent.back().str_at("id") == preview.str_at("id"));
     result(vm, parse(R"({"id":"wrong"})"), R"("event":"channel.setup.preview","token":"wrong")");
-    CHECK(labels(s.root()).find("Checking") != std::string::npos);
+    CHECK(labels(s.root()).find("Checking your entries") != std::string::npos);
     result(
         vm, preview,
         R"("event":"channel.setup.preview","token":"plan","channels":[{"name":"Field","private":true}],"tuning_changed":true,"warnings":["Radio tuning changes affect every channel on this radio."])");
     CHECK(selected(s.root()) == "Back to form (keep entries)");
-    screenshot(s.root(), dir, dark ? "channel-setup-review-dark.png" : "channel-setup-review.png");
+    screenshot(s.root(), dir,
+               dark ? "channel-setup-radio-confirm-dark.png" : "channel-setup-radio-confirm.png");
     choose(s, "Back to form");
     CHECK(labels(s.root()).find("Channel name: Field") != std::string::npos);
     choose(s, "Add by:");
@@ -186,21 +192,24 @@ static void run(const std::string &dir, bool dark) {
     choose(s, "TX/RX");
     choose(s, "Automatic location:");
     choose(s, "Internet forwarding:");
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     result(
         vm, sent.back(),
-        R"("event":"channel.setup.preview","token":"plan2","channels":[{"name":"Field","private":false}],"tx_confirmation":true,"public_position":true,"mqtt":true)");
-    choose(s, "Save reviewed setup");
+        R"("event":"channel.setup.preview","token":"plan2","channels":[{"name":"Field","private":false}],"tx_confirmation":true,"public_position":true,"mqtt":true,"tuning_changed":true)");
     auto before = sent.size();
-    choose(s, "Confirm save");
+    CHECK(s.on_key('1'));
     CHECK(sent.size() == before); // unchecked explicit consents
+    choose(s, "[ ] Apply radio");
     choose(s, "[ ] Antenna");
     choose(s, "[ ] Allow public");
-    choose(s, "[ ] Allow MQTT");
+    choose(s, "[ ] Allow configured MQTT");
     screenshot(s.root(), dir, dark ? "channel-setup-confirm-dark.png" : "channel-setup-confirm.png");
-    choose(s, "Confirm save");
+    CHECK(s.on_key('1'));
     CHECK(sent.back().str_at("intent") == "channel.setup.commit");
     CHECK(sent.back().str_at("token") == "plan2");
+    for (const auto *key :
+         {"tuning_confirmed", "antenna_confirmed", "public_position_confirmed", "mqtt_confirmed"})
+        CHECK(sent.back().find(key)->as_bool());
     auto commit = sent.back();
     n = sent.size();
     s.on_enter();
@@ -233,7 +242,7 @@ static void run(const std::string &dir, bool dark) {
     choose(s, "Profile name:");
     lv_textarea_set_text(input(s.root()), "Public profile");
     s.on_enter();
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     CHECK(sent.back().find("profile_only")->as_bool());
     CHECK(!sent.back().find("tx")->as_bool());
     auto request = sent.back();
@@ -241,7 +250,7 @@ static void run(const std::string &dir, bool dark) {
     CHECK(labels(s.root()).find("Public profile") != std::string::npos);
     CHECK(labels(s.root()).find("Synthetic validation error") != std::string::npos);
     // Cancellation cannot reopen the form on a late reply.
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     request = sent.back();
     s.on_back();
     s.on_back();
@@ -258,25 +267,28 @@ static void run(const std::string &dir, bool dark) {
     result(
         vm, sent.back(),
         R"("event":"channel.preview","new":1,"token":"import","channels":[{"name":"Imported","private":false}],"suggested_tuning":{"region":"US","preset":"MEDIUM_FAST","slot":35,"hop":3,"use_preset":true})");
+    CHECK(labels(s.root()).find("Imported [Public]") != std::string::npos);
+    CHECK(labels(s.root()).find("Review setup") == std::string::npos);
+    CHECK(labels(s.root()).find("F/X:") == std::string::npos);
     CHECK(labels(s.root()).find("Frequency slot: 20") != std::string::npos);
     choose(s, "Use radio settings from QR");
     CHECK(labels(s.root()).find("Frequency slot: 35") != std::string::npos);
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     CHECK(sent.back().str_at("import_token") == "import");
     CHECK(sent.back().find("tuning")->str_at("preset") == "MEDIUM_FAST");
     auto imported_review = sent.back();
     result(vm, imported_review, R"("event":"error","text":"Synthetic tuning validation error")");
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     CHECK(sent.back().str_at("import_token") == "import");
     imported_review = sent.back();
     result(
         vm, imported_review,
-        R"("event":"channel.setup.preview","token":"review-import","channels":[{"name":"Imported","private":false}])");
+        R"("event":"channel.setup.preview","token":"review-import","channels":[{"name":"Imported","private":false}],"tuning_changed":true)");
     const auto before_back = sent.size();
     s.on_back();
     for (size_t i = before_back; i < sent.size(); ++i)
         CHECK(sent[i].str_at("intent") != "channel.import.cancel");
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     CHECK(sent.back().str_at("import_token") == "import");
 
     vm.set_connected(false);
@@ -288,6 +300,36 @@ static void run(const std::string &dir, bool dark) {
     vm.set_connected(true);
     choose(s, "Add a channel");
     result(vm, sent.back(), context);
+    choose(s, "Create private");
+    choose(s, "Channel name:");
+    lv_textarea_set_text(input(s.root()), "Routine");
+    s.on_enter();
+    CHECK(s.on_key('1'));
+    result(vm, sent.back(), R"("event":"channel.setup.preview","token":"malformed")");
+    CHECK(labels(s.root()).find("Invalid channel validation") != std::string::npos);
+    CHECK(sent.back().str_at("intent") != "channel.setup.commit");
+    CHECK(s.on_key('1'));
+    result(
+        vm, sent.back(),
+        R"("event":"channel.setup.preview","token":"routine","channels":[{"name":"Routine","private":true}])");
+    CHECK(sent.back().str_at("intent") == "channel.setup.commit");
+    CHECK(!sent.back().find("antenna_confirmed")->as_bool());
+    CHECK(!sent.back().find("tuning_confirmed")->as_bool());
+    const auto routine_commit = sent.back();
+    const auto commit_count = sent.size();
+    CHECK(s.on_key('1'));
+    s.on_enter();
+    CHECK(sent.size() == commit_count);
+    result(
+        vm, routine_commit,
+        R"("event":"channel.setup.saved","added":1,"verified":"radio","channels":[{"index":1,"identity":"routine"}])");
+    CHECK(labels(s.root()).find("Added: Routine") != std::string::npos);
+    CHECK(s.on_key('1'));
+    CHECK(sent.size() == commit_count);
+    s.on_back();
+    vm.set_connected(true);
+    choose(s, "Add a channel");
+    result(vm, sent.back(), context);
     choose(s, "Paste share URL");
     lv_textarea_set_text(input(s.root()), "https://meshtastic.org/e/#synthetic");
     s.on_enter();
@@ -296,12 +338,39 @@ static void run(const std::string &dir, bool dark) {
         R"("event":"channel.preview","new":2,"token":"multi","channels":[{"name":"Private","private":true},{"name":"Public","private":false}])");
     choose(s, "Automatic location:");
     choose(s, "Share: Public");
-    choose(s, "Review setup");
+    CHECK(s.on_key('1'));
     CHECK(sent.back().find("position")->as_bool());
     CHECK(sent.back().int_at("position_target") == 1);
     s.on_back();
     choose(s, "Cancel setup");
     choose(s, "Discard and close");
+    // Separate-profile Save is also one action and never requires live-radio consent.
+    choose(s, "Add a channel");
+    result(vm, sent.back(), context);
+    choose(s, "Create private");
+    choose(s, "Channel name:");
+    lv_textarea_set_text(input(s.root()), "Profile1");
+    s.on_enter();
+    choose(s, "Save to:");
+    choose(s, "Separate profile");
+    choose(s, "Profile name:");
+    CHECK(!s.on_key('1'));
+    lv_textarea_set_text(input(s.root()), "Stored trip");
+    s.on_enter();
+    CHECK(labels(s.root()).find("1: Save profile") != std::string::npos);
+    CHECK(s.on_key('1'));
+    result(
+        vm, sent.back(),
+        R"("event":"channel.setup.preview","token":"profile","channels":[{"name":"Profile1","private":true}],"profile_only":true,"tuning_changed":true)");
+    CHECK(sent.back().str_at("intent") == "channel.setup.commit");
+    CHECK(sent.back().find("tuning_confirmed")->as_bool());
+    CHECK(!sent.back().find("antenna_confirmed")->as_bool());
+    result(
+        vm, sent.back(),
+        R"("event":"channel.setup.saved","added":1,"verified":"stored","profile_only":true,"profile":"synthetic-stored","channels":[])");
+    CHECK(labels(s.root()).find("Includes: Profile1") != std::string::npos);
+    CHECK(labels(s.root()).find("Open conversation") == std::string::npos);
+    s.on_back();
 }
 int main(int argc, char **argv) {
     const std::string dir = argc == 2 ? argv[1] : "";

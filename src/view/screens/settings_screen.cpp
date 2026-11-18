@@ -367,10 +367,13 @@ void SettingsScreen::rebuild_picker() {
         lv_obj_set_flex_grow(rows_parent, 1);
         lv_obj_set_flex_flow(rows_parent, LV_FLEX_FLOW_COLUMN);
         lv_obj_clear_flag(rows_parent, LV_OBJ_FLAG_SCROLL_ELASTIC);
-        auto *hint = lv_label_create(overlay_obj_);
-        lv_label_set_text(hint, "F/X: move   Enter: select   Esc: back");
-        lv_obj_set_style_text_font(hint, font, 0);
-        lv_obj_set_style_text_color(hint, colors.text, 0);
+        if (pending_ == "flow:form" || pending_ == "flow:confirm") {
+            auto *action = lv_label_create(overlay_obj_);
+            lv_label_set_text(action, pending_ == "flow:form" && channel_draft_.profile_only
+                                          ? "1: Save profile" : "1: Save channel");
+            lv_obj_set_style_text_font(action, font, 0);
+            lv_obj_set_style_text_color(action, colors.text, 0);
+        }
     }
     lv_obj_t* sel = nullptr;
     for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
@@ -449,7 +452,7 @@ void SettingsScreen::open_text(const std::string& title, const std::string& init
     if (g) { lv_group_add_obj(g, input_); lv_group_focus_obj(input_); }
 
     auto* hint = lv_label_create(overlay_obj_);
-    lv_label_set_text(hint, "Enter: save   \xC2\xB7   Esc: cancel");
+    lv_label_set_text(hint, "Enter: Apply");
     lv_obj_set_style_text_font(hint, font, 0);
     lv_obj_set_style_text_color(hint, colors.text_disabled, 0);
 }
@@ -487,10 +490,12 @@ void SettingsScreen::open_info(const std::string& title, std::vector<std::string
         lv_obj_set_style_text_font(row, font, 0);
         lv_obj_set_style_text_color(row, colors.text, 0);
     }
-    auto* hint = lv_label_create(overlay_obj_);
-    lv_label_set_text(hint, hint_text);
-    lv_obj_set_style_text_font(hint, font, 0);
-    lv_obj_set_style_text_color(hint, colors.text, 0);
+    if (hint_text && *hint_text) {
+        auto* hint = lv_label_create(overlay_obj_);
+        lv_label_set_text(hint, hint_text);
+        lv_obj_set_style_text_font(hint, font, 0);
+        lv_obj_set_style_text_color(hint, colors.text, 0);
+    }
 }
 
 void SettingsScreen::open_canned() {
@@ -708,14 +713,15 @@ void SettingsScreen::services_cb(lv_observer_t* observer, lv_subject_t*) {
 void SettingsScreen::request_service(const std::string& route, const std::string& intent, const std::string& fields) {
     close_overlay();
     service_route_ = route;
-    if (route == "flow:scan" || route == "flow:commit" || route == "flow:context" || route == "flow:review" ||
+    if (route == "flow:scan" || route == "flow:commit" || route == "flow:context" || route == "flow:prepare" ||
         route == "flow:import") {
-        open_info(route == "flow:scan"     ? "Scanning QR code..."
-                  : route == "flow:commit" ? "Saving channel setup..."
-                                           : "Checking channel setup...",
-                  {route == "flow:commit" ? "Applying and verifying settings. Please wait."
-                                          : "No settings are changed before Save."},
-                  route == "flow:commit" ? "Saving; wait for confirmation" : "Esc: cancel");
+        const bool saving = route == "flow:prepare" || route == "flow:commit";
+        open_info(route == "flow:scan" ? "Scanning QR code..."
+                                      : saving ? "Saving channel setup..." : "Loading channel setup...",
+                  {route == "flow:scan" ? "Hold the camera steady."
+                   : route == "flow:commit" ? "Applying and verifying settings."
+                   : saving ? "Checking your entries..." : "Loading current settings..."},
+                  route == "flow:commit" ? "Saving; wait for confirmation" : "");
         overlay_mode_ = Overlay::Busy;
     } else {
         open_info("Working", {"Waiting for supervisor...", "Esc leaves this view; action may finish."});

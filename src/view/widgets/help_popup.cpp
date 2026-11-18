@@ -43,7 +43,8 @@ constexpr std::array<HelpRow, 5> kNodesRows = {{
     {"m", "Message"},
     {"Tab", "Filter"},
 }};
-constexpr std::array<HelpRow, 3> kSettingsRows = {{
+constexpr std::array<HelpRow, 4> kSettingsRows = {{
+    {"1", "Save channel form"},
     {"F / X", "Move"},
     {"Enter", "Change"},
     {"ESC", "Back"},

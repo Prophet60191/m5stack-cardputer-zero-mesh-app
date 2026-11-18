@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-> For Mesh **0.1.13 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
 
 When something doesn't behave the way you expect out in the field, look up the message or symptom you see below.
 
@@ -50,7 +50,7 @@ Also double-check that **both** devices show **`TX/RX`** (not `RX`) in the top-l
 | **`Camera unavailable` or timed out** | Another app may be using the camera, or your device does not have a camera attached. **Fix:** Close other camera apps or use **Add a channel → Paste share URL** instead. |
 | **`Preview failed`** (`not a Meshtastic channel share URL` / `invalid channel share data`) | The link you pasted isn't a valid `https://meshtastic.org/e/#...` channel share URL (or was cut off). **Fix:** Check the full link and paste it again to retry. |
 | **`Channels already present`** | You already have every channel contained in that QR code or link, so nothing needed to be added. |
-| **`channel preview expired; scan or paste again`** | An imported QR/link stays available in this form for up to **10 minutes**; the final setup review lasts **2 minutes**. Changes elsewhere invalidate stale reviews. **Fix:** Scan the QR code or paste the link again and review again before saving. |
+| **`channel preview expired; scan or paste again`** | An imported QR/link stays available in this form for up to **10 minutes**; save validation lasts **2 minutes**. Changes elsewhere invalidate stale preparations. **Fix:** Scan the QR code or paste the link again and check the form and press Save again. |
 | **`all channel slots are occupied` / `not enough free channel slots`** | All 7 secondary channel slots (`1`–`7`) are occupied—including any **Disabled** slots, which still keep their saved key. **Fix:** Open **Settings → Channel manager** and **Remove** an unused secondary slot first. |
 
 ---

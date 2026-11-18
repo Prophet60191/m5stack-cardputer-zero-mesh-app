@@ -112,7 +112,7 @@ static void decoder_checks() {
 
 #ifdef MESH_DEVICE_INPUT_TESTS
 struct UiState {
-    bool editing{false},help{false};int commits{0},screenshots{0},holds{0},releases{0};
+    bool editing{false},help{false};int commits{0},screenshots{0},holds{0},releases{0},saves{0};
     static bool query(void* data) {return static_cast<UiState*>(data)->editing;}
     static void release(uint32_t,const char*,void* data) { ++static_cast<UiState*>(data)->releases; }
     static bool route(uint32_t key,const char*,bool held,void* data) {
@@ -121,6 +121,7 @@ struct UiState {
         if (key==platform::kKeyHelp) {state.help=!state.help;return true;}
         if (key==platform::kKeyPrintScreen) {++state.screenshots;return true;}
         if (state.help) {if(key==LV_KEY_ESC)state.help=false;return true;}
+        if (key=='1' && !state.editing) {++state.saves;return true;}
         if (key==LV_KEY_ENTER) {if(state.editing)++state.commits;state.editing=true;return true;}
         return platform::is_action_key(key);
     }
@@ -145,6 +146,12 @@ static void device_path_checks() {
     std::istringstream map(fixture());std::vector<std::pair<unsigned,char>> codes;
     for(std::string line;std::getline(map,line);){std::istringstream row(line);std::string word,equal,name;unsigned code;if(row>>word>>code>>equal>>name && word=="keycode")codes.push_back({code,expected_symbols().at(name)});}
     for(auto item:codes){lv_textarea_set_text(area,"");key(item.first);drain();REQUIRE(std::string(lv_textarea_get_text(area))==std::string(1,item.second));}
+    // A consumed numeric action fires once per physical hold, while text entry keeps the digit.
+    state.editing=false;lv_textarea_set_text(area,"");
+    raw(EV_KEY,KEY_1,1);raw(EV_KEY,KEY_1,2);raw(EV_KEY,KEY_1,2);drain();
+    REQUIRE(state.saves==1 && std::string(lv_textarea_get_text(area)).empty());
+    raw(EV_KEY,KEY_1,0);drain();state.editing=true;key(KEY_1);drain();
+    REQUIRE(state.saves==1 && std::string(lv_textarea_get_text(area))=="1");
     lv_textarea_set_text(area,"ab");key(KEY_LEFT);key(92);drain();REQUIRE(std::string(lv_textarea_get_text(area))=="a/b");
     key(KEY_HOME);key(KEY_DELETE);key(KEY_END);key(KEY_BACKSPACE);drain();REQUIRE(std::string(lv_textarea_get_text(area))=="/");
     const auto before=std::string(lv_textarea_get_text(area));

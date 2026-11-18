@@ -372,7 +372,7 @@ static void compact_layout_regression(const char* screenshot_path) {
     CHECK(labels(messages.root()).find("DM via choose channel")!=std::string::npos);
     messages.on_back();messages.on_back();lv_obj_update_layout(messages.root());
     CHECK(lv_obj_has_flag(context,LV_OBJ_FLAG_HIDDEN));
-    check_help(label_starting(messages.root(),"\xE2\x86\x91\xE2\x86\x93: pick"));
+    check_help(label_starting(messages.root(),"/: Search"));
 }
 
 static void qr_scan_ui_regression(const char* screenshot_path) {
@@ -487,24 +487,17 @@ static void qr_scan_ui_regression(const char* screenshot_path) {
     result(first, preview);
     CHECK(labels(settings.root()).find("Scanning") != std::string::npos);
     result(second, preview);
-    CHECK(labels(settings.root()).find("Imported channels: 1") != std::string::npos);
+    CHECK(labels(settings.root()).find("Synthetic [Private]") != std::string::npos);
+    CHECK(labels(settings.root()).find("QR scanned (unsaved)") != std::string::npos);
     capture("channel-import-preview.png");
-    option("Review setup");
+    CHECK(settings.on_key('1'));
     auto review = last("channel.setup.preview");
     CHECK(review.str_at("import_token") == "synthetic-token");
     result(
         review.str_at("id"),
         R"("event":"channel.setup.preview","token":"plan","channels":[{"name":"Synthetic","private":true}],"warnings":[])");
-    settings.on_enter();
-    CHECK(labels(settings.root()).find("Add channel (unsaved)") !=
-          std::string::npos); // Review defaults Back.
-    option("Review setup");
-    review = last("channel.setup.preview");
-    result(
-        review.str_at("id"),
-        R"("event":"channel.setup.preview","token":"plan2","channels":[{"name":"Synthetic","private":true}])");
-    capture("channel-import-review.png");
-    option("Save reviewed setup"); // RX/no sharing saves directly from the reviewed summary.
+    // Valid receive-only Save proceeds automatically; there is no second review page.
+    capture("channel-import-saving.png");
     auto commit = last("channel.setup.commit");
     CHECK(commit.find("confirmed")->as_bool());
     auto count = sent.size();
@@ -522,7 +515,7 @@ static void qr_scan_ui_regression(const char* screenshot_path) {
     settings.on_back();
     CHECK(last("channel.import.cancel").str_at("request") == dismissed);
     result(dismissed, preview);
-    CHECK(labels(settings.root()).find("Imported channels: 1") == std::string::npos);
+    CHECK(labels(settings.root()).find("Synthetic [Private]") == std::string::npos);
     discard();
     open_scan();
     auto duplicate = start();
@@ -540,7 +533,7 @@ static void qr_scan_ui_regression(const char* screenshot_path) {
     vm.set_connected(false);
     CHECK(labels(settings.root()).find("Connection lost") != std::string::npos);
     result(disconnected, preview);
-    CHECK(labels(settings.root()).find("Imported channels: 1") == std::string::npos);
+    CHECK(labels(settings.root()).find("Synthetic [Private]") == std::string::npos);
     vm.set_connected(true);
     discard();
     open_scan();

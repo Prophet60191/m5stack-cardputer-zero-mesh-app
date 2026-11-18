@@ -176,7 +176,7 @@ void MessagesScreen::update_hint() {
     lv_obj_align(body_, LV_ALIGN_TOP_MID, 0, top);
     if (mode_ == Mode::List) {
         lv_label_set_text(context_, "");
-        lv_label_set_text(hint_, "\xE2\x86\x91\xE2\x86\x93: pick  /: search  Enter: open");
+        lv_label_set_text(hint_, "/: Search");
     } else {
         const int active = send_channel();
         const std::string who = viewmodel::is_group_thread(thread_key_) ? group_name(thread_key_)
@@ -1227,10 +1227,7 @@ void MessagesScreen::open_info(const std::string& title, const std::string& body
     lv_obj_set_style_text_font(b, body_font, 0);
     lv_obj_set_style_text_color(b, colors.text, 0);
 
-    auto* f = lv_label_create(overlay_);
-    lv_label_set_text(f, "Esc / Enter: close");
-    lv_obj_set_style_text_font(f, body_font, 0);
-    lv_obj_set_style_text_color(f, colors.text_disabled, 0);
+
 }
 
 void MessagesScreen::close_info() {
@@ -1286,10 +1283,7 @@ void MessagesScreen::open_qr(const std::string& title, const std::string& url) {
     lv_qrcode_set_light_color(qr, lv_color_white());
     lv_qrcode_update(qr, url.c_str(), static_cast<uint32_t>(url.size()));
 
-    auto* hint = lv_label_create(overlay_);
-    lv_label_set_text(hint, "Esc: close");
-    lv_obj_set_style_text_font(hint, font, 0);
-    lv_obj_set_style_text_color(hint, colors.text_disabled, 0);
+
 }
 
 void MessagesScreen::traceroute_cb(lv_observer_t* observer, lv_subject_t* /*subject*/) {

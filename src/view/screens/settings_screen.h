@@ -23,6 +23,7 @@ class SettingsScreen : public BaseScreen {
     void on_enter() override;
     bool on_back() override;
     bool is_composing() override;
+    bool on_key(uint32_t key) override;
 
   private:
     // One local draft across method, field editors, review and verified result.
@@ -31,8 +32,9 @@ class SettingsScreen : public BaseScreen {
         int slot = 0, hop = 3, position_target = 0;
         double override_frequency = 0, frequency_offset = 0;
         bool use_preset = true, tx = false, position = false, mqtt = false, profile_only = false;
-        bool context_ready = false;
+        bool context_ready = false, scanned = false;
         json::Value preview, result, suggested;
+        std::vector<std::string> prepared_names;
         std::string token, error, base;
     } channel_draft_;
     bool channel_flow_ = false;
@@ -40,7 +42,11 @@ class SettingsScreen : public BaseScreen {
     std::vector<int> channel_fields_order_;
     void channel_setup_start();
     void channel_setup_form();
-    void channel_setup_review();
+    void channel_setup_save();
+    void channel_setup_ready();
+    void channel_setup_commit();
+    unsigned required_consent_ = 0, accepted_consent_ = 0;
+    std::vector<unsigned> consent_rows_;
     void channel_setup_finish();
     bool channel_setup_choice(const std::string &pending, int choice);
     bool channel_setup_text(const std::string &pending, const std::string &value);
@@ -71,7 +77,7 @@ class SettingsScreen : public BaseScreen {
     void open_picker(const std::string &title, std::vector<std::string> options, const std::string &pending,
                      int initial);
     void open_text(const std::string &title, const std::string &initial, const std::string &pending);
-    void open_info(const std::string &title, std::vector<std::string> rows, const char *hint = "Esc: back");
+    void open_info(const std::string &title, std::vector<std::string> rows, const char *hint = "");
     void open_canned();
     void teardown_overlay_obj();
     void rebuild_picker();

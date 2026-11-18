@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.14 — 2026-11-17 (release candidate; qualification in progress)
+
+- Make the channel form its own review, with a fixed 1: Save channel/profile action
+  available at every scroll position. Validate privately before one commit; keep
+  only specific radio-wide, antenna/TX, public-location and MQTT consent.
+- Show named QR/link success first and the named saved result afterward. Keep
+  numeric typing normal, prevent duplicate busy actions, preserve local drafts
+  and reject stale, malformed or unsupported saves.
+- Move routine navigation directions to HELP/user guides. Keep contextual action
+  footers and status; remove redundant motion/back/select/close reminders.
+- Record owner-confirmed .13 physical scan/correct TestQR013 details and the
+  confusing success/form/review transition that motivated this change.
+
+See [the usability qualification record](docs/channel-setup-usability.md).
+
 ## 2026-11-17 — Physical form/discard confirmation
 
 - Owner completed the specified field scrolling, Test/1 name entry, Review/Back
