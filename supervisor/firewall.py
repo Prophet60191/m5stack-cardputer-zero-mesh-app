@@ -19,6 +19,36 @@ PORT = 47400
 TABLE = "cz_mesh"
 STATUS = Path("/run/cardputerzero-mesh-firewall/status.json")
 
+# Fixed labels only: nft stderr/rules may contain sensitive host information.
+FAILURES = {
+    "timeout": "firewall verification timed out",
+    "command": "firewall verification command failed",
+    "execution": "firewall verifier could not start",
+    "json": "firewall verifier returned invalid data",
+    "rules": "radio API firewall is absent or changed",
+    "stopping": "firewall monitor is stopping",
+}
+
+
+def verify(nft):
+    """Return a failed verdict with a fixed reason; never expose command output."""
+    try:
+        result = subprocess.run([nft, "-j", "list", "table", "inet", TABLE],
+                                capture_output=True, text=True, timeout=3)
+        if result.returncode:
+            return False, "command"
+        try:
+            document = json.loads(result.stdout)
+            if not isinstance(document, dict):
+                return False, "json"
+            return (True, "") if protected(document) else (False, "rules")
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return False, "json"
+    except subprocess.TimeoutExpired:
+        return False, "timeout"
+    except OSError:
+        return False, "execution"
+
 
 def health_status(path=STATUS, *, uid=None, now=None, boot=None):
     """Read a capability-service-owned verdict, never spawn sudo from a UI.
@@ -44,7 +74,9 @@ def health_status(path=STATUS, *, uid=None, now=None, boot=None):
         if not 0 <= age <= 7 or data.get("boot") != actual_boot:
             raise RuntimeError("firewall monitor is stale; restart its system service")
         if data.get("ok") is not True:
-            raise RuntimeError("radio API firewall is absent or changed; keep radio off")
+            failure = data.get("failure")
+            reason = FAILURES.get(failure, FAILURES["rules"]) if isinstance(failure, str) else FAILURES["rules"]
+            raise RuntimeError(reason + "; keep radio off")
         return {"ok": True, "age": round(age, 2)}
     except (OSError, KeyError, ValueError) as exc:
         raise RuntimeError("firewall health unavailable; install/start the firewall system service") from exc
@@ -58,14 +90,9 @@ def monitor():
     if not nft: raise RuntimeError("nftables is required")
     previous = None
     while True:
-        ok = False
-        if not stopped.is_set():
-            try:
-                result = subprocess.run([nft, "-j", "list", "table", "inet", TABLE],
-                                        capture_output=True, text=True, timeout=3)
-                ok = result.returncode == 0 and protected(json.loads(result.stdout))
-            except (OSError, ValueError, subprocess.TimeoutExpired): pass
-        payload = json.dumps({"ok": ok, "checked": time.monotonic(), "boot": boot}).encode()
+        ok, failure = (False, "stopping") if stopped.is_set() else verify(nft)
+        payload = json.dumps({"ok": ok, "failure": failure,
+                              "checked": time.monotonic(), "boot": boot}).encode()
         fd, temp = tempfile.mkstemp(prefix=".verdict-", dir=STATUS.parent)
         try:
             with os.fdopen(fd, "wb") as out: out.write(payload)
@@ -73,9 +100,9 @@ def monitor():
             os.replace(temp, STATUS)
         finally:
             if os.path.exists(temp): os.unlink(temp)
-        if ok != previous:
-            print("radio API firewall " + ("verified" if ok else "unavailable"), flush=True)
-            previous = ok
+        if (ok, failure) != previous:
+            print("radio API firewall " + ("verified" if ok else "unavailable: " + FAILURES[failure]), flush=True)
+            previous = (ok, failure)
         if stopped.wait(2):
             if not ok: break
             continue  # publish an immediate invalid verdict on orderly stop

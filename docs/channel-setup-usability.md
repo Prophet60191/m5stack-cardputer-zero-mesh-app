@@ -37,7 +37,7 @@ No device/peer/driver/network or backup policy change is part of the UI cleanup.
 
 ## Verification to complete
 
-All four local macOS ASAN/UBSAN CTests and the 119-test backend suite pass
+All four local macOS ASAN/UBSAN CTests and the 124-test backend suite pass
 (one Linux-only host test is skipped on macOS; matching Linux/package gates are
 separate). New native cases exercise direct Save, persistent footer bounds,
 no duplicate busy action, digit ownership, malformed preparation, specific
@@ -48,3 +48,16 @@ reference were rendered and reviewed. Exact-source package/Store preflight and
 private-backed installation/device UI qualification remain pending. No new .14
 hardware or RF claim is made here. .13 RF/camera evidence remains in
 [the earlier record](channel-setup-flow.md).
+
+## Pre-install radio observation
+
+Before installing .14, the .13 supervisor was found in Error after its firewall
+monitor reported one unavailable check at 20:13:59 local time and verified again
+at 20:14:01. The supervisor stopped at 20:14:00 with no service restart. Old logs
+do not establish whether nft timed out, failed, or returned different rules. The
+current check is healthy. This is pre-existing .13 evidence, not a .14 regression
+or a proved firewall-policy change. .14 adds fixed allowlisted failure reasons
+for timeout, command failure, execution/data errors and rule mismatch. It does
+not echo raw output, add retry/grace, relax freshness or automatically restart
+the stopped radio. Fail-closed shutdown is preserved. The underlying isolated failure remains unexplained; a new
+health/stability run must distinguish diagnostics from a claimed root-cause fix.

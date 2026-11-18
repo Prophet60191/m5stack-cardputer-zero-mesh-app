@@ -10,6 +10,9 @@
   and reject stale, malformed or unsupported saves.
 - Move routine navigation directions to HELP/user guides. Keep contextual action
   footers and status; remove redundant motion/back/select/close reminders.
+- Distinguish firewall verifier failures with fixed, non-sensitive reason labels;
+  retain immediate fail-closed behavior. A pre-install .13 check failure recovered
+  two seconds later; its exact cause is not recoverable from the old logs.
 - Record owner-confirmed .13 physical scan/correct TestQR013 details and the
   confusing success/form/review transition that motivated this change.
 

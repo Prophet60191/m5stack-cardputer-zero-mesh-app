@@ -239,7 +239,10 @@ expired/replaced/cancelled/disconnected/stale reviews cannot commit. Keys and UR
 never appear in plan/result payloads. Same-user socket access remains a control
 trust boundary, not isolation from other programs owned by that user.
 
-A full review is required before persistence. Global tuning/TX and public
+A full form review is required before persistence. In .14 the form itself is
+that review: Save validates it without a mandatory duplicate summary. Only
+specific active radio-wide tuning, TX/antenna, public location and MQTT changes
+require their relevant acknowledgment. Global tuning/TX and public
 location/MQTT consequences are explicit. Existing TX is preserved unless chosen
 otherwise; new forwarding/location start Off. Only the newly selected position
 channel receives precision when sharing is enabled, with existing public consent
