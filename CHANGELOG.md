@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.14 — 2026-11-17 (release candidate; qualification in progress)
+## 0.1.14 — 2026-11-17 (release candidate)
 
 - Make the channel form its own review, with a fixed 1: Save channel/profile action
   available at every scroll position. Validate privately before one commit; keep
@@ -15,6 +15,16 @@
   two seconds later; its exact cause is not recoverable from the old logs.
 - Record owner-confirmed .13 physical scan/correct TestQR013 details and the
   confusing success/form/review transition that motivated this change.
+
+Validation: all 124 backend tests, native macOS/Linux and arm64 sanitizer gates,
+Debian arm64 build/fresh install/upgrade/firewall and Store preflight pass on
+runtime source `e8dadd3`. Exact package installed: all 105 file hashes/modes/owners
+match; device keyboard/setup replay and controlled native UI numeric/held Save
+pass. Original saved data/settings/profile remain intact; temporary profile is
+removed. Final ten-minute RX: 61 healthy samples, zero failures/restarts, maximum
+firewall age 2.01s. No new RF send or physical camera/key-map result is claimed;
+old .13 firewall failure remains unexplained. Updated guide/PDFs and own .14
+candidate accompany this update; no Store/upstream submission.
 
 See [the usability qualification record](docs/channel-setup-usability.md).
 

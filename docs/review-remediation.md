@@ -296,3 +296,14 @@ form preserves local entries, makes shared radio effects explicit, binds/cancels
 reviews and verifies saved settings, with explicit partial/uncertain results.
 Existing profiles/chats are preserved; no new outdoor GPS, public-peer RF or
 physical IPv6 qualification is implied.
+
+
+## 0.1.14 form-as-review and contextual actions
+
+The [usability qualification record](channel-setup-usability.md) covers direct
+fixed-key Save, named imports, removal of redundant footer navigation, retained
+specific consent/validation and exact package/device evidence. Original saved
+state is preserved and no new RF send is claimed. A pre-install .13 firewall
+check failure recovered two seconds later; its cause is unknown. Fixed safe
+failure labels improve diagnosis without changing fail-closed behavior. The
+bounded final ten-minute RX run does not establish a root-cause fix.

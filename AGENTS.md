@@ -21,14 +21,18 @@ privacy settings, protocol, or package integration.
   `docs/keyboard.md`. Keep the reusable decoder and raw evdev-to-textarea checks
   together; direct text insertion is not proof of physical-key translation.
 
-## Current work — 0.1.14 channel setup usability
+## Channel setup usability closeout — 2026-11-17
 
-Owner approved form-as-review, a persistent `1: Save channel/profile` footer,
-clear named QR success and removal of routine navigation tips from footers.
-Preserve HELP, validation and narrowly scoped radio/privacy/antenna consent;
-no generic second review page. Implementation/qualification is in
-[`docs/channel-setup-usability.md`](docs/channel-setup-usability.md). Device .13
-stays unchanged until the tested .14 package is installed. Keep ADB enabled.
+Mesh 0.1.14 is installed from exact runtime/package source `e8dadd3`: form-as-review,
+fixed `1: Save channel/profile`, clear named scan success and contextual footers.
+HELP, validation and specific radio/privacy/antenna consent are preserved. Read
+[`docs/channel-setup-usability.md`](docs/channel-setup-usability.md) for exact CI,
+124 backend/native/arm64/package gates, live UI/replay, private data preservation
+and the ten-minute RX result. Later closeout changes are docs only. A pre-install
+.13 firewall check briefly failed; its cause remains unknown. Fixed safe reason
+labels improve diagnosis without weakening shutdown or automatically restarting.
+Keep ADB enabled; preserve original settings/profile/chats and other apps/services.
+GPS dongle model/interface/source/fallback design remains the next separate task.
 
 ## Unified channel setup closeout — 2026-11-17
 
