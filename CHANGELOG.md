@@ -625,3 +625,7 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   app/shared-backend/protocol mirrors; preserve independent hardware notes.
   App builder guidance/preferences/PDF include the no-icon and redraw lessons.
 - USB GPS work is explicitly deferred; retain historical qualification limits.
+
+- Complete exact-path temporary cleanup after verified private host backups;
+  reverify 117 installed files, 20 device mirror files, native GPS hash and final
+  app/radio/privacy/Phone/firewall/launcher/ADB state.

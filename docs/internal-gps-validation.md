@@ -310,3 +310,8 @@ No dongle, SIM-dependent work, upstream submission or public release is included
 Task helpers are bounded/idle; root-owned temporary installation/backup helpers
 can be removed at the next USB maintenance connection after retaining the verified
 private host backup. Keep ADB enabled and preserve current radio/privacy settings.
+
+Subsequent 0.1.18 [header maintenance](header-presentation.md) completed the
+previously deferred temporary-helper cleanup through USB, after verifying the
+private host backups. The native GPS binary remains unchanged. USB GPS work
+remains explicitly deferred by the owner.

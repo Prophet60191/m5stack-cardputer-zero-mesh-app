@@ -243,3 +243,8 @@ README/current status, synthetic illustrations, Desktop and existing Drive manua
 and the app builder guide are refreshed; old versioned archives stay historical.
 Audit/sync secondary source/backend mirrors with private backups; preserve their
 independent hardware README notes. USB GPS is deferred by the owner.
+
+The 0.1.18 USB closeout also removes the bounded GPS/header temporary helpers
+and stages (57 exact paths), after verified private host backups. Installed
+117 files, 20 device mirror modules and unchanged native GPS hash are reverified.
+No cleanup/reinstallation remains pending from those temporary helper notes.

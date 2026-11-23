@@ -76,3 +76,9 @@ physical key, cold-power or actual handset qualification.
 USB GPS is explicitly deferred. Existing phone reconnect limits, the nonfatal
 GPS configuration ACK warning and broader qualification limits remain visible in
 [current status](current-status.md); this presentation change does not resolve them.
+
+Final maintenance cleanup removes 57 exact task-created temporary paths after
+verifying both private state archives and mirror backups on the host. Installed
+files, 20 device backend mirror files and native GPS binary hash are reverified
+after cleanup; app/radio/privacy/Phone/firewall readback and launcher/ADB pass.
+Private host rollback/data backups remain retained outside Git.
