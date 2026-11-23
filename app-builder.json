@@ -1,7 +1,7 @@
 {
   "app_name": "Cardputer Zero Mesh",
   "package_name": "cardputerzero-mesh",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Meshtastic client for the M5Stack CardputerZero",
   "store": {
     "summary": "Send and receive Meshtastic messages over LoRa on the CardputerZero.",

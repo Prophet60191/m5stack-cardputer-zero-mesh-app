@@ -1,6 +1,6 @@
 # Introduction & Getting Started
 
-> For Mesh **0.1.17 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
+> For Mesh **0.1.18 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
 
 Welcome to the **Cardputer Zero Mesh App**! This app turns your M5Stack CardputerZero and its LoRa radio Cap into a pocket-sized, off-grid communicator using the **Meshtastic** mesh network.
 
@@ -56,7 +56,7 @@ From left to right, the bar at the top tells you what the radio is doing at a gl
 - **Region:** Your active radio region (such as `US` or `EU_868`, or `UNSET` before your first setup).
 - **Node Count:** How many radios your device has heard (for example, `4 nodes`).
 - **Unread Badge (`✉`):** Appears in green with a number whenever you have unread messages.
-- **Battery (top-right):** Shows your battery icon and charge percentage.
+- **Battery (top-right):** Shows your charge percentage, without a battery icon.
 
 ### Home Carousel (Main Menu)
 

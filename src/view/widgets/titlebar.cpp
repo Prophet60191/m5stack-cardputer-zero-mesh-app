@@ -20,15 +20,6 @@ namespace {
 
 constexpr uint32_t kDeviceRefreshTicks = 5;
 
-const char* battery_icon(int32_t capacity_percent, bool charging) {
-    if (charging) return ICON_BAT_CHARGING;
-    if (capacity_percent >= 95) return ICON_BAT_FULL;
-    if (capacity_percent >= 70) return ICON_BAT_HIGH;
-    if (capacity_percent >= 35) return ICON_BAT_MEDIUM;
-    if (capacity_percent >= 10) return ICON_BAT_LOW;
-    return ICON_BAT_EMPTY;
-}
-
 void set_visible(lv_obj_t* obj, bool visible) {
     if (visible) lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
@@ -60,8 +51,7 @@ void TitleBar::build() {
 
     const lv_font_t* text_font = assets_.load_standard_font(13, app::StandardFontWeight::Regular);
     if (!text_font) text_font = &lv_font_montserrat_14;
-    const lv_font_t* icon_font = assets_.load_font("Phosphor-Fill.ttf", 16);
-    if (!icon_font) icon_font = &lv_font_montserrat_14;
+
 
     // Left: radio dot + state + region.
     auto* left = lv_obj_create(core_obj_);
@@ -98,7 +88,7 @@ void TitleBar::build() {
     lv_obj_set_style_text_font(unread_label_, &lv_font_montserrat_14, 0);
     lv_obj_add_flag(unread_label_, LV_OBJ_FLAG_HIDDEN);
 
-    // Right: battery.
+    // Right: battery percentage, without a decorative icon.
     auto* right = lv_obj_create(core_obj_);
     lv_obj_remove_style_all(right);
     lv_obj_set_size(right, 70, LV_PCT(100));
@@ -108,9 +98,6 @@ void TitleBar::build() {
     lv_obj_set_style_pad_column(right, 4, 0);
     lv_obj_clear_flag(right, LV_OBJ_FLAG_SCROLLABLE);
 
-    battery_icon_label_ = lv_label_create(right);
-    lv_obj_set_style_text_font(battery_icon_label_, icon_font, 0);
-    reactive::bind_theme(battery_icon_label_, view_model_.dark_mode_subject(), reactive::ThemeRole::Text);
     battery_percent_label_ = lv_label_create(right);
     lv_obj_set_style_text_font(battery_percent_label_, text_font, 0);
     reactive::bind_theme(battery_percent_label_, view_model_.dark_mode_subject(), reactive::ThemeRole::Text);
@@ -152,8 +139,6 @@ void TitleBar::update_radio_dot() {
 
 void TitleBar::refresh_device_status() {
     const auto status = platform::read_device_status();
-    lv_label_set_text(battery_icon_label_, battery_icon(status.battery_percent, status.battery_charging));
-    set_visible(battery_icon_label_, status.battery_present);
     set_visible(battery_percent_label_, status.battery_present);
     if (status.battery_present) {
         std::array<char, 6> percent{};

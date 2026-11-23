@@ -14,7 +14,7 @@ class AssetManager;
 namespace view::widgets {
 
 // A status-only top bar (no tab names): a radio status dot + state + region on
-// the left, battery on the right. Room to add node count, unread, etc.
+// the left, battery percentage on the right (no battery icon).
 class TitleBar : public BaseWidgets {
 public:
     TitleBar(lv_obj_t* parent, viewmodel::BaseViewModel& view_model, app::AssetManager& assets);
@@ -39,7 +39,6 @@ private:
     lv_obj_t* region_label_{nullptr};
     lv_obj_t* nodes_label_{nullptr};
     lv_obj_t* unread_label_{nullptr};
-    lv_obj_t* battery_icon_label_{nullptr};
     lv_obj_t* battery_percent_label_{nullptr};
     lv_timer_t* refresh_timer_{nullptr};
     uint32_t refresh_tick_{0};

@@ -31,16 +31,15 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.17, a release candidate** with public/private channel
+The current source is **0.1.18, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
-Cancel-first deletion. See the [current refinement record](docs/usability-refinement.md)
-for this candidate's verification and limits. Camera QR and physical cold-power
-results belong to earlier qualified candidates; this update does not repeat
-those claims. The fitted GPS receiver, fresh local fixes
-and owner-confirmed Map marker are covered in the
-[GPS qualification record](docs/internal-gps-validation.md), including its separate
-native-service startup correction. Live public-mesh delivery and other remaining
-device checks are documented in the [verification record](docs/review-remediation.md).
+Cancel-first deletion. The header shows battery percentage without a battery
+icon. The [latest status](docs/current-status.md) separates current changes from
+previous hardware qualification. The [GPS record](docs/internal-gps-validation.md)
+covers outdoor fixes, the Map marker and the separate native-service startup
+correction. [Phone access](docs/phone-access-validation.md) covers the official
+iPhone app, cellular messaging and reconnect limits. Live public-mesh delivery
+and other remaining checks stay explicit in the [verification record](docs/review-remediation.md).
 
 > **Meshtastic&reg; is a registered trademark of Meshtastic LLC.** This is an independent, community project and
 > is not affiliated with or endorsed by Meshtastic LLC or M5Stack.
@@ -139,7 +138,7 @@ TX or location settings. The daemon API remains confined to loopback.
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.17-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.18-rev1_arm64.deb
 # The qualified Debian build used for this candidate:
 sudo apt install 'meshtasticd=2.7.26.61~obs54e0d8d~beta'
 ```

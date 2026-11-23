@@ -595,3 +595,12 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   Post-watch status remains fresh and standalone daemon masked.
 - Record bounded fitted-GPS acceptance and limits. Dongle/source selection is
   separate next work; no automatic USB preference is claimed. Preserve ADB On.
+
+
+## 0.1.18 candidate — Header battery presentation
+
+- Remove the header battery glyph and its unused font/glyph helpers, retaining
+  numeric charge percentage and absent-battery behavior. No radio/backend change.
+- Refresh current guide versions, status/README and stale package examples; keep
+  historical qualification records/versioned release links accurate. Explicitly
+  defer USB GPS. Validation/install closeout follows after matching checks.
