@@ -1,6 +1,6 @@
 # Settings Menu
 
-> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.15 (release candidate)** · Updated **2026-11-22** · [Guide index](README.md)
 
 The **Settings** screen is where you turn the radio on and off, set your region and channels, manage privacy and notifications, save mesh profiles, and check system health.
 
@@ -12,7 +12,7 @@ From the Home Carousel, roll to **Settings** with **Z** / **C** and press **Ente
 
 | Key | Action |
 |---|---|
-| **F / X** | Move up and down Settings, scroll info cards, or highlight options |
+| **F / X** | Move up and down Settings, scroll info cards, or highlight options; settings and option lists wrap at their ends |
 | **Enter** | Open a setting, toggle an option, or save what you typed |
 | **ESC** | Cancel an open pop-up/editor, or return to the Home Carousel |
 | **HELP** | Show Settings shortcuts |
@@ -23,9 +23,9 @@ From the Home Carousel, roll to **Settings** with **Z** / **C** and press **Ente
 
 The app keeps radio hardware and saved setups cleanly separated, so some settings expect the radio to be **On** while a couple require it to be **Off**:
 
-- **Needs Radio ON:** `Region`, `Modem preset`, `Frequency slot`, `Hop limit`, `Channel manager`, `Node name`, `GPS receiver`, `Share position`, and `Internet (MQTT)`.
+- **Needs Radio ON:** `Region`, `Modem preset`, `Frequency slot`, `Hop limit`, `Manage channels`, `Node name`, `GPS receiver`, `Share position`, and `Internet forwarding`.
 - **Needs Radio OFF:** Applying a saved **Mesh profile**, or running the **First-run setup** wizard when no profile exists yet.
-- **Works Anytime (On or Off):** `Radio`, `Transmit mode`, saving or deleting a **Mesh profile**, `Channels`, `First-run setup` status check, `Diagnostics`, `About`, and all **Messages**, **Notifications**, and **Theme** preferences.
+- **Works Anytime (On or Off):** `Radio`, `Transmit mode`, saving or deleting a **Mesh profile**, `Channels`, `First-run setup` status check, `Diagnostics`, `About`, and all **Messages**, **Notifications**, and **Appearance** preferences.
 
 ### How Confirmation Works (`Pending...` and `Unknown`)
 
@@ -34,7 +34,7 @@ Radio hardware changes are read back before confirmation. Local app preferences 
 - **`Unknown`:** Shown for radio settings while the radio is turned off or disconnected.
 - **`Pending...`:** Shown briefly while the radio applies and verifies a change.
 - **Automatic Restart:** Changing **Region**, **Modem preset**, **Frequency slot**, or **GPS receiver** automatically saves your change, restarts the radio safely, and verifies that the new value stuck.
-- **Privacy Fail-Safe:** If the radio ever fails to confirm a change to **Transmit mode**, **Share position**, or **Internet (MQTT)**, the app automatically stops the radio rather than leave you guessing about privacy or transmitting.
+- **Privacy Fail-Safe:** If the radio ever fails to confirm a change to **Transmit mode**, **Share position**, or **Internet forwarding**, the app automatically stops the radio rather than leave you guessing about privacy or transmitting.
 
 ---
 
@@ -44,7 +44,7 @@ Radio hardware changes are read back before confirmation. Local app preferences 
 
 | Setting | What It Does & How to Use It |
 |---|---|
-| **Radio** | Always the first row. Shows live status (`off off`, `online receive-only`, `online transmit`, or `error`). Press **Enter** to start or stop the radio. *(Attach your antenna first!)* |
+| **Radio** | Always the first row. Shows live status (`off`, `Listen only`, `Send & receive`, or `error`). Press **Enter** to start or stop the radio. *(Attach your antenna first!)* |
 | **Transmit mode** | Switch between **`Receive only`** (listen quietly) and **`Enable transmission`**. Enabling transmission asks you to confirm that your antenna is attached and your region is set. |
 | **Auto-start radio** | Toggle **On / Off**. When **On**, starts the radio automatically once per app launch. |
 | **Region** | Choose your legal LoRa band (`US`, `EU_868`, `EU_433`, `ANZ`, `NZ_865`, `KR`, `TW`, `JP`, `SG_923`, `TH`, `MY_919`, `PH_915`). Everyone in your group must use the same region. |
@@ -58,18 +58,20 @@ Radio hardware changes are read back before confirmation. Local app preferences 
 
 ![Channels and Node Section](images/settings-channels-section.png)
 
-### Mesh Profiles
+### Saved Mesh Setups
 
 Save up to **16** named snapshots of your region, tuning, and channels on the device so you can switch between setups cleanly:
 
-1. Open **Mesh profiles** and choose **`+ Save current as profile`**, then enter a name (up to 48 UTF-8 bytes). *(Works with the radio On or Off.)*
-2. To switch profiles, first make sure **Radio** is **Off**. Open **Mesh profiles** and pick a saved profile to preview its region, preset, frequency slot, and channels:
+1. Open **Saved mesh setups** and choose **`+ Save current as profile`**, then enter a name (up to 48 UTF-8 bytes). *(Works with the radio On or Off.)*
+2. To switch profiles, first make sure **Radio** is **Off**. Open **Saved mesh setups** and pick a saved profile to preview its region, preset, frequency slot, and channels:
    - **Apply: radio Off, TX/location/MQTT Off:** Switches to that setup safely in receive-only mode with location sharing and MQTT turned off until you enable them.
-   - **Delete saved profile:** Permanently deletes that saved profile from your device *(works anytime)*.
+   - **Delete saved profile:** Opens a Cancel-first confirmation before permanently deleting that saved profile *(works anytime)*. Your active setup is unchanged.
 
-### Channel Manager
+![Saved setup preview](images/settings-saved-setup-preview.png)
 
-Open **Channel manager → `+ Add channel (scan or create)`** to use the same
+### Manage Channels
+
+Open **Manage channels → `+ Add channel (scan or create)`** to use the same
 complete setup form as **Settings → Add a channel**. Existing slot edits still
 require Radio On; preparing and saving a new setup also works while Radio is Off.
 
@@ -103,7 +105,7 @@ while you edit fields, scan or paste. The form itself is the review; there is no
 
 ![Imported Channel in Setup Form](images/settings-qr-preview.png)
 
-4. Review **Region**, **Modem**, **Frequency slot**, **Hop limit**, **Transmit mode**,
+4. The same scrolling form has four groups: **Channel**, **Radio connection - all channels**, **Sharing - new channel**, and **Save destination**. Group headings are not selectable. Review **Region**, **Modem**, **Frequency slot**, **Hop limit**, **Transmit mode**,
    **Automatic location** and **Internet forwarding** in the same form. Radio
    tuning and transmit mode affect the whole radio. Channels cannot listen on
    different modem presets/frequencies simultaneously. Auto frequency uses the
@@ -119,7 +121,7 @@ while you edit fields, scan or paste. The form itself is the review; there is no
 6. Choose **Current setup** or **Separate profile; keep active setup**. An optional
    **Profile name** saves a named snapshot alongside an applied setup. A separate
    profile requires a name, leaves the active radio/setup untouched, and starts
-   receive-only with location/MQTT Off. It can be applied later from Mesh profiles.
+   receive-only with location/MQTT Off. It can be applied later from Saved mesh setups.
 
 ![Complete Channel Setup Form](images/settings-channel-setup-form.png)
 
@@ -155,7 +157,7 @@ radio settings before saving again. A failed active save stops the radio and tri
 to restore the previous settings; failed recovery or an uncertain result is
 reported explicitly. Inspect Channels/Diagnostics before retrying an uncertain save.
 
-### Channels (Quick View)
+### View Channels (Quick View)
 
 Opens a read-only list of your active channels showing each slot number, name, `[Private]` or `[Public]` label, role (`PRIMARY` / `SECONDARY`), and `Location On` / `Location Off`.
 
@@ -171,7 +173,7 @@ Set the display name other radios see for you. Your 4-character short name is au
 |---|---|
 | **GPS receiver** | Choose **`Enable GPS receiver`** or **`Disable GPS receiver`**. Turning the GPS receiver on lets *you* see your own position on the Map and measure distance to nodes—it does **not** transmit your location to anyone else. |
 | **Share position** | Controls **automatic** periodic position broadcasts (smart updates, up to every 15 minutes). Choose **Off** to turn automatic sharing off on every channel, or pick **one specific channel** to share on.<br>• If you pick a **`[Public]`** channel, you must confirm **`Public location (~730 m)?`**, and your automatic position precision is limited to roughly 730 meters. This is approximate precision, not anonymity or protection from other ways of locating a radio. If sharing is already On, press **Enter** to switch it Off; open it again to choose another channel. |
-| **Internet (MQTT)** | Toggle **On / Off**. Controls this radio's MQTT module. New setups default to **Off**; other radios may still forward received traffic to the Internet. |
+| **Internet forwarding** | Toggle **On / Off**. Controls this radio's MQTT module. New setups default to **Off**; other radios may still forward received traffic to the Internet. |
 
 ![Public Position Confirmation Prompt](images/settings-public-position.png)
 
@@ -184,7 +186,7 @@ Set the display name other radios see for you. Your 4-character short name is au
 | Setting | What It Does |
 |---|---|
 | **Quick messages** | Manage the canned replies shown when you press `q` in [Messages](02-Messages-Menu.md). Choose **`+ Add new`** to add one, or highlight an existing phrase to edit it. To **delete** a phrase, open it, erase all the text so it is empty, and press **Enter**. |
-| **Message acks** | Toggle **On / Off**. When **On**, sent messages request delivery confirmation (`Mesh ACK` / `Recipient ACK`). |
+| **Delivery confirmations** | Toggle **On / Off**. When **On**, sent messages request delivery confirmation (`Mesh confirmed` / `Recipient received`). |
 | **Signal on messages** | Toggle **On / Off**. Shows or hides signal (`dB`) and hop count under incoming chat bubbles. |
 | **Save conversations** | Controls whether chat history, drafts, and pinned chat records are saved across restarts. Saved history is kept in a private folder on the device's storage (**not encrypted**). If you prefer not to keep chats on disk if the device is lost, choose **`Erase saved history; RAM only`** to remove stored messages and conversation records so your current session stays in memory only. Re-enabling it saves your current session and drafts back to storage. This is not a forensic secure erase of flash storage or a deletion of screenshots, backups, or copies on other radios. |
 | **Keep per chat** | Limit saved messages per conversation: **`All`**, **`50`**, **`100`**, or **`200`** (subject to a 2,000-message total limit across all chats). |
@@ -206,7 +208,7 @@ Set the display name other radios see for you. Your 4-character short name is au
 
 | Setting | What It Does |
 |---|---|
-| **Theme** | Switch between **Dark** mode (comfortable at night) and **Light** mode. |
+| **Appearance** | Switch between **Dark** mode (comfortable at night) and **Light** mode. |
 | **First-run setup** | Safe to open anytime: if your radio is already set up, it opens a **Setup ready** card showing your active Region, Transmit mode, and Firewall status without changing anything. If no profile exists yet, it launches the first-time Region & Channel wizard. |
 | **Diagnostics** | Choose **View current health** to inspect app/daemon/client versions, radio and API status, camera availability, GPS fix freshness/age/satellites, seconds since last received radio packet (`Last RX age`), message count, and firewall health.<br>Choose **Export sanitized health** to save a private `diagnostics-export.json` report that strips out all messages, channel keys, node IDs, and GPS coordinates. |
 | **About** | Shows app version, source URL, your Node ID, firmware version, hardware model, active region, and node name. |
@@ -241,7 +243,7 @@ Set the display name other radios see for you. Your 4-character short name is au
 1. In the Add channel form, select **Save to → Separate profile; keep active setup**.
 2. Enter the desired channel/tuning and a profile name such as `Family Trip`.
 3. Check the form and press **1: Save profile**. The active setup/radio remains unchanged.
-4. To use it later, turn Radio Off, select it in **Mesh profiles**, apply it, then
+4. To use it later, turn Radio Off, select it in **Saved mesh setups**, apply it, then
    turn Radio On. Transmission/location/MQTT remain Off until explicitly enabled.
 
 ---

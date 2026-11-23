@@ -405,7 +405,9 @@ private:
         else {
             exit_key_pressed_ = key;
             exit_armed_ = true;
-            toast_->show_persistent_highlighted("Hold ", "ESC", " to exit",
+            toast_->show_persistent_highlighted("Hold ", "ESC",
+                std::string(lv_subject_get_string(view_model_.radio_state_subject())) == "online"
+                    ? " to exit; radio stays on" : " to exit",
                                                 view::widgets::ToastTone::Warning);
         }
         return true;

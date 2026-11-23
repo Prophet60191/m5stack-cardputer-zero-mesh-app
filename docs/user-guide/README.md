@@ -1,6 +1,6 @@
 # User Guide & Quick Reference
 
-For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17**
+For Mesh **0.1.15 (release candidate)** · Updated **2026-11-22**
 
 Start with the introduction if you are new to the app, or keep the quick reference
 handy when you are away from a computer.
@@ -22,7 +22,7 @@ URL contains its secret key: share it only with the intended group.
 
 ## Offline downloads
 
-The last published PDFs cover 0.1.13; the Markdown here describes 0.1.14. Download the reviewed 0.1.13 PDFs from the **[0.1.13 candidate release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.13-rc.1)**:
+The last published PDFs cover 0.1.13; the Markdown here describes the 0.1.15 candidate. Download the reviewed 0.1.13 PDFs from the **[0.1.13 candidate release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.13-rc.1)**:
 
 - **Cardputer-Zero-Mesh-User-Guide.pdf** — combined illustrated manual, with
   contents, internal links and chapter bookmarks.
@@ -35,9 +35,9 @@ See the [verification record](../review-remediation.md).
 
 ## Screenshots and privacy
 
-All 28 screenshots use synthetic names, node IDs, messages and positions. The QR
+All 30 screenshots use synthetic names, node IDs, messages and positions. The QR
 picture is demonstration data, not a channel to join. The screenshots were
-rendered with 0.1.6, 0.1.13 and 0.1.14; their controls were reviewed against 0.1.14. Older illustrations can show navigation reminders that 0.1.14 moves to HELP. Diagnostics on your
+rendered with 0.1.6, 0.1.13, 0.1.14 and 0.1.15; newer controls are documented for 0.1.15; older illustrations are identified here. Older illustrations can show navigation reminders that 0.1.14 moves to HELP. Diagnostics on your
 device shows your installed version. Colors can differ with your selected theme.
 
 Public messages, identity and telemetry can be visible to other people. Other

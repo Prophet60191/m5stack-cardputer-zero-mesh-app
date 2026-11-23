@@ -98,15 +98,15 @@ void MenuScreen::update(bool animate) {
 
     lv_label_set_text(icon_, kEntries[i].icon);
     lv_label_set_text(label_, kEntries[i].label);
-    lv_obj_set_style_text_color(icon_, colors.primary, 0);  // active icon in mesh green
+    lv_obj_set_style_text_color(icon_, view_model().is_dark_mode() ? colors.primary : lv_color_hex(0x139a4d), 0);  // active icon in mesh green
 
     // Faint neighbours (wrap around).
     const int prev = (i + kEntryCount - 1) % kEntryCount;
     const int next = (i + 1) % kEntryCount;
     lv_label_set_text(prev_icon_, kEntries[prev].icon);
     lv_label_set_text(next_icon_, kEntries[next].icon);
-    lv_obj_set_style_text_color(prev_icon_, colors.text_disabled, 0);
-    lv_obj_set_style_text_color(next_icon_, colors.text_disabled, 0);
+    lv_obj_set_style_text_color(prev_icon_, lv_color_hex(view_model().is_dark_mode() ? 0x616161 : 0xc2c2c2), 0);
+    lv_obj_set_style_text_color(next_icon_, lv_color_hex(view_model().is_dark_mode() ? 0x616161 : 0xc2c2c2), 0);
 
     if (animate && last_index_ >= 0 && i != last_index_) {
         // Which way did we roll? next (incl. 3->0 wrap) slides in from the right.

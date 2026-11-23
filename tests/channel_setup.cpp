@@ -143,8 +143,16 @@ static void run(const std::string &dir, bool dark) {
     s.on_enter();
     CHECK(labels(s.root()).find("Field profile") != std::string::npos);
     CHECK(sent.size() == n);
-    for (int i = 0; i < 25; ++i)
+    CHECK(labels(s.root()).find("Radio connection - all channels") != std::string::npos);
+    CHECK(labels(s.root()).find("Sharing - new channel") != std::string::npos);
+    CHECK(labels(s.root()).find("Save destination") != std::string::npos);
+    for (int i = 0; i < 40; ++i) {
+        const auto text = selected(s.root());
+        CHECK(text != "Channel" && text != "Radio connection - all channels" &&
+              text != "Sharing - new channel" && text != "Save destination");
         s.on_up();
+    }
+    for (int i = 0; i < 40 && selected(s.root()).rfind("Channel name:", 0) != 0; ++i) s.on_down();
     screenshot(s.root(), dir, dark ? "channel-setup-form-dark.png" : "channel-setup-form.png");
     // Footer stays in bounds even with long error content and deep selection.
     for (int i = 0; i < 25; ++i)

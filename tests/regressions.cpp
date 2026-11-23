@@ -317,13 +317,13 @@ static void compact_layout_regression(const char* screenshot_path) {
     app::AssetManager assets;
     screen::SettingsScreen settings(vm,assets); lv_screen_load(settings.root());
     const char* order[] = {"Radio", "Transmit mode", "Auto-start radio", "Region", "Modem preset", "Frequency slot", "Hop limit",
-        "Mesh profiles", "Channel manager", "Add a channel", "Channels", "Node name", "GPS receiver", "Share position", "Internet (MQTT)",
-        "Quick messages", "Message acks", "Signal on messages", "Save conversations", "Keep per chat", "Mute all", "Quiet hours",
-        "Theme", "First-run setup", "Diagnostics", "About"};
+        "Saved mesh setups", "Manage channels", "Add a channel", "View channels", "Node name", "GPS receiver", "Share position", "Internet forwarding",
+        "Quick messages", "Delivery confirmations", "Signal on messages", "Save conversations", "Keep per chat", "Mute all", "Quiet hours",
+        "Appearance", "First-run setup", "Diagnostics", "About"};
     for (const auto* name : order) { CHECK(selected_setting(settings.root()) == name); settings.on_down(); }
-    CHECK(selected_setting(settings.root()) == "About");
-    settings.on_down(); CHECK(selected_setting(settings.root()) == "About");
-    for (int i=0;i<30;++i) settings.on_up(); CHECK(selected_setting(settings.root()) == "Radio");
+    CHECK(selected_setting(settings.root()) == "Radio"); // Down wraps after the last row
+    settings.on_up(); CHECK(selected_setting(settings.root()) == "About");
+    settings.on_down(); CHECK(selected_setting(settings.root()) == "Radio");
     select_setting(settings,"About");settings.on_enter();lv_obj_update_layout(settings.root());
     auto* version=label_starting(settings.root(),"Version:  ");CHECK(version);
     auto* info=lv_obj_get_parent(version);CHECK(lv_obj_get_scroll_bottom(info)>0);
@@ -333,7 +333,7 @@ static void compact_layout_regression(const char* screenshot_path) {
     if (screenshot_path) {
         const auto dir=std::filesystem::path(screenshot_path).parent_path();
         save_png((dir/"settings-radio.png").c_str(),settings.root());
-        for (const auto* name : {"Mesh profiles","GPS receiver","Quick messages","Mute all","Theme"}) {
+        for (const auto* name : {"Saved mesh setups","GPS receiver","Quick messages","Mute all","Appearance"}) {
             select_setting(settings,name);save_png((dir/(std::string("settings-")+name+".png")).c_str(),settings.root());
         }
     }
@@ -540,7 +540,7 @@ static void qr_scan_ui_regression(const char* screenshot_path) {
     auto after = start();
     result(after, R"("event":"channel.preview","new":0,"token":"","channels":[])");
     discard();
-    select_setting(settings, "Mesh profiles");
+    select_setting(settings, "Saved mesh setups");
     settings.on_enter();
     json::Value error;
     CHECK(
@@ -607,7 +607,7 @@ static void services_ui_regression(const char* screenshot_path) {
     settings.on_enter(); settings.on_down(); settings.on_enter();
     CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="radio.tx"); CHECK(event.find("antenna_confirmed")->as_bool());
     settings.on_back(); // dismiss waiting; stale response may not replace new overlay
-    select_setting(settings, "Channel manager"); settings.on_enter(); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="channel.slots");
+    select_setting(settings, "Manage channels"); settings.on_enter(); CHECK(json::parse(sent,event)); CHECK(event.str_at("intent")=="channel.slots");
     auto slot_request=event.str_at("id");
     CHECK(json::parse("{\"event\":\"channel.slots\",\"id\":\""+slot_request+"\",\"channels\":[{\"index\":1,\"identity\":\"synthetic-id\",\"name\":\"Synthetic\",\"private\":true,\"role\":\"SECONDARY\"}]}",event));
     vm.apply_service(event);
@@ -659,6 +659,117 @@ static void settings_file_regression() {
     std::filesystem::remove_all(directory);
 }
 
+
+// Whole task checks: cancellation must never mutate data; confirmation uses stable IDs.
+static void usability_regression(const char* screenshot_path) {
+    for (bool dark : {false, true}) {
+        viewmodel::BaseViewModel vm; app::AssetManager assets;
+        std::vector<json::Value> sent;
+        vm.set_command_sink([&](const std::string& line) { json::Value event; CHECK(json::parse(line,event)); sent.push_back(event); return true; });
+        vm.set_connected(true); vm.set_dark_mode(dark);
+        vm.set_channels({{1,"Field",true,"PRIMARY",0,"usability"}});
+        viewmodel::MessageInfo m; m.id="original";m.from="self";m.to="broadcast";m.outgoing=true;
+        m.text="Camp check-in";m.channel=1;m.channelIdentity="usability";m.channelPrivate=true;m.channelName="Field";m.status=viewmodel::kMsgMesh;
+        vm.set_messages({m}); vm.save_draft("ch:usability","Return Before Dark");
+        CHECK(vm.conversation_rows("CAMP").size()==1);
+        CHECK(vm.conversation_rows("before dark").size()==1);
+        CHECK(vm.conversation_rows("fIeLd").size()==1);
+        CHECK(vm.conversation_rows("missing").empty());
+        vm.set_group_target("usability");
+        screen::MessagesScreen screen(vm,assets);lv_screen_load(screen.root());
+        const auto capture = [&](const char* name) {
+            if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path() /
+                (std::string(dark ? "dark-" : "light-")+name)).c_str(),screen.root());
+        };
+        const auto active = [&](auto&& self, lv_obj_t* o) -> std::string {
+            if (lv_obj_check_type(o,&lv_label_class) && lv_obj_get_style_radius(o,LV_PART_MAIN)==6 &&
+                lv_obj_get_style_bg_opa(o,LV_PART_MAIN)==LV_OPA_COVER) return lv_label_get_text(o);
+            for (uint32_t i=lv_obj_get_child_count(o);i>0;--i) {auto text=self(self,lv_obj_get_child(o,i-1));if(!text.empty())return text;}
+            return "";
+        };
+        const auto choose = [&](const char* text) {
+            for(int i=0;i<20;++i) {if(active(active,screen.root())==text){screen.on_enter();return;}screen.on_down();}
+            CHECK(false);
+        };
+        auto incoming=m;incoming.outgoing=false;incoming.from="!10000001";incoming.fromName="Field partner";
+        incoming.id="incoming-demo";incoming.text="Checking in from camp.";incoming.status=0;
+        vm.set_messages({incoming,m});capture("thread.png");vm.set_messages({m});
+        screen.on_enter();capture("compose.png");screen.on_back();
+        screen.on_key('o');capture("thread-options.png");screen.on_back();
+        screen.on_up();capture("selected-message.png");screen.on_enter();capture("message-options.png");choose("Details");
+        CHECK(labels(screen.root()).find("recipient receipt is not confirmed")!=std::string::npos);
+        screen.on_back();screen.on_back(); // details, bubble selection
+        screen.on_key('o');choose("Clear history");
+        CHECK(active(active,screen.root())=="Cancel");capture("clear-confirm.png");
+        screen.on_enter();CHECK(vm.messages().size()==1); // default Cancel
+        screen.on_key('o');choose("Delete conversation");
+        CHECK(active(active,screen.root())=="Cancel");screen.on_back();
+        CHECK(vm.messages().size()==1 && vm.draft("ch:usability")=="Return Before Dark");
+        // New traffic while confirmation is open cannot redirect deletion to another message.
+        screen.on_up();screen.on_enter();choose("Delete message");
+        CHECK(active(active,screen.root())=="Cancel");capture("message-delete-confirm.png");
+        auto newer=m;newer.id="newer";newer.text="Another check-in";newer.time=2;
+        vm.set_messages({m,newer});screen.on_down();screen.on_enter();
+        CHECK(vm.messages().size()==1 && vm.messages()[0].id=="newer");
+        CHECK(vm.draft("ch:usability")=="Return Before Dark");
+        screen.on_key('o');choose("Clear history");screen.on_down();screen.on_enter();
+        CHECK(vm.messages().empty() && !vm.draft("ch:usability").empty());
+        screen.on_key('o');choose("Delete conversation");screen.on_down();screen.on_enter();
+        CHECK(vm.draft("ch:usability").empty());
+        CHECK(sent.back().str_at("intent")!="message.send");
+    }
+}
+
+
+
+static void guide_picker_capture(const char* screenshot_path) {
+    if (!screenshot_path) return;
+    viewmodel::BaseViewModel vm;app::AssetManager assets;
+    vm.set_command_sink([](const std::string&){return true;});vm.set_connected(true);
+    vm.apply_status("online","US","Synthetic");vm.apply_health("transmit","");
+    vm.set_channels({{1,"Field",true,"PRIMARY",0,"guide-field"},{2,"Public",false,"SECONDARY",0,"guide-public"}});
+    viewmodel::NodeInfo peer;peer.id="!10000001";peer.name="Field partner";vm.set_nodes({peer});
+    const auto capture=[&](const char* name,lv_obj_t* root){save_png((std::filesystem::path(screenshot_path).parent_path()/name).c_str(),root);};
+    {screen::MessagesScreen screen(vm,assets);lv_screen_load(screen.root());screen.on_enter();capture("guide-new-picker.png",screen.root());}
+    vm.set_dm_target(peer.id,peer.name);
+    {screen::MessagesScreen screen(vm,assets);lv_screen_load(screen.root());capture("guide-dm-channel.png",screen.root());screen.on_enter();screen.on_enter();CHECK(textarea(screen.root()));lv_textarea_set_text(textarea(screen.root()),"On my way.");capture("guide-dm-compose.png",screen.root());}
+}
+
+static void setup_clarity_regression(const char* screenshot_path) {
+    viewmodel::BaseViewModel vm;app::AssetManager assets;json::Value sent;
+    vm.set_command_sink([&](const std::string& text){CHECK(json::parse(text,sent));return true;});
+    vm.set_connected(true);screen::SettingsScreen settings(vm,assets);lv_screen_load(settings.root());
+    const auto reply = [&](const std::string& body) {
+        json::Value event;CHECK(json::parse("{\"id\":\""+sent.str_at("id")+"\","+body+"}",event));vm.apply_service(event);
+    };
+    const auto capture = [&](const char* name) {
+        if(screenshot_path)save_png((std::filesystem::path(screenshot_path).parent_path()/name).c_str(),settings.root());
+    };
+    const auto open = [&] {
+        select_setting(settings,"Saved mesh setups");settings.on_enter();CHECK(sent.str_at("intent")=="profile.list");
+        reply(R"("event":"profile.list","profiles":[{"id":"synthetic-profile","name":"Field trip"}])");
+        settings.on_down();settings.on_enter();CHECK(sent.str_at("intent")=="profile.preview");
+        reply(R"("event":"profile.preview","name":"Field trip","region":"US","preset":"LONG_FAST","slot":20,"channels":[{"index":0,"name":"Field","private":true}])");
+    };
+    open();CHECK(labels(settings.root()).find("Apply leaves Radio and sharing Off")!=std::string::npos);
+    capture("saved-setup-preview.png");
+    auto before=sent.str_at("id");settings.on_enter();CHECK(sent.str_at("id")==before); // Cancel
+    open();settings.on_down();settings.on_down();settings.on_enter(); // Delete opens confirmation
+    CHECK(labels(settings.root()).find("Cannot undo")!=std::string::npos);capture("saved-setup-delete.png");
+    before=sent.str_at("id");settings.on_enter();CHECK(sent.str_at("id")==before); // Cancel first
+    open();settings.on_down();settings.on_down();settings.on_enter();settings.on_down();settings.on_enter();
+    CHECK(sent.str_at("intent")=="profile.delete" && sent.str_at("profile")=="synthetic-profile");
+    settings.on_back();open();settings.on_down();settings.on_enter();
+    CHECK(sent.str_at("intent")=="profile.apply" && sent.str_at("profile")=="synthetic-profile");
+    settings.on_back();select_setting(settings,"Diagnostics");settings.on_enter();settings.on_enter();
+    CHECK(sent.str_at("intent")=="diagnostics.get");
+    reply(R"("event":"diagnostics","app":"0.1.15","daemon":"synthetic","client":"synthetic","gps_age":-1,"gps_satellites":-1,"last_rx_age":-1,"firewall":{"ok":true})");
+    CHECK(labels(settings.root()).find("GPS age: Unknown")!=std::string::npos);
+    CHECK(labels(settings.root()).find("GPS satellites: Unknown")!=std::string::npos);
+    CHECK(labels(settings.root()).find("Last radio reception: Unknown")!=std::string::npos);
+    CHECK(labels(settings.root()).find("-1")==std::string::npos);capture("diagnostics-unknown.png");
+}
+
 int main(int argc, char** argv) {
     settings_file_regression();
     json::Value v;
@@ -672,6 +783,9 @@ int main(int argc, char** argv) {
     platform::SupervisorClientTest::queue_bounds();
     platform::SupervisorClientTest::partial_frame();
     lv_init(); auto* display = lv_display_create(320, 170); CHECK(display);
+    usability_regression(argc > 1 ? argv[1] : nullptr);
+    setup_clarity_regression(argc > 1 ? argv[1] : nullptr);
+    guide_picker_capture(argc > 1 ? argv[1] : nullptr);
     maintenance_data_regression();
     unchanged_thread_regression();
     dual_channel_ui_regression(argc > 1 ? argv[1] : nullptr);

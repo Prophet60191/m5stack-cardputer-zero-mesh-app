@@ -848,6 +848,12 @@ void BaseViewModel::apply_setup(const json::Value& event) {
     else apply_service(event);
 }
 std::vector<ConversationRow> BaseViewModel::conversation_rows(const std::string& search) const {
+    const auto fold = [](std::string text) {
+        for (char& c : text) if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+        return text;
+    };
+    const auto query = fold(search);
+    const auto matches = [&](const std::string& text) { return fold(text).find(query) != std::string::npos; };
     struct Item { ConversationRow row; bool pinned = false; bool match = false; };
     std::vector<Item> items;
     items.reserve(messages_.size() + drafts_.size());
@@ -883,7 +889,7 @@ std::vector<ConversationRow> BaseViewModel::conversation_rows(const std::string&
         if (message.time >= item.row.last_time) {
             item.row.last_time = message.time; item.row.preview = message.text;
         }
-        if (!search.empty() && message.text.find(search) != std::string::npos) item.match = true;
+        if (!search.empty() && matches(message.text)) item.match = true;
     }
     // The first nonempty draft in map order has the same precedence as
     // conversation_draft(), including channel-qualified DM drafts.
@@ -905,7 +911,7 @@ std::vector<ConversationRow> BaseViewModel::conversation_rows(const std::string&
         if (draft != drafts.end()) items[slot].row.preview = "Draft: " + draft->second;
     }
     if (!search.empty()) items.erase(std::remove_if(items.begin(),items.end(),[&](const Item& item) {
-        return !item.match && item.row.name.find(search) == std::string::npos && item.row.preview.find(search) == std::string::npos;
+        return !item.match && !matches(item.row.name) && !matches(item.row.preview);
     }),items.end());
     std::stable_sort(items.begin(),items.end(),[](const Item& a,const Item& b) {
         if (a.pinned != b.pinned) return a.pinned;

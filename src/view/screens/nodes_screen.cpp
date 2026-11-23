@@ -103,6 +103,7 @@ void NodesScreen::build_content(lv_obj_t* content) {
     lv_obj_set_style_pad_all(list_, 4, 0);
     lv_obj_clear_flag(list_, LV_OBJ_FLAG_SCROLL_ELASTIC);
     lv_obj_clear_flag(list_, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+    view::widgets::style_list_scrollbar(list_, view::palette(view_model().is_dark_mode()));
     lv_subject_add_observer_obj(view_model().nodes_version_subject(), on_change, list_, this);
     lv_subject_add_observer_obj(view_model().clock_subject(), on_clock, list_, this);
 }
@@ -313,6 +314,7 @@ void NodesScreen::open_detail() {
     lv_obj_set_style_pad_all(detail_, 8, 0);
     lv_obj_set_style_pad_row(detail_, 4, 0);
     lv_obj_clear_flag(detail_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    view::widgets::style_list_scrollbar(detail_, colors);
 
     detail_heading_ = lv_label_create(detail_);
     lv_obj_set_style_text_font(detail_heading_, title_font, 0);

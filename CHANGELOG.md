@@ -372,3 +372,31 @@ process-death recovery, firewall refusal and warm-reboot persistence passed. The
 operator's private profile is unchanged; no public RF test messages were sent.
 See [the verification record](docs/review-remediation.md) for remaining peer,
 GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
+
+## 2026-11-18 — Deferred official keyboard-alignment follow-up
+
+- Log the owner's requested future review in docs/keyboard-alignment-follow-up.md
+  and project orientation/work notes. Compare current official guidance with app
+  behavior; document and justify any adaptation or intentional departure.
+- Pending work only: no per-app alignment conclusion, implementation change,
+  test execution, device operation or migration is claimed by this log.
+
+## 0.1.15 candidate — 2026-11-22 — Everyday-use refinement
+
+- Add Cancel-first irreversible deletion prompts for history, chats, individual
+  messages and saved setups, retaining stable targets through live updates.
+- Explain radio modes and delivery results in ordinary language; distinguish
+  mesh acknowledgment, recipient receipt and read receipts in message details.
+- Improve value/secondary text contrast and outgoing bubbles in both themes;
+  preserve the chosen home carousel appearance and motion.
+- Group the existing channel form, skip headings during navigation, keep Save
+  visible and identify whole-radio and public/internet sharing consequences.
+- Clarify saved setups versus channel management/viewing; explain applying a
+  setup leaves Radio/sharing Off. Keep all transmission/privacy safeguards.
+- Ignore English-letter capitalization in conversation search; add hollow/filled
+  map freshness cues and human-readable unknown diagnostic values.
+- Add overflow-only list markers, bound long setting values, wrap Settings/option
+  navigation, and explain background radio behavior when exiting.
+- Update illustrated user guides, synthetic screenshots, quick reference and
+  reusable app-guide interaction lessons. See docs/usability-refinement.md for
+  exact validation scope and device qualification status.

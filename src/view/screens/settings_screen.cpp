@@ -32,22 +32,22 @@ constexpr SettingRow kRows[] = {
     {S_ModemPreset, "Modem preset", ""},
     {S_FrequencySlot, "Frequency slot", ""},
     {S_HopLimit, "Hop limit", ""},
-    {S_MeshProfiles, "Mesh profiles", "Channels & node"},
-    {S_ChannelManager, "Channel manager", ""},
+    {S_MeshProfiles, "Saved mesh setups", "Channels & node"},
+    {S_ChannelManager, "Manage channels", ""},
     {S_AddChannel, "Add a channel", ""},
-    {S_Channels, "Channels", ""},
+    {S_Channels, "View channels", ""},
     {S_NodeName, "Node name", ""},
     {S_GpsReceiver, "GPS receiver", "Location & Internet"},
     {S_SharePosition, "Share position", ""},
-    {S_Mqtt, "Internet (MQTT)", ""},
+    {S_Mqtt, "Internet forwarding", ""},
     {S_QuickMessages, "Quick messages", "Messages"},
-    {S_MessageAcks, "Message acks", ""},
+    {S_MessageAcks, "Delivery confirmations", ""},
     {S_ShowSignal, "Signal on messages", ""},
     {S_SaveConversations, "Save conversations", ""},
     {S_Retention, "Keep per chat", ""},
     {S_MuteAll, "Mute all", "Notifications"},
     {S_QuietHours, "Quiet hours", ""},
-    {S_Theme, "Theme", "App & setup"},
+    {S_Theme, "Appearance", "App & setup"},
     {S_FirstRun, "First-run setup", ""},
     {S_Diagnostics, "Diagnostics", ""},
     {S_About, "About", ""},
@@ -129,9 +129,19 @@ std::string SettingsScreen::value_for(int row) {
         if (state != "confirmed") return state == "pending" ? "Pending..." : "Unknown";
     }
     switch (row) {
-        case S_Radio: return s_of(view_model().radio_state_subject()) + " " + view_model().radio_mode();
-        case S_FirstRun: return view_model().setup().str_at("mode");
-        case S_TransmitMode: return view_model().radio_mode();
+        case S_Radio: {
+            const auto state = s_of(view_model().radio_state_subject());
+            if (state != "online") return state;
+            return view_model().radio_mode() == "transmit" ? "Send & receive" :
+                   view_model().radio_mode() == "receive-only" ? "Listen only" : "Mode unknown";
+        }
+        case S_FirstRun: {
+            const auto* ready = view_model().setup().find("ready");
+            return !ready ? "Not checked" : ready->as_bool() ? "Ready" : "Needs setup";
+        }
+        case S_TransmitMode: return view_model().radio_mode() == "transmit" ? "Send & receive" :
+                                    view_model().radio_mode() == "receive-only" ? "Listen only" :
+                                    view_model().radio_mode() == "off" ? "Off" : "Unknown";
         case S_SaveConversations: return view_model().history_enabled() ? "On" : "Off";
         case S_QuietHours: return view_model().quiet_start() < 0 ? "Off" : "Scheduled";
         case S_GpsReceiver: return s_of(view_model().gps_mode_subject());
@@ -172,6 +182,7 @@ void SettingsScreen::rebuild() {
     const lv_font_t* font = assets().load_standard_font(14, app::StandardFontWeight::Regular);
     if (!font) font = &lv_font_montserrat_14;
 
+    view::widgets::style_list_scrollbar(list_, colors);
     lv_obj_t* sel_row = nullptr;
     for (int i = 0; i < kRowCount; ++i) {
         if (kRows[i].section[0]) {
@@ -205,8 +216,12 @@ void SettingsScreen::rebuild() {
         auto* val = lv_label_create(row);
         value_labels_.push_back(val);
         lv_label_set_text(val, value.c_str());
+        lv_obj_set_width(val, 0);
+        lv_obj_set_flex_grow(val, 1);
+        lv_label_set_long_mode(val, LV_LABEL_LONG_DOT);
+        lv_obj_set_style_text_align(val, LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_text_font(val, font, 0);
-        lv_obj_set_style_text_color(val, colors.text_disabled, 0);
+        lv_obj_set_style_text_color(val, colors.text, 0);
     }
     lv_obj_update_layout(list_);
     if (sel_row) lv_obj_scroll_to_view(sel_row, LV_ANIM_OFF);
@@ -347,6 +362,7 @@ void SettingsScreen::rebuild_picker() {
     const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
     if (!font) font = &lv_font_montserrat_14;
 
+    view::widgets::style_list_scrollbar(overlay_obj_, colors);
     auto* head = lv_label_create(overlay_obj_);
     lv_obj_set_width(head, lv_pct(100));
     lv_label_set_long_mode(head, LV_LABEL_LONG_WRAP);
@@ -367,6 +383,7 @@ void SettingsScreen::rebuild_picker() {
         lv_obj_set_flex_grow(rows_parent, 1);
         lv_obj_set_flex_flow(rows_parent, LV_FLEX_FLOW_COLUMN);
         lv_obj_clear_flag(rows_parent, LV_OBJ_FLAG_SCROLL_ELASTIC);
+        view::widgets::style_list_scrollbar(rows_parent, colors);
         if (pending_ == "flow:form" || pending_ == "flow:confirm") {
             auto *action = lv_label_create(overlay_obj_);
             lv_label_set_text(action, pending_ == "flow:form" && channel_draft_.profile_only
@@ -381,6 +398,12 @@ void SettingsScreen::rebuild_picker() {
         picker_rows_.push_back(row);
         lv_label_set_text(row, options_[i].c_str());
         lv_obj_set_style_text_font(row, font, 0);
+        if (pending_ == "flow:form" && channel_fields_order_[i] < 0) {
+            lv_obj_set_style_text_color(row, channel_fields_order_[i] == -2 ? colors.primary : colors.text, 0);
+            lv_obj_set_style_pad_top(row, 7, 0);
+            lv_obj_set_width(row, lv_pct(100));
+            continue;
+        }
         lv_obj_set_width(row, lv_pct(100));
         lv_obj_set_style_pad_ver(row, 3, 0);
         lv_obj_set_style_pad_hor(row, 4, 0);
@@ -395,7 +418,24 @@ void SettingsScreen::rebuild_picker() {
         }
     }
     lv_obj_update_layout(overlay_obj_);
-    if (sel) lv_obj_scroll_to_view(sel, LV_ANIM_OFF);
+    if (sel) {
+        lv_obj_scroll_to_view(sel, LV_ANIM_OFF);
+        if (pending_ == "flow:form" && opt_sel_ > 0 && channel_fields_order_[opt_sel_ - 1] == -2)
+            lv_obj_scroll_to_view(picker_rows_[opt_sel_ - 1], LV_ANIM_OFF);
+    }
+}
+
+void SettingsScreen::move_picker(int direction) {
+    const int count = static_cast<int>(options_.size());
+    if (!count) return;
+    int next = opt_sel_;
+    for (int checked = 0; checked < count; ++checked) {
+        next = (next + direction + count) % count;
+        if (pending_ == "flow:form" && channel_fields_order_[next] < 0) continue;
+        if (pending_.rfind("flow:", 0) == 0) select_picker(next);
+        else { opt_sel_ = next; rebuild_picker(); }
+        return;
+    }
 }
 
 void SettingsScreen::select_picker(int index) {
@@ -416,6 +456,8 @@ void SettingsScreen::select_picker(int index) {
     lv_obj_set_style_bg_color(row, colors.button, 0);
     lv_obj_set_style_text_color(row, colors.primary, 0);
     lv_obj_scroll_to_view(row, LV_ANIM_OFF);
+    if (pending_ == "flow:form" && index > 0 && channel_fields_order_[index - 1] == -2)
+        lv_obj_scroll_to_view(picker_rows_[index - 1], LV_ANIM_OFF);
 }
 
 void SettingsScreen::open_text(const std::string& title, const std::string& initial,
@@ -444,6 +486,14 @@ void SettingsScreen::open_text(const std::string& title, const std::string& init
     lv_obj_set_style_text_color(head, colors.text, 0);
 
     input_ = lv_textarea_create(overlay_obj_);
+
+    lv_obj_set_style_bg_color(input_, colors.surface, 0);
+    lv_obj_set_style_bg_opa(input_, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(input_, colors.text, 0);
+    lv_obj_set_style_text_color(input_, colors.text_disabled, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_border_color(input_, colors.border, 0);
+    lv_obj_set_style_bg_color(input_, colors.text, LV_PART_CURSOR);
+    lv_obj_set_style_border_color(input_, colors.text, LV_PART_CURSOR);
     lv_textarea_set_one_line(input_, true);
     lv_textarea_set_text(input_, initial.c_str());
     lv_obj_set_width(input_, lv_pct(100));
@@ -471,6 +521,7 @@ void SettingsScreen::open_info(const std::string& title, std::vector<std::string
     lv_obj_set_style_pad_all(overlay_obj_, 8, 0);
     lv_obj_set_style_pad_row(overlay_obj_, 3, 0);
     lv_obj_clear_flag(overlay_obj_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    view::widgets::style_list_scrollbar(overlay_obj_, colors);
     const lv_font_t* title_font = assets().load_standard_font(15);
     if (!title_font) title_font = &lv_font_montserrat_16;
     const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
@@ -638,19 +689,11 @@ void SettingsScreen::on_up() {
         return;
     }
     if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
-        if (opt_sel_ > 0) {
-            if (pending_.rfind("flow:", 0) == 0)
-                select_picker(opt_sel_ - 1);
-            else {
-                --opt_sel_;
-                rebuild_picker();
-            }
-        }
+        move_picker(-1);
         return;
     }
     if (overlay_mode_ != Overlay::None) return;
-    if (selected_ > 0)
-        select_setting(selected_ - 1);
+    select_setting((selected_ + kRowCount - 1) % kRowCount);
 }
 
 void SettingsScreen::on_down() {
@@ -660,19 +703,11 @@ void SettingsScreen::on_down() {
         return;
     }
     if (overlay_mode_ == Overlay::Picker || overlay_mode_ == Overlay::Canned) {
-        if (opt_sel_ < static_cast<int>(options_.size()) - 1) {
-            if (pending_.rfind("flow:", 0) == 0)
-                select_picker(opt_sel_ + 1);
-            else {
-                ++opt_sel_;
-                rebuild_picker();
-            }
-        }
+        move_picker(1);
         return;
     }
     if (overlay_mode_ != Overlay::None) return;
-    if (selected_ < kRowCount - 1)
-        select_setting(selected_ + 1);
+    select_setting((selected_ + 1) % kRowCount);
 }
 
 void SettingsScreen::on_enter() {
@@ -762,25 +797,27 @@ void SettingsScreen::service_result() {
             service_items_.push_back(c);
             rows.push_back(std::to_string(c.int_at("index")) + ": " + c.str_at("name", "Default") + " " + c.str_at("role") + (flag(c,"private") ? " Private" : " Public"));
         }
-        open_picker("Channel manager", rows, "slots", 0);
+        open_picker("Manage channels", rows, "slots", 0);
     } else if (route == "profiles") {
         service_items_.clear(); std::vector<std::string> rows = {"+ Save current as profile"};
         if (const auto* a = event.find("profiles")) for (const auto& profile : a->arr) { service_items_.push_back(profile); rows.push_back(profile.str_at("name")); }
         open_picker("Local mesh profiles (keys saved privately)", rows, "profiles", 0);
     } else if (route == "preview") {
         std::string title = event.str_at("name") + " / " + event.str_at("region") + " / " + event.str_at("preset") + " / slot " + std::to_string(event.int_at("slot"));
-        std::vector<std::string> rows = {"Cancel", "Apply: radio Off, TX/location/MQTT Off", "Delete saved profile"};
+        std::vector<std::string> rows = {"Cancel", "Apply: radio & sharing stay Off", "Delete saved profile"};
         if (const auto* a = event.find("channels")) for (const auto& c : a->arr) rows.push_back(std::to_string(c.int_at("index")) + ": " + c.str_at("name") + (flag(c,"private") ? " [Private]" : " [Public]"));
-        open_picker(title, rows, "profile-action", 0);
+        open_picker(title + "\nApply leaves Radio and sharing Off.", rows, "profile-action", 0);
     } else if (route == "diagnostics") {
-        std::vector<std::string> rows = {"App: " + event.str_at("app"), "Daemon: " + event.str_at("daemon"), "Client: " + event.str_at("client"), "Radio: " + event.str_at("radio") + " / " + event.str_at("mode"),
+        std::vector<std::string> rows = {"App: " + event.str_at("app"), "Daemon: " + event.str_at("daemon"), "Client: " + event.str_at("client"), "Radio: " + event.str_at("radio", "Unknown") + " / " + event.str_at("mode", "Unknown"),
             "API: " + std::string(flag(event,"api_connected") ? "connected" : "disconnected"), "Camera: " + std::string(flag(event,"camera_available") ? "available" : "unavailable"),
             std::string("Position: ") + (!flag(event,"position_valid") ? "no fix" : (flag(event,"position_fresh") ? "fresh" : "stale/unknown age")),
-            "GPS age: " + std::to_string(event.int_at("gps_age", -1)) + "s (-1=unknown)", "GPS satellites: " + std::to_string(event.int_at("gps_satellites", -1)), "Last RX age: " + std::to_string(event.int_at("last_rx_age", -1)) + "s",
+            "GPS age: " + (event.int_at("gps_age", -1) < 0 ? std::string("Unknown") : std::to_string(event.int_at("gps_age")) + "s"),
+            "GPS satellites: " + (event.int_at("gps_satellites", -1) < 0 ? std::string("Unknown") : std::to_string(event.int_at("gps_satellites"))),
+            "Last radio reception: " + (event.int_at("last_rx_age", -1) < 0 ? std::string("Unknown") : std::to_string(event.int_at("last_rx_age")) + "s ago"),
             "History: " + std::to_string(event.int_at("history_count")), view_model().radio_detail()};
         const auto* fw = event.find("firewall"); rows.push_back(std::string("Firewall: ") + (fw && flag(*fw,"ok") ? "healthy" : "FAILED"));
         open_info("Diagnostics", rows);
-    } else { open_info("Complete", {"Saved and confirmed.", "Profile/setup changes leave the radio Off in receive-only mode."}); }
+    } else { open_info("Complete", {"Saved and confirmed."}); }
     rebuild();
 }
 bool SettingsScreen::extended_picker(const std::string& input, int choice) {
@@ -822,7 +859,11 @@ bool SettingsScreen::extended_picker(const std::string& input, int choice) {
         if (!choice) { close_overlay(); open_text("Save profile name (max 48 bytes)", "", "profile-save"); }
         else if (choice-1 < static_cast<int>(service_items_.size())) { profile_id_ = service_items_[choice-1].str_at("id"); request_service("preview", "profile.preview", ",\"profile\":" + qstr(profile_id_)); }
     } else if (pending == "profile-action") {
-        close_overlay(); if (choice == 1 || choice == 2) request_service(choice == 1 ? "setup" : "profiles", choice == 1 ? "profile.apply" : "profile.delete", ",\"confirmed\":true,\"profile\":" + qstr(profile_id_));
+        close_overlay();
+        if (choice == 1) request_service("setup", "profile.apply", ",\"confirmed\":true,\"profile\":" + qstr(profile_id_));
+        else if (choice == 2) open_picker("Delete saved setup? Cannot undo.\nYour active radio setup stays unchanged.", {"Cancel", "Delete saved setup"}, "profile-delete-confirm", 0);
+    } else if (pending == "profile-delete-confirm") {
+        close_overlay(); if (choice == 1) request_service("profiles", "profile.delete", ",\"confirmed\":true,\"profile\":" + qstr(profile_id_));
     } else if (pending == "diagnostics") {
         request_service("diagnostics", choice ? "diagnostics.export" : "diagnostics.get");
     } else if (pending == "history") {

@@ -31,13 +31,14 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.14, a release candidate** with public/private channel
-support and fixes from an independent security and robustness review. Native UI,
-sanitizer, backend and Debian arm64 package checks pass. Private-peer delivery,
-camera QR and physical cold-power checks passed. Outdoor GPS, live public-mesh
-delivery and other remaining device checks are documented in the
-[verification record](docs/review-remediation.md); the candidate is not a claim
-that all hardware qualification is complete.
+The current source is **0.1.15, a release candidate** with public/private channel
+support, clearer delivery results, grouped setup forms, readable values and
+Cancel-first deletion. See the [current refinement record](docs/usability-refinement.md)
+for this candidate's verification and limits. Private-peer delivery, camera QR
+and physical cold-power results belong to earlier qualified candidates; this
+update does not repeat those claims. Outdoor GPS, live public-mesh delivery and
+other remaining device checks are documented in the
+[verification record](docs/review-remediation.md).
 
 > **Meshtastic&reg; is a registered trademark of Meshtastic LLC.** This is an independent, community project and
 > is not affiliated with or endorsed by Meshtastic LLC or M5Stack.
@@ -66,9 +67,9 @@ are available for offline use and printing.
 
 - **Threaded messaging** — a conversation per channel and per node, with mesh versus recipient acknowledgments, unconfirmed sends and failure reasons and **resend** for the ones the mesh drops.
 - **First-run setup** — select a region and public/private primary channel; initialize receive-only, then explicitly enable TX with antenna confirmation. Requires the qualified meshtasticd 2.7.26 build and client 2.7.11.
-- **Durable chats** — bounded private SQLite history, identity-bound drafts, pinned chats, case-sensitive conversation search (`/`), and local-time quiet hours. Saved history can be disabled and erased.
-- **Complete channel setup** — scan/paste/create in one form with tuning, privacy, optional named profile, review and verified Save. Prepare while Off or save a separate profile without retuning; open the resulting conversation directly.
-- **Channel manager and mesh profiles** — create/rename/rotate/enable/disable/remove channels with actual readback; preview and apply named local profiles while Off. Profile application leaves TX, location and MQTT Off.
+- **Durable chats** — bounded private SQLite history, identity-bound drafts, pinned chats, English case-insensitive conversation search (`/`), and local-time quiet hours. Saved history can be disabled and erased.
+- **Complete channel setup** — scan/paste/create in one form with tuning, privacy, optional named profile, grouped fields and verified Save. Prepare while Off or save a separate profile without retuning; open the resulting conversation directly.
+- **Manage channels and saved mesh setups** — create/rename/rotate/enable/disable/remove channels with actual readback; preview and apply named local profiles while Off. Profile application leaves TX, location and MQTT Off.
 - **Diagnostics** — current connection, firewall, versions and GPS age; optional sanitized export excludes keys, chats, IDs and coordinates.
 - **Quick messages** — one-key canned replies ("OK", "On my way", "Need help"&hellip;), editable in Settings.
 - **Nodes & Map** — who's on the mesh, signal, battery, last-heard, distance; a you-centred radar map.
@@ -128,7 +129,7 @@ separate supervisor is a Mesh choice rather than a requirement for every app.
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.14-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.15-rev1_arm64.deb
 # The qualified Debian build used for this candidate:
 sudo apt install 'meshtasticd=2.7.26.61~obs54e0d8d~beta'
 ```

@@ -4,6 +4,16 @@
 #include <vector>
 
 namespace view::widgets {
+// AUTO is LVGL's overflow-only scrollbar; style it after removing default styles.
+inline void style_list_scrollbar(lv_obj_t* list, const ThemePalette& colors) {
+    lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_scroll_dir(list, LV_DIR_VER);
+    lv_obj_set_style_width(list, 3, LV_PART_SCROLLBAR);
+    lv_obj_set_style_bg_color(list, colors.primary, LV_PART_SCROLLBAR);
+    lv_obj_set_style_bg_opa(list, LV_OPA_COVER, LV_PART_SCROLLBAR);
+    lv_obj_set_style_radius(list, 2, LV_PART_SCROLLBAR);
+    lv_obj_set_style_pad_right(list, 6, 0); // keep text clear of the position marker
+}
 // Shared list appearance only. Each screen retains its own identity/navigation state.
 inline void style_list_row(lv_obj_t *row, const ThemePalette &colors, bool selected) {
     if (!selected) {

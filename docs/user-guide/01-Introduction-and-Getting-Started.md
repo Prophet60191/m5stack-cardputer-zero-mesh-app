@@ -1,6 +1,6 @@
 # Introduction & Getting Started
 
-> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.15 (release candidate)** · Updated **2026-11-22** · [Guide index](README.md)
 
 Welcome to the **Cardputer Zero Mesh App**! This app turns your M5Stack CardputerZero and its LoRa radio Cap into a pocket-sized, off-grid communicator using the **Meshtastic** mesh network.
 
@@ -48,8 +48,8 @@ From left to right, the bar at the top tells you what the radio is doing at a gl
 - **Radio Dot & Mode:**
   - **Grey (`off`):** The radio is powered down.
   - **Yellow (`starting`):** The radio is warming up and checking its settings.
-  - **Green (`RX`):** The radio is on in **Receive-Only** mode—you can listen and see nodes, without sending anything over the air.
-  - **Green (`TX/RX`):** The radio is on and ready to both **send and receive**.
+  - **Green (`RX` — Listen only):** The radio is on in **Receive-Only** mode—you can listen and see nodes, without sending anything over the air.
+  - **Green (`TX/RX` — Send & receive):** The radio is on and ready to both **send and receive**.
   - **Green (`Online ?`):** The service reports Online, but the receive/transmit mode is unconfirmed. Check Diagnostics before sending.
   - **Red (`error`):** The radio stopped because something went wrong (a banner or Settings will explain why).
   - **Grey (`unknown`):** Shown briefly if the app is still connecting to the background radio service.

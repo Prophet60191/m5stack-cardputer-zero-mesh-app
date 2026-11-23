@@ -65,3 +65,20 @@ instruction. Leave Surveyor code and shared hardware ownership intact.
 GPS dongle support is the next separate task; do not claim automatic USB priority
 or a qualified outdoor GPS fix. Establish receiver model/interface and explicit
 source/fallback behavior before implementation.
+
+## Deferred keyboard-alignment review — 2026-11-18
+
+Owner requested a follow-up log only. See
+[the pending review](docs/keyboard-alignment-follow-up.md): compare this app with
+current official guidance/input implementation and justify any differences with
+reasons, tradeoffs and evidence. Alignment has not been newly established. Resume
+when the owner asks; no keyboard changes or device tests are authorized by this note.
+
+## Everyday-use refinement — 2026-11-22
+
+The 0.1.15 candidate and current validation are documented in
+[the refinement record](docs/usability-refinement.md). Preserve its Cancel-first
+deletion, stable action targets, grouped form, truthful delivery/mode wording,
+readable values and explicit profile application consequences. Do not infer new
+radio/privacy defaults from presentation changes. Keep ADB enabled. Device
+installation/qualification belongs in that record, separate from offline tests.

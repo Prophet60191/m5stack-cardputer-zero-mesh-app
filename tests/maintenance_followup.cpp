@@ -275,9 +275,9 @@ static void public_channel_flow() {
     vm.apply_health("receive-only", "");
     vm.apply_status("online", "US", "Synthetic");
     screen::SettingsScreen screen(vm, assets);
-    for (int i = 0; i < 26 && selected_row(screen.root()) != "Channel manager"; ++i)
+    for (int i = 0; i < 26 && selected_row(screen.root()) != "Manage channels"; ++i)
         screen.on_down();
-    CHECK(selected_row(screen.root()) == "Channel manager");
+    CHECK(selected_row(screen.root()) == "Manage channels");
     screen.on_enter();
     CHECK(sent.str_at("intent") == "channel.slots");
     vm.apply_service(

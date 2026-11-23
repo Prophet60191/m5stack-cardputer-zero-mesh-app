@@ -1,6 +1,6 @@
 # Quick Reference Card
 
-> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.15 (release candidate)** · Updated **2026-11-22** · [Guide index](README.md)
 
 ## Hardware Safety Rules
 
@@ -19,7 +19,7 @@
 
 | Screen | Extra keys |
 |---|---|
-| **Messages list** | **/** Search (case-sensitive); **ESC** clears search, then returns Home |
+| **Messages list** | **/** Search (A/a match); **ESC** clears search, then returns Home |
 | **Inside a chat** | **Enter** Write / act on selected bubble; **q** Quick message; **o** Thread options; **F / X** Select bubbles |
 | **Nodes** | **Enter** Details; **s** Favorite; **m** DM; **Tab** All / Favorites / Active |
 | **Map** | North-up; dots are not selectable. Use Nodes for details. **ESC** returns Home. |
@@ -44,9 +44,9 @@
 | Status | Meaning |
 |---|---|
 | **sending…** | Queued / sending; awaiting confirmation (up to 60 s) |
-| **Mesh ACK** | Another mesh radio acknowledged the packet |
-| **Recipient ACK** | Recipient radio confirmed the DM; `direct` / `2h` describes hops |
-| **Sent (unconfirmed)** | Sent with Message acks Off |
+| **Mesh confirmed** | Another mesh radio acknowledged the packet |
+| **Recipient received** | Recipient radio confirmed the DM; `direct` / `2h` describes hops |
+| **Receipt unconfirmed** | Sent with Delivery confirmations Off |
 | **✗ failed** | Timeout, rejection or radio stopped. Select the bubble → Enter → Details / Resend |
 
 **An ACK is not a read receipt.** A timeout can still mean the message arrived; a retry may repeat it. Failed sends are not replayed automatically.

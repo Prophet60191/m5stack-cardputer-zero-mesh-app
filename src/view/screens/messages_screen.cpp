@@ -54,9 +54,9 @@ enum {
 std::string status_text(int s) {
     switch (s) {
         case viewmodel::kMsgSending: return "sending\xE2\x80\xA6";  // sending…
-        case viewmodel::kMsgDelivered: return "Recipient ACK";  // ✓ delivered
-        case viewmodel::kMsgMesh: return "Mesh ACK";
-        case viewmodel::kMsgSent: return "Sent (unconfirmed)";
+        case viewmodel::kMsgDelivered: return "Recipient received";  // ✓ delivered
+        case viewmodel::kMsgMesh: return "Mesh confirmed";
+        case viewmodel::kMsgSent: return "Receipt unconfirmed";
         case viewmodel::kMsgFailed: return "\xE2\x9C\x97 failed";    // ✗ failed
         default: return "";
     }
@@ -84,6 +84,7 @@ void MessagesScreen::build_content(lv_obj_t* content) {
     lv_obj_set_style_pad_all(body_, 4, 0);
     lv_obj_clear_flag(body_, LV_OBJ_FLAG_SCROLL_ELASTIC);
     lv_obj_clear_flag(body_, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+    view::widgets::style_list_scrollbar(body_, view::palette(view_model().is_dark_mode()));
 
     const auto colors = view::palette(view_model().is_dark_mode());
     const lv_font_t* font = assets().load_standard_font(12, app::StandardFontWeight::Regular);
@@ -113,6 +114,14 @@ void MessagesScreen::build_content(lv_obj_t* content) {
     lv_obj_align(hint_, LV_ALIGN_LEFT_MID, 4, 0);
 
     input_ = lv_textarea_create(bar_);
+
+    lv_obj_set_style_bg_color(input_, colors.surface, 0);
+    lv_obj_set_style_bg_opa(input_, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(input_, colors.text, 0);
+    lv_obj_set_style_text_color(input_, colors.text_disabled, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_border_color(input_, colors.border, 0);
+    lv_obj_set_style_bg_color(input_, colors.text, LV_PART_CURSOR);
+    lv_obj_set_style_border_color(input_, colors.text, LV_PART_CURSOR);
     lv_obj_add_event_cb(input_, draft_changed, LV_EVENT_VALUE_CHANGED, this);
     lv_textarea_set_max_length(input_, 200);
     lv_textarea_set_one_line(input_, true);
@@ -410,7 +419,7 @@ void MessagesScreen::rebuild_thread() {
         lv_obj_set_style_radius(bubble, 10, 0);
         lv_obj_set_style_pad_all(bubble, 7, 0);
         lv_obj_set_style_bg_opa(bubble, LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_color(bubble, m.outgoing ? colors.primary : colors.button, 0);
+        lv_obj_set_style_bg_color(bubble, m.outgoing ? (view_model().is_dark_mode() ? colors.primary : lv_color_hex(0x087c3a)) : colors.button, 0);
         if (selected) {
             lv_obj_set_style_border_width(bubble, 2, 0);
             lv_obj_set_style_border_color(bubble, colors.error, 0);
@@ -438,7 +447,7 @@ void MessagesScreen::rebuild_thread() {
         lv_obj_set_width(text, LV_SIZE_CONTENT);
         lv_obj_set_style_max_width(text, 212, 0);
         lv_obj_set_style_text_font(text, text_font, 0);
-        lv_obj_set_style_text_color(text, m.outgoing ? lv_color_white() : colors.text, 0);
+        lv_obj_set_style_text_color(text, m.outgoing ? (view_model().is_dark_mode() ? colors.background : lv_color_white()) : colors.text, 0);
 
         // Footer: time (+ delivery status for our own messages).
         std::string footer;
@@ -461,6 +470,8 @@ void MessagesScreen::rebuild_thread() {
         if (!footer.empty()) {
             auto* f = lv_label_create(col);
             lv_label_set_text(f, footer.c_str());
+            lv_obj_set_style_max_width(f, 228, 0);
+            lv_label_set_long_mode(f, LV_LABEL_LONG_WRAP);
             lv_obj_set_style_text_font(f, small_font, 0);
             lv_obj_set_style_text_color(f, m.status == viewmodel::kMsgFailed ? colors.error
                                                                             : colors.text_disabled, 0);
@@ -549,6 +560,7 @@ void MessagesScreen::open_picker() {
     lv_obj_set_style_pad_all(picker_, 4, 0);
     lv_obj_set_style_pad_row(picker_, 2, 0);
     lv_obj_clear_flag(picker_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    view::widgets::style_list_scrollbar(picker_, colors);
     rebuild_picker();
 }
 
@@ -563,7 +575,7 @@ void MessagesScreen::rebuild_picker() {
     auto* header = lv_label_create(picker_);
     lv_label_set_text(header, "New message to:");
     lv_obj_set_style_text_font(header, font, 0);
-    lv_obj_set_style_text_color(header, colors.text_disabled, 0);
+    lv_obj_set_style_text_color(header, colors.text, 0);
 
     picker_id_.clear(); picker_name_.clear();
     // Group channels first, so an empty history can still start a broadcast on a
@@ -847,6 +859,14 @@ std::string MessagesScreen::details_text(const viewmodel::MessageInfo& m) {
     s += std::string("Channel: ") + historical + "\n";
     if (m.outgoing && m.status != 0) {
         s += "Status: " + status_text(m.status) + "\n";
+        if (m.status == viewmodel::kMsgDelivered)
+            s += "The recipient radio confirmed receipt. This is not a read receipt.\n";
+        else if (m.status == viewmodel::kMsgMesh)
+            s += "The mesh acknowledged it; recipient receipt is not confirmed.\n";
+        else if (m.status == viewmodel::kMsgSent)
+            s += "Sent without a confirmed receipt.\n";
+        else if (m.status == viewmodel::kMsgFailed)
+            s += "Delivery was not confirmed. Check the reason before resending.\n";
     }
     if (m.hasSnr) {
         char b[24];
@@ -1006,6 +1026,7 @@ void MessagesScreen::rebuild_menu() {
     if (!menu_) return;
     lv_obj_clean(menu_);
     const auto colors = view::palette(view_model().is_dark_mode());
+    view::widgets::style_list_scrollbar(menu_, colors);
     const lv_font_t* font = assets().load_standard_font(13, app::StandardFontWeight::Regular);
     if (!font) font = &lv_font_montserrat_14;
 
@@ -1017,13 +1038,17 @@ void MessagesScreen::rebuild_menu() {
         title = "Quick message";
     } else if (menu_kind_ == MenuKind::Channel) {
         title = "DM via channel:";
+    } else if (menu_kind_ == MenuKind::DeleteConfirm) {
+        title = deletion_action_ == A_CLEAR ? "Clear history? Draft stays.\nCannot undo."
+              : deletion_action_ == A_DELETE_THREAD ? "Delete chat and draft?\nCannot undo."
+              : "Delete saved message?\nOther radios keep their copies.\nCannot undo.";
     } else if (menu_kind_ == MenuKind::PublicLocation) {
         title = "Precise location via " + channel_name(location_channel_) + "?";
     }
     lv_label_set_text(header, title.c_str());
     lv_obj_set_width(header, lv_pct(100));
     lv_obj_set_style_text_font(header, font, 0);
-    lv_obj_set_style_text_color(header, colors.text_disabled, 0);
+    lv_obj_set_style_text_color(header, colors.text, 0);
 
     lv_obj_t* sel = nullptr;
     for (int i = 0; i < static_cast<int>(menu_labels_.size()); ++i) {
@@ -1052,13 +1077,54 @@ void MessagesScreen::rebuild_menu() {
 void MessagesScreen::close_menu() {
     if (menu_) { lv_obj_delete(menu_); menu_ = nullptr; }
     menu_kind_ = MenuKind::None;
+    deletion_action_ = 0;
+    menu_target_.clear();
     menu_labels_.clear();
     menu_actions_.clear();
     location_channel_ = -1;
     location_peer_.clear();
 }
 
+void MessagesScreen::confirm_deletion(int action, const std::string& target) {
+    menu_kind_ = MenuKind::DeleteConfirm;
+    deletion_action_ = action;
+    menu_target_ = target; // stable identity; never a row index or vector pointer
+    menu_labels_ = {"Cancel", action == A_CLEAR ? "Clear history" : "Delete"};
+    menu_actions_ = {0, action};
+    menu_sel_ = 0;
+    create_menu();
+}
+
+void MessagesScreen::perform_deletion(int action, const std::string& target) {
+    if (action == A_MSG_DELETE) {
+        const auto* message = message_by_id(target);
+        if (!message || thread_of(*message) != thread_key_) return;
+        view_model().delete_message(target);
+        msg_sel_ = -1;
+    } else if (target == thread_key_) {
+        if (action == A_CLEAR) {
+            view_model().clear_thread(target);
+            msg_sel_ = -1;
+        } else if (action == A_DELETE_THREAD) {
+            view_model().delete_thread(target);
+            mode_ = Mode::List;
+            view_model().clear_dm_target();
+            selected_ = 0;
+            msg_sel_ = -1;
+            rebuild();
+        }
+    }
+}
+
 void MessagesScreen::menu_activate() {
+    if (menu_kind_ == MenuKind::DeleteConfirm) {
+        const int action = deletion_action_;
+        const std::string target = menu_target_;
+        const bool confirmed = menu_sel_ == 1;
+        close_menu();
+        if (confirmed) perform_deletion(action, target);
+        return;
+    }
     if (menu_kind_ == MenuKind::Channel) {
         const int channel = menu_sel_ >= 0 && menu_sel_ < static_cast<int>(menu_actions_.size()) ? menu_actions_[menu_sel_] : -1;
         const std::string identity = menu_sel_ >= 0 && menu_sel_ < static_cast<int>(channel_picker_ids_.size()) ? channel_picker_ids_[menu_sel_] : "";
@@ -1105,16 +1171,8 @@ void MessagesScreen::menu_activate() {
             view_model().toggle_mute(target);
             break;
         case A_CLEAR:
-            view_model().clear_thread(target);   // version bump -> rebuild
-            msg_sel_ = -1;
-            break;
         case A_DELETE_THREAD:
-            view_model().delete_thread(target);
-            mode_ = Mode::List;
-            view_model().clear_dm_target();
-            selected_ = 0;
-            msg_sel_ = -1;
-            rebuild();
+            confirm_deletion(action, target);
             break;
         case A_INFO: {
             std::string body;
@@ -1158,8 +1216,7 @@ void MessagesScreen::menu_activate() {
             view_model().resend_message(target);
             break;
         case A_MSG_DELETE:
-            view_model().delete_message(target);   // version bump -> rebuild
-            msg_sel_ = -1;
+            confirm_deletion(action, target);
             break;
         case A_SEND_LOCATION: {
             const int channel = send_channel();
@@ -1209,6 +1266,7 @@ void MessagesScreen::open_info(const std::string& title, const std::string& body
     lv_obj_set_style_pad_all(overlay_, 6, 0);
     lv_obj_set_style_pad_row(overlay_, 4, 0);
     lv_obj_clear_flag(overlay_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    view::widgets::style_list_scrollbar(overlay_, colors);
 
     const lv_font_t* title_font = assets().load_standard_font(14);
     if (!title_font) title_font = &lv_font_montserrat_14;
@@ -1257,6 +1315,7 @@ void MessagesScreen::open_qr(const std::string& title, const std::string& url) {
     lv_obj_set_style_pad_all(overlay_, 4, 0);
     lv_obj_set_style_pad_row(overlay_, 3, 0);
     lv_obj_clear_flag(overlay_, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    view::widgets::style_list_scrollbar(overlay_, colors);
 
     const lv_font_t* font = assets().load_standard_font(12, app::StandardFontWeight::Regular);
     if (!font) font = &lv_font_montserrat_12;

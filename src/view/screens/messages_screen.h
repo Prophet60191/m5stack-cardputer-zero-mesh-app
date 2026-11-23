@@ -28,7 +28,7 @@ public:
 
 private:
     enum class Mode { List, Thread };
-    enum class MenuKind { None, Thread, Message, Canned, Channel, PublicLocation };
+    enum class MenuKind { None, Thread, Message, Canned, Channel, PublicLocation, DeleteConfirm };
 
     void build_content(lv_obj_t* content) override;
     void rebuild();
@@ -59,6 +59,9 @@ private:
     void open_canned_picker();
     void open_channel_picker();
     void open_public_location_confirmation();
+    void confirm_deletion(int action, const std::string& target);
+    void perform_deletion(int action, const std::string& target);
+    int deletion_action_ = 0;
     void create_menu();
     void rebuild_menu();
     void close_menu();

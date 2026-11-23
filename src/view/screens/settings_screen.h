@@ -82,6 +82,7 @@ class SettingsScreen : public BaseScreen {
     void teardown_overlay_obj();
     void rebuild_picker();
     void select_picker(int index);
+    void move_picker(int direction);
     std::vector<lv_obj_t *> picker_rows_;
     void close_overlay();
     void apply_overlay();

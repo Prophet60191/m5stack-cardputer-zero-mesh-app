@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.14 (release candidate)** · Updated **2026-11-17** · [Guide index](README.md)
+> For Mesh **0.1.15 (release candidate)** · Updated **2026-11-22** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 
@@ -14,7 +14,7 @@ From the Home Carousel, roll to **Messages** with **Z** / **C** and press **Ente
 |---|---|---|
 | **Conversations List** | **F / X** | Move up and down the list |
 | | **Enter** | Open **`+ New message`** or the highlighted conversation |
-| | **/** | Filter conversations by keyword (case-sensitive) |
+| | **/** | Filter conversations by keyword (case-insensitive for English letters) |
 | | **ESC** | Clear an active search filter, or return to the Home Carousel |
 | **Inside a Chat** | **Enter** | Open the typing box *(or open options when a message bubble is highlighted)* |
 | | **q** | Send a **Quick message** |
@@ -65,7 +65,7 @@ When you open **Messages**, you see your chats ordered so important and recent o
 If your list gets long, press **`/`** on the Conversations List to filter it:
 
 1. Press **`/`**, type a word or name, and press **Enter**.
-   - Search is **case-sensitive** (`Basecamp` and `basecamp` are treated differently).
+   - Search ignores English-letter capitalization (`Basecamp` and `basecamp` match). Accented and other non-English characters still match exactly.
    - It matches any conversation whose title, draft, or saved messages contain that text.
 2. Press **ESC** on the filtered list to clear the search and see all chats again.
 
@@ -135,9 +135,9 @@ For one-handed replies on the move, press **`q`** inside any chat thread, highli
 | Status Label | What It Means |
 |---|---|
 | `sending…` | Queued or sending; waiting for a delivery confirmation (up to 60 seconds). This is not proof that it has been received. |
-| `Mesh ACK` | Another radio on the mesh heard and acknowledged your packet. |
-| `Recipient ACK · direct` *(or `· 2h`)* | For Direct Messages: the specific person's radio confirmed delivery, plus how many hops it took. |
-| `Sent (unconfirmed)` | Sent with **Message acks** turned off in Settings—no acknowledgment was requested. |
+| `Mesh confirmed` | Another radio on the mesh heard and acknowledged your packet. |
+| `Recipient received · direct` *(or `· 2h`)* | For Direct Messages: the specific person's radio confirmed delivery, plus how many hops it took. |
+| `Receipt unconfirmed` | Sent with **Delivery confirmations** turned off in Settings—no acknowledgment was requested. |
 | `✗ failed` | Timed out after 60 seconds without confirmation, the radio stopped/restarted, or sending was rejected. |
 
 **No Automatic Replays:** If a message fails—including if you turn off the radio or restart the device while a message says `sending…`—it stays marked **`✗ failed`** and is **never** automatically sent later behind your back.
@@ -161,7 +161,7 @@ You can inspect, quote, retry, or delete any message bubble:
    - **Details:** Shows sender/recipient, exact timestamp (`HH:MM:SS`), channel, delivery status, signal (`SNR`), hops, relay info, and—for failed messages—the **Reason** (such as *"No route to destination"* or *"No acknowledgment before timeout"*).
    - **Quote / edit:** Copies that bubble's text into your typing bar so you can edit or reply with it.
    - **Resend:** *(Shown on your own `✗ failed` messages)* Retries sending that exact message—provided its original channel is still active.
-   - **Delete message:** Immediately removes that single message from your device *(shown in red; no extra confirmation screen)*.
+   - **Delete message:** Opens a Cancel-first confirmation before removing your local copy. There is no Undo; other radios keep their copies.
 3. Press **ESC** (or scroll past the newest bubble with **X**) to return to normal compose mode.
 
 ---
@@ -182,11 +182,27 @@ While inside any conversation, press **`o`** to open its options menu:
 - **Choose DM channel** *(Direct Messages only)*: Pick or switch which channel your DMs to this person use.
 - **Request position** *(Direct Messages only)*: Asks the other person's radio to send back its position, which updates their entry on [Nodes](03-Nodes-Menu.md) and [Map](04-Map-Menu.md).
 - **Trace route** *(Direct Messages only)*: Sends a route test (up to ~20 seconds; up to 2 traces can run at a time) and lists the relay path between `You` and that radio (`You ↓ Ridge Relay ↓ Basecamp`). Press **ESC** anytime if you want to cancel waiting.
-- **Clear history:** Immediately deletes all messages inside this conversation while keeping the thread, draft, pin, and mute status *(shown in red)*.
-- **Delete conversation:** Immediately erases all messages, drafts, pin, and mute settings for this thread and returns to the Conversations List *(shown in red)*.
+- **Clear history:** After a Cancel-first confirmation, deletes all messages inside this conversation while keeping the thread, draft, pin, and mute status. This cannot be undone; it removes only your local history.
+- **Delete conversation:** After a Cancel-first confirmation, erases all messages, drafts, pin, and mute settings for this thread and returns to the Conversations List. This cannot be undone and does not delete anyone else’s copies.
 - **Conversation info:** Shows a read-only summary card (who sees a group channel, or a DM peer's node ID, latest signal, and hops).
 
 ---
+
+### Deleting Without Surprises
+
+![Cancel-first message deletion](images/messages-delete-confirm.png)
+
+Clear history, Delete conversation and Delete message first show what will be
+removed, with **Cancel selected**. Enter on Cancel or Esc leaves data unchanged.
+Move to the destructive action and press Enter to proceed. There is no Undo;
+other radios keep their copies. Clear history preserves the draft and chat
+preferences; Delete conversation also removes them.
+
+Delivery labels describe evidence, not read receipts. **Recipient received**
+means the recipient radio confirmed receipt. **Mesh confirmed** means the mesh
+acknowledged the message, without confirming receipt by the intended recipient.
+**Receipt unconfirmed** has no confirmed receipt. Open **Details** for the full
+explanation and any failure reason before deciding to resend.
 
 ## Step-by-Step Examples
 
@@ -197,7 +213,7 @@ While inside any conversation, press **`o`** to open its options menu:
 3. Highlight your friend's radio (for example, `Basecamp`) and press **Enter**.
 4. In **DM via channel:**, highlight `1: Field [Private]` and press **Enter**.
 5. Press **Enter** to type `"Checking in from the ridge"`, then press **Enter** to send.
-6. Watch the label under your green bubble change from `sending…` to `Recipient ACK · 1h` (delivered via 1 relay hop).
+6. Watch the label under your green bubble change from `sending…` to `Recipient received · 1h` (delivered via 1 relay hop).
 7. To see which relay carried your message, press **`o`**, select **Trace route**, and wait a few seconds for the hop list:
    ```text
    You

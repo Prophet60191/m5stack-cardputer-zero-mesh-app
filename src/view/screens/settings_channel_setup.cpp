@@ -73,6 +73,7 @@ void SettingsScreen::channel_setup_form() {
     };
     if (!d.error.empty())
         add(-1, "Problem: " + d.error);
+    add(-2, "Channel");
     if (d.source == "import") {
         std::string names;
         if (const auto *channels = d.preview.find("channels"))
@@ -97,6 +98,7 @@ void SettingsScreen::channel_setup_form() {
     add(Method, "Add by: " + (d.source == "import" ? std::string("QR / share link")
                               : d.source.empty()   ? "Choose method"
                                                    : d.source));
+    add(-2, "Radio connection - all channels");
     add(Region, "Region (whole radio): " + d.region);
     add(Preset, "Modem (whole radio): " + (d.use_preset ? d.preset : "Custom (preserved)"));
     add(Slot, d.override_frequency > 0
@@ -106,7 +108,10 @@ void SettingsScreen::channel_setup_form() {
     if (d.frequency_offset)
         add(-1, "Calibration offset (preserved): " + std::to_string(d.frequency_offset));
     add(Hop, "Hop limit: " + std::to_string(d.hop));
+    if (d.suggested.is_obj())
+        add(Suggested, "Use radio settings from QR / link");
     add(Tx, std::string("Transmit mode: ") + (d.tx ? "TX/RX" : "Receive only"));
+    add(-2, "Sharing - new channel");
     std::string location = "Off on new channel";
     if (d.position) {
         location = d.name.empty() ? "Default" : d.name;
@@ -124,24 +129,34 @@ void SettingsScreen::channel_setup_form() {
         }
     }
     add(Position, "Automatic location: " + location);
+    bool public_channel = d.source == "public";
+    if (d.source == "import")
+        if (const auto* channels = d.preview.find("channels"))
+            for (const auto& ch : channels->arr)
+                if (!flag(ch, "existing") && !flag(ch, "private")) public_channel = true;
+    if (public_channel)
+        add(-1, "Public traffic can be read or forwarded online by other radios.");
     add(Mqtt,
         std::string("Internet forwarding: ") + (d.mqtt ? "On (configured MQTT)" : "Off on new channel"));
+    if (d.mqtt)
+        add(-1, "Uses the configured broker; other forwarding channels can send too.");
+    add(-2, "Save destination");
     add(Destination, std::string("Save to: ") + (d.profile_only ? "Separate profile only" : "Current setup"));
     add(Profile,
         "Profile name: " + (d.profile_name.empty() ? (d.profile_only ? std::string("Required") : "Optional")
                                                    : d.profile_name));
     if (!d.preview.str_at("tuning_warning").empty())
         add(-1, d.preview.str_at("tuning_warning"));
-    if (d.suggested.is_obj())
-        add(Suggested, "Use radio settings from QR / link");
     add(Reload, "Reload current radio settings");
     add(Cancel, "Cancel setup");
     int selected = 0;
     for (size_t i = 0; i < channel_fields_order_.size(); ++i)
         if (channel_fields_order_[i] == channel_field_)
             selected = static_cast<int>(i);
-    if (!d.error.empty())
-        selected = 0;
+    if (!d.error.empty()) {
+        for (size_t i = 0; i < channel_fields_order_.size(); ++i)
+            if (channel_fields_order_[i] >= 0) { selected = static_cast<int>(i); break; }
+    }
     const char *title = d.source == "import" && d.preview.int_at("new") > 0
                             ? (d.scanned ? "QR scanned (unsaved)" : "Link loaded (unsaved)")
                             : "Add channel (unsaved)";
@@ -612,7 +627,7 @@ void SettingsScreen::channel_setup_result(const std::string &route, const json::
             (event.str_at("verified") != "radio" && event.str_at("verified") != "stored") ||
             event.int_at("added") <= 0) {
             json::parse(
-                R"({"event":"error","text":"Unexpected save reply; status unknown. Check Channels and Mesh profiles before retrying."})",
+                R"({"event":"error","text":"Unexpected save reply; status unknown. Check View channels and Saved mesh setups before retrying."})",
                 d.result);
         } else
             d.result = event;

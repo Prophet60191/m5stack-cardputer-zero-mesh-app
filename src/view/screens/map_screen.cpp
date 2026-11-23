@@ -132,6 +132,9 @@ void MapScreen::rebuild() {
         const int y = kCy - static_cast<int>(std::cos(p.bearing) * r);
         dots_.push_back({make_dot(plot_, x, y, 9, fresh(*p.n) ? colors.primary : colors.text_disabled),
                          p.n->positionTime, fresh(*p.n), false});
+        lv_obj_set_style_border_width(dots_.back().object, 2, 0);
+        lv_obj_set_style_border_color(dots_.back().object, colors.text, 0);
+        lv_obj_set_style_bg_opa(dots_.back().object, fresh(*p.n) ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
         auto* label = lv_label_create(plot_);
         const std::string tag = p.n->shortName.empty() ? p.n->name : p.n->shortName;
         lv_label_set_text(label, tag.c_str());
@@ -152,7 +155,7 @@ void MapScreen::rebuild() {
 
     // Scale note.
     auto* scale = lv_label_create(plot_);
-    lv_label_set_text(scale, ("Last known / ring: " + distance_text(maxd)).c_str());
+    lv_label_set_text(scale, ("Filled=fresh / ring: " + distance_text(maxd)).c_str());
     lv_obj_set_style_text_font(scale, font, 0);
     lv_obj_set_style_text_color(scale, colors.text_disabled, 0);
     lv_obj_set_pos(scale, 6, 2);
@@ -180,6 +183,7 @@ void MapScreen::refresh_freshness() {
             continue;
         dot.fresh = fresh;
         lv_obj_set_style_bg_color(dot.object, fresh ? colors.primary : colors.text_disabled, 0);
+        if (!dot.self) lv_obj_set_style_bg_opa(dot.object, fresh ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
         if (dot.self && you_)
             lv_label_set_text(you_, fresh ? "you" : "you (last known)");
     }
