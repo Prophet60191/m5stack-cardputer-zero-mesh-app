@@ -143,8 +143,9 @@ No dongle or receiver firmware change is needed for this cache defect.
 API connection (30s interval, 10s completion timeout/backoff). Preserve library
 channels/caches, sharing/TX settings and single serial/TCP ownership. No location
 RF packet or synthetic timestamp. PositionLite omits satellites; do not fake them.
-All 167 backend tests pass locally in Debian; arm64 CI/package and installed
-outdoor/map/freshness tests are pending. Helpers/reduced evidence are ignored in
+All 167 backend tests, both source-correlated CI jobs and arm64 package gates
+pass for b430b20. Verified package is ready; owner USB/Slave connection is
+pending for installation, followed by outdoor/map/freshness retest. Helpers/reduced evidence are ignored in
 build/internal-gps-qualification. Never commit raw coordinates, device IDs or
 private endpoints. Preserve chats/profiles/phone access/other apps; leave ADB On.
 User may bring device indoors while the correction is built. Do not begin the

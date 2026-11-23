@@ -92,3 +92,18 @@ Official firmware references:
 [NodeDB](https://github.com/meshtastic/firmware/blob/54e0d8d/src/mesh/NodeDB.cpp),
 [GPS](https://github.com/meshtastic/firmware/blob/54e0d8d/src/gps/GPS.cpp).
 
+
+## Source-correlated candidate package
+
+Functional source `b430b20e0d4aed3f84253c4d7ddeb93002285c63` passed all
+167 backend tests and both [CI regression jobs](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45234313200),
+including native sanitizers and Debian arm64 build/install/upgrade/firewall/Store
+preflight. The [guide workflow](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45234313456)
+also passed. Exact candidate `cardputerzero-mesh_0.1.17-rev1_arm64.deb` SHA-256:
+`dd64f03ec087f0e5b4cae48b3689da589c8d0e46f95129b6e069499c90a29d3a`.
+
+Package downloaded and verified; installation awaits owner USB/Slave connection.
+The owner may bring Lockon inside during preparation. Current running runtime
+remains 0.1.16, with GPS enabled and sharing Off. New guide text is tightened to
+keep the offline manual at 41 pages; the one-page reference stays one page.
+No installed correction or map acceptance is claimed yet.

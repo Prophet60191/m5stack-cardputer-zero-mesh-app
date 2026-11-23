@@ -534,3 +534,8 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   lifecycle and privacy tests and user/protocol qualification notes.
 - Package/source-correlated installation and outdoor map/freshness retest are
   pending. USB GPS remains deferred until the fitted receiver path is qualified.
+
+- GPS candidate source b430b20 passes all 167 backend tests, both native/arm64
+  CI jobs and guide CI. Downloaded exact checksummed 0.1.17 artifact; installation
+  awaits USB/Slave connection. Polish map guidance to retain the 41-page manual
+  and one-page reference. Installed correction/outdoor retest remain pending.

@@ -60,16 +60,11 @@ Each positioned peer appears as a dot labeled with its short callsign (such as `
 ## Common On-Screen Messages
 
 - **`"No position fix yet. Go outside with a sky view and give the GPS a minute."`**
-  A fresh location has not reached the app yet. Check that **GPS receiver** is enabled in [Settings → Location & Internet](05-Settings-Menu.md#location--internet), then step outdoors with an open sky view for a minute.
+  Enable **GPS receiver** in [Settings → Location & Internet](05-Settings-Menu.md#location--internet) and move outside with a clear sky view. Mesh refreshes the local fix about every 30 seconds with location sharing **Off**; satellite count may remain unknown.
 - **`"No other nodes have shared a position."`**
   Your device knows where *you* are (`you` appears at the center with a default `1.0 km` outer ring), but no other nodes have sent coordinates yet. Many radios keep location sharing off by default—see [Messages → Thread Options](02-Messages-Menu.md#thread-options-o) if you want to ask a friend directly using **Request position**.
 
 ---
-
-The Cap GPS can work with automatic location sharing **Off**. Mesh refreshes its
-local position about every 30 seconds while the receiver is enabled; you do not
-need to broadcast your coordinates to use the map. A satellite count may remain
-unknown with the current radio API even when the position is fresh.
 
 ## Step-by-Step Example: Spotting Which Way Camp Is
 
