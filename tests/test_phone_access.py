@@ -232,6 +232,33 @@ class PhoneAccessTests(unittest.TestCase):
         self.assertEqual(len(self.heartbeats),25)
         self.assertFalse(self.sent)
 
+    def test_unknown_heartbeat_fields_cannot_tunnel_new_commands(self):
+        session=Session(self.s)
+        request=mesh_pb2.ToRadio()
+        request.heartbeat.ParseFromString(mesh_pb2.Heartbeat(nonce=42).SerializeToString()+b'\x98\x06\x01')
+        request.ParseFromString(request.SerializeToString()+b'\x98\x06\x01')
+        self.s.phone_request(session,request)
+        expected=mesh_pb2.ToRadio(heartbeat=mesh_pb2.Heartbeat(nonce=42))
+        self.assertEqual(self.heartbeats[0].SerializeToString(),expected.SerializeToString())
+
+    def test_unknown_snapshot_fields_are_not_exported_as_future_secrets(self):
+        raw=b'synthetic-future-secret'
+        security=self.s._iface.localNode.localConfig.security
+        security.ParseFromString(security.SerializeToString()+b'\x9a\x06'+bytes([len(raw)])+raw)
+        wire=b''.join(frame(record) for record in self.s._phone_snapshot(123))
+        self.assertNotIn(raw,wire)
+
+    def test_unknown_live_record_fields_are_not_forwarded(self):
+        conn=self.connect();self.handshake(conn)
+        record=mesh_pb2.FromRadio();record.packet.decoded.portnum=portnums_pb2.TEXT_MESSAGE_APP
+        record.packet.decoded.payload=b'Visible message'
+        raw=b'synthetic-future-secret'
+        record.ParseFromString(record.SerializeToString()+b'\x9a\x06'+bytes([len(raw)])+raw)
+        self.s._phone_frame(self.s._iface,record.SerializeToString())
+        received=receive(conn)
+        self.assertEqual(received.packet.decoded.payload,b'Visible message')
+        self.assertNotIn(raw,received.SerializeToString())
+
     def test_nonselected_peer_receives_no_data(self):
         conn = self.connect('100.100.0.3')
         conn.sendall(frame(mesh_pb2.ToRadio(want_config_id=1)))

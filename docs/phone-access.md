@@ -26,7 +26,7 @@ sandbox against other local users. Revoke compromised VPN devices/account access
 Enabling access intentionally lets the selected phone receive channel keys,
 mesh messages, node identities and positions. They are sensitive on the phone
 as well as the Cardputer. Host Wi-Fi/MQTT credentials, private signing/admin
-keys, raw logs and local supervisor controls are excluded. This feature does
+keys, unqualified future protobuf fields, raw logs and local supervisor controls are excluded. This feature does
 not transfer the Cardputer's saved conversation/draft database to the phone;
 the official phone app maintains its own history and receives live traffic.
 

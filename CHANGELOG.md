@@ -437,3 +437,6 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   for matching failed messages after a cooldown, while suppressing pending/
   completed duplicates and rejecting changed targets/payloads. All 153 backend
   tests pass; two added cases cover retry identity and channel changes.
+- Strict-boundary follow-up: canonicalize forwarded heartbeat fields and discard
+  unqualified future fields from exported snapshots/live records. All 156 backend
+  tests pass, including unknown-field command/export regression cases.

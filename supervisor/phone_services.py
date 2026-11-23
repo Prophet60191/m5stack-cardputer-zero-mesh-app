@@ -148,6 +148,7 @@ class PhoneServices:
         def add(field, value):
             record = mesh_pb2.FromRadio()
             getattr(record, field).CopyFrom(value)
+            record.DiscardUnknownFields()  # newer firmware fields have not been qualified for export
             rows.append(record)
         add('my_info', iface.myInfo)
         if getattr(iface, 'metadata', None): add('metadata', iface.metadata)
@@ -201,7 +202,9 @@ class PhoneServices:
             # an invented local receipt could hide a dead radio API.
             if session.ready:
                 if session.context != self._phone_context(): session.close(); return
-                self._iface._sendToRadio(message)
+                clean = mesh_pb2.ToRadio()
+                clean.heartbeat.nonce = message.heartbeat.nonce
+                self._iface._sendToRadio(clean)
             return
         if message.WhichOneof('payload_variant') == 'want_config_id':
             now = time.monotonic()
@@ -299,6 +302,7 @@ class PhoneServices:
             p = record.packet
             if p.WhichOneof('payload_variant') != 'decoded' or p.decoded.portnum == portnums_pb2.ADMIN_APP: return
         elif kind not in ('node_info', 'queueStatus'): return
+        record.DiscardUnknownFields()
         self._phone.publish(record)
 
     def _phone_echo(self, packet):

@@ -67,3 +67,12 @@ five seconds; pending/completed duplicates and changed payload, recipient or
 channel identity cannot be silently retransmitted. A canonical private payload
 hash accompanies phone history for this check. Two additional regression cases
 bring the backend suite to 153. No receipt is invented for an unknown outcome.
+
+## Strict protocol-boundary follow-up
+
+Keepalive forwarding now constructs a fresh allowed Heartbeat message rather
+than forwarding an untrusted protobuf with retained unknown fields. Exported
+snapshots/live records discard unqualified future fields as well as redacting
+known host secrets. Three hostile-field cases bring the backend suite to 156.
+These checks prevent a schema mismatch from becoming an implicit command or
+credential-export permission; they do not qualify arbitrary future firmware.
