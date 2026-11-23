@@ -124,6 +124,14 @@ Owner testing recovered successfully this way after both deliberate shutdowns;
 automatic reconnection in those cases is not qualified. Reconnecting never
 replays an outgoing message automatically.
 
+## Qualification limits
+
+Short owner checks cover messaging, lock/reopen, Wi-Fi/cellular paths and cold
+power recovery. One awake-screen disconnect was reported; a subsequent traced
+five-minute repeat passed, and the earlier cause remains unresolved. Longer
+intermittent reliability is not fully qualified. The linked record preserves
+both outcomes rather than treating the successful repeat as a repair.
+
 ## Troubleshooting and qualification
 
 - **No endpoint / setup required:** verify both Tailscale sign-ins, Serve's exact

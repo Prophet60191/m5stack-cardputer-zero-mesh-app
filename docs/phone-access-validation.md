@@ -7,6 +7,24 @@ disconnect. The earlier failure was not reproduced; its cause remains unresolved
 Intermittent foreground reliability is not fully qualified. Protocol fixture results
 remain separate from handset observations and roaming behavior.
 
+## Completed short acceptance checks
+
+| Check | Result |
+| --- | --- |
+| Official iPhone app connection and nodes/channels | Owner confirms pass |
+| Private message/reply and both displayed on Lockon | Owner confirms pass, including after idle |
+| Return after phone lock/background | Owner confirms reconnection |
+| iPhone Wi-Fi interruption | Reconnected; message arrived |
+| Phone access Off/On | Radio unaffected; manual phone reconnect needed, then delivery passed |
+| Radio stop/start | Settings preserved; manual phone reconnect needed, then delivery passed |
+| Foreground idle | One reported failure; controlled five-minute repeat passed with trace; cause unresolved |
+| iPhone cellular path, Lockon on Wi-Fi | Both directions arrived; connection stayed up |
+| Physical cold power cycle | VPN/setup persisted; post-boot two-way messaging passed without new pairing/sign-in |
+
+These are bounded observations, not a guarantee against intermittent disconnects
+or evidence of arbitrary carrier/network availability. No production code was
+changed during this extended qualification.
+
 ## Source and exact installed artifact — 2026-11-23
 
 - Functional source: `8cfa3b64eedea06bbb77190e22feb892aabbb617`.
@@ -160,16 +178,45 @@ No synthetic client replaced the handset or generated a local liveness receipt.
 
 This repeat passes that bounded test. The earlier foreground disconnect remains
 an owner-reported intermittent failure without a synchronized failure trace;
-no cause or repair is claimed, and no production code changed. A post-idle
-private message/reply and explicit display on Lockon's screen are being checked.
+no cause or repair is claimed, and no production code changed. The owner then confirms the post-idle private message/reply arrived in both
+directions and both appeared on Lockon's screen. That post-idle display and
+message exchange check passes.
 
-Still pending with the owner:
+## Cellular-path acceptance
 
-- Explicit confirmation of both message directions on Lockon's own screen.
-- Post-idle message/reply, representative longer foreground use and roaming
-  between Wi-Fi and cellular; investigate any repeated awake-screen disconnect.
-- Cold-boot phone/VPN recovery and representative longer handset use. Automated
-  recovery/slow-client tests and a stationary 40-second heartbeat check do not
-  substitute for these physical results.
+With iPhone Wi-Fi disabled and mobile data selected as instructed, the owner
+confirms both directions of the private iPhone/T-Deck exchange arrived and the
+connection stayed up. Lockon remained on its existing Wi-Fi, without a SIM.
+This passes the owner-observed Wi-Fi-to-cellular path change and two-way use;
+it does not qualify arbitrary carrier coverage, roaming or extended outages.
+
+## Cold-power platform recovery
+
+The owner completed normal shutdown, USB removal, at least ten seconds switched
+Off, then powered On and returned to the launcher. Fresh uptime was approximately
+67 seconds at the first device check. Before opening Mesh: Tailscale and ADB
+services were active, VPN status was Running without reauthentication, the exact
+private Serve forwarder persisted, and the firewall service was active. Hashes
+of saved channel/radio/module settings, profiles and app configuration match the
+pre-power baseline. Stored Phone access On and the selected phone hash match too.
+
+The transient Mesh supervisor had not started at the launcher, as designed.
+Automatic radio start remains Off. The owner opened Mesh, started the radio and
+confirms that both directions of the private iPhone/T-Deck exchange arrived
+without new pairing, phone selection or VPN sign-in. The full cold-power check
+therefore passes. Final device readback confirms Online/send-receive, Phone
+access On and connected, a healthy firewall and one physical daemon connection;
+configuration/profile/selected-phone hashes still match the pre-cycle baseline.
+ADB and Tailscale remain active.
+
+## Remaining limits and follow-up
+
+The planned short owner-assisted checks are complete. Longer everyday use,
+extended outages and intermittent-disconnect investigation remain open. The
+reported awake-screen failure has no synchronized failure trace; one successful
+repeat cannot explain or erase it. If it recurs, correlate the time, visible
+phone connection/error state and Wi-Fi/mobile-data path with a payload-free TCP
+header/status trace. Do not invent heartbeat replies, relax selected-peer/privacy
+checks or restart unrelated networking to conceal a dropped handset session.
 
 No release, Store submission or upstream contribution was created.

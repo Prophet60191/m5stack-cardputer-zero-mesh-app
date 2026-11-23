@@ -486,3 +486,27 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   firewall and one radio connection. The prior reported foreground drop was not
   reproduced and remains unexplained; no production fix or full qualification
   is claimed. Post-idle message/display checks remain pending.
+
+- Owner confirms post-idle private message/reply delivery in both directions and
+  both messages displayed on Lockon. Cellular-path testing is now in progress
+  using the iPhone's mobile data; Lockon stays on Wi-Fi without a SIM.
+
+- Cellular path passes: owner confirms private messages/replies over iPhone
+  mobile data with Wi-Fi off, connection staying up, while Lockon remains on
+  Wi-Fi. Prepare a hash-only settings/selected-phone baseline for cold-power
+  recovery. No channel, TX, VPN or automatic-start preferences changed.
+
+- Cold-power platform recovery passes before opening Mesh: owner completed a
+  physical power cycle; VPN/Serve/ADB and saved settings/profiles/phone selection
+  survived without reauthentication. Transient supervisor absent at launcher and
+  automatic radio start Off are expected. Await owner post-boot radio/phone RF
+  exchange before marking the full cold-boot test passed.
+
+- Full cold-power acceptance passes: owner opened Mesh/started Radio and confirmed
+  two-way private phone/T-Deck messaging without new pairing or VPN sign-in. Final
+  readback is Online/send-receive, Phone access connected, firewall healthy and
+  one physical radio connection; settings/profile/selected-phone hashes match
+  the pre-cycle baseline. ADB remains active, automatic RF startup stays Off.
+- Close the planned short handset checks with an acceptance table and remaining
+  limits. Preserve the unexplained earlier awake-screen disconnect as follow-up;
+  the successful traced repeat is not a claimed repair. No runtime changes.

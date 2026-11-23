@@ -89,51 +89,44 @@ checks passed. Current qualification/source links are in the refinement record.
 The startup CLI does not implement `--version`; use About or package metadata
 for version checks rather than inadvertently starting another framebuffer UI.
 
-## Phone access candidate — 2026-11-23
+## Phone access qualification — 2026-11-23
 
-0.1.16 adds an opt-in, selected-device PhoneAPI gateway behind private Tailscale
-Serve. Read docs/phone-access.md and docs/phone-access-validation.md. Keep the
-raw daemon port 47400 loopback-confined; never forward the Unix control socket
-or allow phone admin/location/MQTT writes. Preserve single radio ownership,
-TX/privacy/channel identity checks and actual-daemon heartbeat behavior.
-VPN account/Serve setup is a separate administrator action, not an app privilege
-grant. Keep real peer IDs, addresses/auth links and qualification backups private.
-Keep offline checks separate from the actual-iPhone results recorded below. Preserve settings/chats and leave ADB enabled.
+0.1.16 is installed from functional source `8cfa3b6`; later documentation commits
+do not alter that runtime. See docs/phone-access.md and the current evidence in
+docs/phone-access-validation.md before further phone work.
 
-Phone candidate installed from functional source `8cfa3b6`; all 158 backend tests,
-Debian arm64 package gates and exact 114-file installed verification pass. Native
-sanitisers pass locally. Private T-Deck recipient ACK and real-daemon heartbeat
-checks passed on installed code through protocol fixtures. The owner now confirms actual App Store iPhone connection, node/channel
-loading and two-way messaging. Extended lifecycle/roaming acceptance remains
-pending; do not conflate protocol fixtures with handset observations. The current
-setup is Online/send-receive, Phone access On, and ADB On. Read the qualification
-record for remaining checks and source-correlated CI status.
-
-Extended handset qualification (2026-11-23): owner confirms recovery after an
-approximately two-minute lock/background interval and successful reconnect/send
-after toggling iPhone Wi-Fi. Phone access Off/On preserves the live radio; the
-owner needed a manual reconnect afterward, then messaging worked. Normal radio
-stop/start also passed on device with saved configuration/profile hashes unchanged;
-the owner confirms manual handset reconnect/message delivery afterward. A later five-minute foreground repeat passed as recorded below. Current
-checks are logged in docs/phone-access-validation.md; do not infer cellular
-handover from the Wi-Fi interruption. Lockon itself does not need a SIM.
-
-The first idle attempt was interrupted by confirmed phone lock/app switching;
-it does not qualify foreground stability. The replacement start-bounded monitor never saw a ready connection; the owner
-reported a foreground disconnect. A later synchronized trace and awake-screen
-repeat passed (at least 317.2 seconds, 31 healthy connected status samples, no
-TCP close/reset), confirmed by the owner. See the qualification record. No radio/profile/security defaults or production code changed.
-
-Known phone qualification issue: the owner reports a foreground disconnect with
-the screen awake. Do not mark reliability accepted. The awake-idle monitor had
-expired before it saw a connection, so correlate the new trace before assigning
-a cause. Read-only TCP-header timing/status helpers are running; reduced evidence
-is under ignored build/phone-access-016/manual-checks. No payload capture or radio
-configuration changes. Keep the actual-iPhone failure distinct from synthetic
-heartbeat successes.
-
-Controlled traced repeat now passed and is owner-confirmed; the prior foreground
-disconnect remains unexplained and was not reproduced. No repair is claimed.
-Post-idle exchange/Lockon display, cold-boot recovery and cellular handover are
-still pending. Reduced header/status evidence is ignored under manual-checks;
-never publish raw network identity or payloads. The installed runtime is unchanged.
+- Optional, selected-device PhoneAPI gateway behind separately administered
+  private Tailscale Serve. Preserve one physical meshtasticd connection, the raw
+  daemon firewall, typed intent boundary, TX/privacy/channel identity checks and
+  actual-daemon heartbeat responses. No phone admin/location/MQTT writes, public
+  forwarding or app root/operator grant.
+- All 158 backend tests, native sanitizer checks, Debian arm64 package gates and
+  exact installed verification (114 regular files) pass. Distinguish protocol
+  fixtures and RF ACKs from actual handset observations.
+- Owner confirms official App Store iPhone connection, nodes/channels, two-way
+  messages, reopening after lock, and Wi-Fi interruption recovery. Access Off/On
+  and radio stop/start recover, but each needed manual handset reconnect.
+  Settings/profile hashes were preserved across the radio restart.
+- Owner reported one foreground disconnect with screen awake; its cause remains
+  unresolved. A later synchronized repeat passed: owner-confirmed five minutes,
+  at least 317.2 seconds of TCP activity without FIN/reset, 31 connected status
+  samples with RF Online/send-receive, healthy firewall and one radio connection.
+  Owner then confirmed post-idle private message/reply in both directions and
+  both displayed on Lockon. Do not claim the earlier drop was fixed or full
+  intermittent reliability accepted.
+- Cellular and full physical cold-power checks pass: owner confirms both message
+  directions over iPhone mobile data, and again after cold boot without new
+  pairing/sign-in. VPN/Serve/ADB, settings/profiles and selected phone persist.
+  Final state: Online/send-receive, phone connected, healthy firewall, one radio
+  connection. Automatic radio start remains Off by existing preference; Lockon
+  requires no SIM for its Wi-Fi/Tailscale path.
+- Short acceptance checks are complete; longer everyday use and the unexplained
+  earlier awake-screen drop remain follow-up items. Do not erase that failure
+  because a later five-minute trace passed. Payload-free connection tracing is
+  the next diagnostic step if it recurs.
+- Bounded packet-header capture has finished. Reduced, payload-free timing/status
+  evidence is ignored under build/phone-access-016/manual-checks. Never publish
+  peer IDs/addresses/auth links/keys/chat text or private qualification backups.
+- Preserve settings/chats and other apps/services. Leave Radio in send/receive,
+  selected Phone access On and ADB enabled. No production change was made during
+  these extended tests; guide/PDF reconnect instructions were refreshed.
