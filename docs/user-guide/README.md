@@ -27,7 +27,7 @@ latest successful [User guide workflow](https://github.com/Prophet60191/m5stack-
 or follow the [local build instructions](../../scripts/user-guide/README.md).
 These candidate artifacts are separate from published release downloads.
 
-The last published PDFs cover 0.1.13; the Markdown here describes the 0.1.19 candidate. Download the reviewed 0.1.13 PDFs from the **[0.1.13 candidate release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.13-rc.1)**:
+The last published PDFs cover 0.1.14; the Markdown here describes the 0.1.19 candidate. Download the reviewed 0.1.14 PDFs from the **[0.1.14 candidate release](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/releases/tag/v0.1.14-rc.1)**:
 
 - **Cardputer-Zero-Mesh-User-Guide.pdf** — combined illustrated manual, with
   contents, internal links and chapter bookmarks.

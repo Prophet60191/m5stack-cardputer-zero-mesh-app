@@ -36,8 +36,8 @@ support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. The header shows battery percentage without a battery
 icon. The [latest status](docs/current-status.md) separates current changes from
 previous hardware qualification. The [GPS record](docs/internal-gps-validation.md)
-covers outdoor fixes, the Map marker and the separate native-service startup
-correction. [Phone access](docs/phone-access-validation.md) covers the official
+covers outdoor fixes, the Map marker and the native-radio startup correction,
+now included in the 0.1.19 package. [Phone access](docs/phone-access-validation.md) covers the official
 iPhone app, cellular messaging and reconnect limits. Live public-mesh delivery
 and other remaining checks stay explicit in the [verification record](docs/review-remediation.md).
 
@@ -45,8 +45,9 @@ and other remaining checks stay explicit in the [verification record](docs/revie
 > is not affiliated with or endorsed by Meshtastic LLC or M5Stack.
 
 Store submission is still preparation work. The [current readiness report](docs/store-submission-readiness-20261123.md)
-records the share-code collision, dependency/install rehearsal and first-device-demo
-requirements. Passing the earlier package checks is not Store acceptance.
+records the resolved code/dependency work, passed installation checks and remaining
+video/publication steps. The fresh-image hardware check is explicitly deferred.
+Passing package checks is not Store acceptance.
 
 ## Screenshots
 

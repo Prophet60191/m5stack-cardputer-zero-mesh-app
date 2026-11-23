@@ -1,73 +1,57 @@
-# Current distribution candidate — 0.1.19
+# Current status
 
-0.1.19 is in packaging qualification; **0.1.18 remains installed** until a final
-source-correlated artifact passes CI and controlled upgrade checks. The new
-candidate bundles the qualified native GPS correction and locked Python wheels,
-removing separate radio/pip setup. Prototype minimal Debian offline first-run,
-cache repair, QR dependencies, uninstall/data preservation and current Store
-preflight pass. See [distribution](distribution.md) and the [readiness report](store-submission-readiness-20261123.md).
+**Mesh 0.1.19 is installed**, from exact functional/package source `8ada52a`.
+The [distribution qualification](distribution-validation-20261123.md) records
+CI, hashes, the 255 installed-file checks, data preservation and current limits.
+Later closeout commits update documentation only.
 
-No spare card is available: fresh-image hardware qualification is explicitly
-deferred. Owner will provide the real-device video. No Store submission/public
-release has occurred. USB GPS/SIM tasks remain deferred. Existing phone/GPS/RF
-qualification limits below still apply; packaging does not erase them.
+The single installer now includes the qualified GPS-corrected native runtime and
+15 locked Python wheels. First launch prepares its private user environment
+offline. No separate radio package or pip commands are needed; APT resolves
+standard OS libraries. Existing user environments and the masked global daemon
+are preserved. See [installation/build/distribution](distribution.md).
 
-## Last installed baseline
+## Qualified behavior
 
-# Current app status — 2026-11-23
+- All 175 backend tests, native sanitizer/regression gates, Debian arm64 package,
+  upgrade/firewall, minimal clean-container offline runtime and current pinned
+  Store preflight pass. Existing-device launch/header, three radio/GPS starts,
+  77.8-second monitoring and a private Recipient ACK pass.
+- All 26 original messages, three threads/preferences and saved settings remain;
+  one expected test message makes 27 messages. Radio is Online/send-receive,
+  fitted GPS enabled, sharing/MQTT Off, selected Phone access On, ADB On.
+- [Header qualification](header-presentation.md) explains the 0.1.18 framebuffer
+  correction retained here: percentage is visible without a battery glyph.
+- [Fitted GPS qualification](internal-gps-validation.md) covers the earlier outdoor
+  Map/freshness and native startup diagnosis. The correction is now bundled;
+  this update repeats receiver identification, not outdoor/cold-power acceptance.
+- [Phone qualification](phone-access-validation.md) covers the earlier official
+  iPhone, cellular, recovery and cold-power checks. This update repeats a real SDK
+  gateway/heartbeat check, not a handset walkthrough. One earlier awake-screen
+  disconnect remains unexplained; do not claim it fixed.
+- [Maintenance](maintenance-pass.md) records measured cleanup and synthetic work
+  reduction; no battery-life claim follows from it.
 
-Mesh 0.1.18 is installed and qualified for its header change: no battery glyph,
-with numeric percentage retained. A real-device partial-redraw regression was
-caught and corrected. The [closeout](header-presentation.md) identifies the exact
-functional source/package, successful checks and preserved data. Radio, GPS,
-channel, privacy, message storage and phone behavior are unchanged.
+## Submission and deferred checks
 
-## Verified foundation
+[Readiness](store-submission-readiness-20261123.md) separates completed code,
+dependency, source and CI work from publication. CZMS replaces the taken MESH
+Store code; the app name stays the same. Installer/source/checksum/video assets
+are prepared for review; a draft does not make them publicly downloadable.
+The owner will record the required actual-device video. No Store PR or public
+release is authorized by this preparation.
 
-- The installed 0.1.17 foundation passed 167 backend tests, native sanitizers,
-  Debian arm64 build/install/upgrade/firewall/Store preflight and exact installed
-  file verification. The current 0.1.18 checks and all 117 installed files also pass as linked above.
-- Public/private channels, grouped channel setup, saved mesh setups, conversations
-  and drafts, search, pins, quiet hours and diagnostics are implemented. Private
-  peer delivery and the official iPhone messaging/viewing path are exercised.
-- [Fitted GPS qualification](internal-gps-validation.md): app 0.1.17 local refresh
-  plus the separate native +czgps1 correction passed eight radio starts and the
-  final 31-sample/321.5s outdoor watch. New fixes reach the app with location
-  sharing Off. Satellite count remains unknown; older fixes are marked stale.
-- [Phone qualification](phone-access-validation.md): actual iPhone messaging,
-  cellular connectivity, background return, interruption recovery and physical
-  cold-power checks passed on the recorded version. One earlier foreground
-  disconnect remains unexplained; radio/access restarts can need manual phone
-  reconnection. Newer protocol checks do not repeat every handset test.
-- [Maintenance](maintenance-pass.md) records completed cleanup, reduced repeated
-  work and measured synthetic performance, not a battery-life claim.
+No spare card: fresh-image hardware qualification is explicitly deferred; the
+working card was not erased. USB GPS and SIM-dependent work also remain deferred.
+Live public-peer delivery, physical IPv6, full physical keyboard sweep and
+long-term everyday reliability retain their documented limits. Nonfatal GPS
+configuration ACK warnings are not claimed fixed.
 
-## Deferred and remaining
+## Documentation and maintained copies
 
-USB GPS work is explicitly deferred by the owner. SIM-dependent device work is
-also deferred. Live public-peer delivery, physical IPv6 and long-term everyday
-reliability are not established by private-peer/short checks. The nonfatal GPS
-configuration ACK warning is not claimed fixed. No new full-system cold-power
-qualification is implied by the latest radio restart tests.
-
-## Distribution and documentation
-
-Markdown in docs/user-guide and its generated manual/reference are maintained
-for the current candidate. The existing Drive PDFs are refreshed in place;
-GitHub release downloads remain explicitly labeled with their older version.
-Generated PDFs/build artifacts stay outside Git. Normal source pushes do not
-create a release, submit to the Store or send an upstream contribution.
-
-The radio-service GPS patch is a separate Linux package, not receiver firmware,
-and is not installed by the app package. Its exact source/artifact hashes and
-private rollback handling are in the GPS record. Preserve ADB enabled, saved
-chats/channels/profiles and current send/receive and privacy settings.
-
-## Store-readiness review
-
-The [2026-11-23 review](store-submission-readiness-20261123.md) finds a current
-share-code collision: MESH now belongs to another app. The installed app remains
-qualified for use; publication needs a new Store code, a clean-image dependency/
-install rehearsal, durable dependency/source distribution and the first-device
-demo. Existing CI used an older catalog and does not reserve a code. No Store
-submission, metadata identity change or device work occurred in this review.
+Current Markdown, generated manual/reference, Desktop and existing Drive PDFs
+are maintained for 0.1.19; old versioned archives stay historical. The app builder
+PDF links the public GitHub profile on its cover and includes GPS/distribution
+lessons. Source/backend mirrors are audited before synchronization and preserve
+independent hardware notes. Generated installers/PDFs stay out of Git. Public
+release downloads remain labeled with their actual older version until published.

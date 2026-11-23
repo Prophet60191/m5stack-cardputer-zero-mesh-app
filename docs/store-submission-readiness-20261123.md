@@ -2,31 +2,33 @@
 
 **Current disposition: prepare for submission; no Store upload is authorized.**
 
-## Distribution follow-up — 0.1.19 candidate
+## Distribution follow-up — qualified 0.1.19
 
-The owner authorized addressing this review and will record the device video.
-CZMS replaces MESH in current metadata; it does not rename the app. Current
-catalog b6c559a preflight passes for the local prototype, with only an optional
-localization recommendation. This is not a reservation or final source/artifact
-acceptance. CI now pins the refreshed guide/catalog and builds the private
-GPS-corrected native daemon, locked wheels and full source/dependency assets.
+The owner authorized the preparation work and will record the actual-device
+video. [Exact qualification](distribution-validation-20261123.md) covers source
+`8ada52a`, both CI jobs, the paired installer/source assets, all 255 installed
+files, private data preservation and bounded real radio/GPS/RF/SDK checks.
 
-A minimal Debian 13 arm64 container successfully installed the complete package,
-prepared/reused/repaired the ordinary-user Python cache offline, imported QR
-dependencies, ran real native/SDK simulated-radio checks and removed the package
-without removing user data or a legacy venv. No global radio package or existing
-SDK environment was used. Standard OS libraries are resolved by APT; optional
-camera capture and Tailscale remain platform/account facilities.
-
-The owner has **no spare microSD** and explicitly deferred fresh-image hardware
-qualification. Do not erase Lockon's existing setup. The existing-device upgrade
-and final source-correlated CI artifact must be qualified separately; neither
-container success nor prior 0.1.18 hardware checks prove those newer results.
+- CZMS replaces the taken MESH code; app/package names stay unchanged. Current
+  pinned preflight passes, with an optional localization recommendation. The
+  later catalog dad9338 has unchanged policy bytes and no CZMS mention.
+- One package includes the GPS-corrected private native daemon and 15 locked
+  wheels. Minimal Debian arm64 offline first-run/cache/QR/remove checks pass.
+  Standard OS libraries use APT; optional camera capture/Tailscale remain image
+  and account facilities. No separate radio install or manual pip is needed.
+- Complete corresponding source, licenses, build provenance, checksums and
+  install/video instructions accompany the candidate. Reviewable draft/local
+  assets are preparation; durable public availability begins only at publication.
+- The existing device upgrade passes with original data and settings preserved.
+  The owner has **no spare microSD** and explicitly defers fresh-image hardware
+  qualification. Do not erase the working card or claim container proof is the
+  same as fresh hardware.
+- Owner video, final video/privacy review and explicit publication/submission
+  remain. No Store PR or upstream submission has been made.
 
 See [distribution](distribution.md) and [the video checklist](store-demo-checklist.md).
-Durable public hosting of the paired installer/source assets, owner video and
-final publication/privacy review remain before submission. No release, Store PR
-or upstream submission is created by this work.
+The historical list below records the original blockers; this follow-up
+supersedes their now-resolved code/dependency/CI status.
 
 ## Original review (historical 0.1.18 baseline)
 

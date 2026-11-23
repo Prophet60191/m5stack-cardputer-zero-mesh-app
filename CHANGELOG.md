@@ -659,3 +659,27 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   Final clean-source CI, artifact audit and existing-device upgrade are pending.
   No spare card: owner explicitly defers fresh-image hardware qualification.
   Owner will supply real-device video; no submission or public release.
+
+
+## Distribution qualification closeout — 2026-11-23
+
+Mesh 0.1.19 exact runtime/package source 8ada52a is installed; later closeout
+changes are documentation only. Read docs/distribution-validation-20261123.md
+and docs/current-status.md. Both CI jobs, 175 backend/native/package/upgrade/
+firewall and minimal Debian offline cache/QR/remove checks pass. All 255 installed
+files match CI. Three real GPS/radio starts, 77.8s monitored stability, actual
+header/UI lifecycle, private Recipient ACK and settled real SDK gateway/heartbeat
+checks pass. 26 original messages/settings/profiles remain; one test makes 27.
+Legacy venv/global native unchanged, global daemon masked; no root/capability
+app process and one physical API connection. Keep ADB On, Radio send/receive,
+GPS enabled, sharing/MQTT Off, selected Phone access On and other apps untouched.
+Runtime first launch is offline; licenses/source paired with installer. Python
+Pre-Depends orders preinst; purge works without Python; manual checksums cannot
+clobber installer/source checksums. Targeted source/history/archive sensitivity
+checks pass in their recorded scope. Current dad9338 catalog policy is unchanged
+from pinned b6c559a and CZMS remains unclaimed, not reserved.
+Owner has no spare card: fresh-image hardware check explicitly deferred; never
+erase current setup. Owner will record video; no public/Store/upstream submission.
+USB GPS/SIM, public-peer/IPv6/full keyboard and long-term/earlier phone-drop
+limits remain. App/guide public sources and Desktop/Drive/mirrors are refreshed
+with independent hardware notes/private backups preserved.
