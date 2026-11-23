@@ -25,7 +25,7 @@ sandbox against other local users. Revoke compromised VPN devices/account access
 
 Enabling access intentionally lets the selected phone receive channel keys,
 mesh messages, node identities and positions. They are sensitive on the phone
-as well as the Cardputer. Host Wi-Fi/MQTT credentials, private signing/admin
+as well as the Cardputer. Disabled channel-slot keys, host Wi-Fi/MQTT credentials, private signing/admin
 keys, unqualified future protobuf fields, raw logs and local supervisor controls are excluded. This feature does
 not transfer the Cardputer's saved conversation/draft database to the phone;
 the official phone app maintains its own history and receives live traffic.
@@ -58,7 +58,9 @@ sudo tailscale serve --tcp=4403 off
 Tailscale Serve retains a background forwarder across restarts. When access or
 the radio is Off, the application gateway is closed, so this forwarder cannot
 serve Mesh data. A changed/missing VPN setup does not power off a working radio;
-Phone access reports that setup is required. Keep the ordinary daemon firewall.
+Phone access reports that setup is required and retries an absent gateway every
+15 seconds while Radio is Online. An established listener does not poll VPN
+status. Keep the ordinary daemon firewall.
 
 ## Connect the phone
 
@@ -76,7 +78,8 @@ Phone access reports that setup is required. Keep the ordinary daemon firewall.
 
 The address is learned from the current VPN, never hardcoded into this project.
 Use its IPv4 address when following this recipe. Selection/access preferences
-are stored privately. After restarting, a previously enabled gateway resumes
+are stored privately. Access is device-wide and follows the active mesh setup;
+turn it Off before using a setup that should not be shared with that phone. After restarting, a previously enabled gateway resumes
 only when the radio is Online and the selected VPN device/forwarder still check
 out. A failed preference write is reported; runtime access closes, but an old
 saved value may remain. Retry the change before relying on its reboot behavior.

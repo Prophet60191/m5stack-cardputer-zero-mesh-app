@@ -96,3 +96,20 @@ notices. A socket or subprocess boundary is not an automatic licensing exemption
 the nature of an integration and the applicable component terms still matter.
 No claim of automatic GPL isolation, universal reuse or measured battery savings
 is made by this design decision.
+
+## A second interface without a second radio owner
+
+Optional [phone access](phone-access.md) adds a protocol-aware gateway inside the
+supervisor. A separately administered Tailscale Serve endpoint supplies private
+transport and selected-device identity. The gateway exposes messaging/viewing;
+it does not forward the Unix intent socket or raw meshtasticd stream. Local and
+phone messages share `_send_text`, target/identity/TX checks, history and delivery
+handling. The supervisor remains the sole daemon client, avoiding the firmware's
+single-client replacement behavior.
+
+This is a concrete benefit of the chosen modular boundary: a new interface can
+reuse authority and lifecycle policy without moving radio state into the UI or
+creating another hardware owner. It also adds maintenance obligations: protocol
+version checks, field minimization, bounded sessions/queues, reconnect behavior
+and independent transport/UI/RF evidence. This remains a Mesh design choice, not
+an additional framework or a requirement for unrelated Cardputer apps.

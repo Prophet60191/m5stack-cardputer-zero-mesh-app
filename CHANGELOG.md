@@ -440,3 +440,6 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Strict-boundary follow-up: canonicalize forwarded heartbeat fields and discard
   unqualified future fields from exported snapshots/live records. All 156 backend
   tests pass, including unknown-field command/export regression cases.
+- Minimum-export/recovery follow-up: omit inactive channel credentials and retry
+  an absent gateway after delayed VPN startup without restarting RF. Healthy
+  listeners do not poll. All 158 backend tests pass.

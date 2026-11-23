@@ -252,6 +252,8 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
             try:
                 fn = self._work.get(timeout=0.2)
             except queue.Empty:
+                if not self._stop.is_set():
+                    with self._life_lock: self._phone_retry()
                 continue
             try:
                 with self._life_lock:

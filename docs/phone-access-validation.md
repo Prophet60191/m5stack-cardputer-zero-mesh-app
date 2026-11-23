@@ -76,3 +76,11 @@ snapshots/live records discard unqualified future fields as well as redacting
 known host secrets. Three hostile-field cases bring the backend suite to 156.
 These checks prevent a schema mismatch from becoming an implicit command or
 credential-export permission; they do not qualify arbitrary future firmware.
+
+## Recovery and minimum-export follow-up
+
+Disabled channel slots export empty settings instead of retaining credentials
+from an older setup. An absent phone listener retries every 15 seconds while
+Radio is Online, so delayed VPN startup does not require restarting RF. Healthy
+listeners do not poll the VPN CLI. Both cases are covered; all 158 backend tests
+pass before the final source-correlated CI/package run.

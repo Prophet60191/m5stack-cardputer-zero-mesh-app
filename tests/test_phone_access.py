@@ -232,6 +232,15 @@ class PhoneAccessTests(unittest.TestCase):
         self.assertEqual(len(self.heartbeats),25)
         self.assertFalse(self.sent)
 
+    def test_disabled_slot_does_not_export_a_previous_channel_key(self):
+        channel=self.s._iface.localNode.channels[2];channel.role=0
+        old=channel.SerializeToString()
+        rows=self.s._phone_snapshot(123)
+        visible=next(r.channel for r in rows if r.HasField('channel') and r.channel.index==2)
+        self.assertFalse(visible.settings.psk)
+        self.assertEqual(channel.SerializeToString(),old)
+        self.assertTrue(next(r.channel for r in rows if r.HasField('channel') and r.channel.index==1).settings.psk)
+
     def test_unknown_heartbeat_fields_cannot_tunnel_new_commands(self):
         session=Session(self.s)
         request=mesh_pb2.ToRadio()
@@ -407,6 +416,19 @@ class PhoneAccessTests(unittest.TestCase):
         self.assertFalse(self.s._phone_enabled)
         self.assertEqual(conn.recv(1),b'')
         self.assertEqual(self.s._radio,'online')
+
+    def test_vpn_late_start_recovers_phone_access_without_restarting_radio(self):
+        self.network['BackendState']='Stopped';self.s._phone_retry_at=0
+        self.s._phone_retry()
+        self.assertFalse(self.s._phone.listening)
+        self.assertEqual(self.s._radio,'online')
+        self.network['BackendState']='Running';self.s._phone_retry_at=0
+        self.s._phone_retry()
+        self.assertTrue(self.s._phone.listening)
+        self.assertEqual(self.s._radio,'online')
+        self.assertTrue(self.s._iface.localNode.localConfig.lora.tx_enabled)
+        with patch.object(self.s,'_tailscale_json',side_effect=AssertionError('healthy listeners must not poll')):
+            self.s._phone_retry_at=0;self.s._phone_retry()
 
     def test_disable_closes_client_and_never_changes_radio_or_tx(self):
         conn = self.connect(); self.handshake(conn)

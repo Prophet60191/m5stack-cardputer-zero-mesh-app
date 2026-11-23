@@ -24,6 +24,7 @@ class PhoneServices:
         self._phone_enabled = self._store.preference('phone.enabled', False) is True
         self._phone_peer = self._store.preference('phone.peer', '')
         self._phone_error = ''
+        self._phone_retry_at = time.monotonic() + 15
         self._phone_seen = {}  # bounded, no automatic resend after reconnect
 
     def _tailscale_json(self, *args):
@@ -124,6 +125,7 @@ class PhoneServices:
         return self._phone_payload()
 
     def _phone_resume(self):
+        self._phone_retry_at = time.monotonic() + 15
         self._phone_error = ''
         if not self._phone_enabled or self._radio != 'online': return
         try:
@@ -135,8 +137,15 @@ class PhoneServices:
             address = next((ip for ip in peer['addresses'] if ':' not in ip), peer['addresses'][0])
             self._phone.start(address)
         except Exception:
-            self._phone_error = 'Phone access unavailable; refresh Phone access settings'
+            self._phone_error = 'Phone access unavailable; retrying. Check VPN setup.'
             self._phone.stop()
+
+    def _phone_retry(self):
+        # Optional VPN startup must not delay/fail RF startup. Retry only an
+        # absent gateway; an established listener costs no status subprocesses.
+        if (not self._phone_enabled or self._radio != 'online' or self._phone.listening
+                or time.monotonic() < self._phone_retry_at): return
+        self._phone_resume()
 
     def _phone_context(self):
         return (self._iface, self._config_fingerprint(), self._phone_peer)
@@ -170,7 +179,11 @@ class PhoneServices:
                 value.mqtt.ClearField('username'); value.mqtt.ClearField('password')
                 value.mqtt.proxy_to_client_enabled = False
             add('moduleConfig', value)
-        for channel in node.channels: add('channel', channel)
+        for channel in node.channels:
+            # Disabled slots can retain a key from an older setup. The phone
+            # receives active channel credentials, not those inactive remnants.
+            visible = channel if channel.role in (1, 2) else type(channel)(index=channel.index)
+            add('channel', visible)
         # Python keeps derived lat/lon values alongside the real wire fields.
         # Ignore those extras; never synthesize a position from an invalid fix.
         nodes = list(getattr(iface, 'nodesByNum', {}).values())[:256]

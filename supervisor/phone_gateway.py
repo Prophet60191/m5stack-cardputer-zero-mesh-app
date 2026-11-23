@@ -291,6 +291,10 @@ class PhoneGateway:
             conn.close()
 
     @property
+    def listening(self):
+        with self._lock: return self._server is not None
+
+    @property
     def connected(self):
         with self._lock:
             return self._session is not None and self._session.ready and not self._session.closed.is_set()
