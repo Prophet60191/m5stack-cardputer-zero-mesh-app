@@ -22,7 +22,7 @@ jobs:
       - run: ASAN_OPTIONS=detect_leaks=0 .venv/bin/ctest --test-dir build/ci --output-on-failure
   debian-arm64:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,14 +31,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Prophet60191/m5stack-cardputer-zero-app-guide
-          ref: d414f602e219b3e40d2630022f3996bc8b9c4fcd
+          ref: 2dcf438d7acfe29054b76c3b612ce84ceb02226a
           path: build/store-guide
           persist-credentials: false
       - name: Check out reviewed Store policy and catalog
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: CardputerZero/packages
-          ref: 94eb8d7ad524e8ee01a52658f31871e6377c7544
+          ref: b6c559a0448aae7715c4b45678a0b89c9eceb12b
           path: build/store-packages
           persist-credentials: false
       - name: Fetch and verify the published upgrade baseline
@@ -51,6 +51,35 @@ jobs:
           git init --quiet "$RUNNER_TEMP/lvgl"
           git -C "$RUNNER_TEMP/lvgl" fetch --depth 1 https://github.com/lvgl/lvgl.git 85aa60d18b3d5e5588d7b247abf90198f07c8a63
           git -C "$RUNNER_TEMP/lvgl" checkout --detach FETCH_HEAD
+      - name: Fetch pinned native source (no device or RF access)
+        run: |
+          git init "$RUNNER_TEMP/firmware"
+          git -C "$RUNNER_TEMP/firmware" fetch --depth 1 https://github.com/meshtastic/firmware.git 54e0d8d0ab2ff56b3a9ce967e53f79e49af560fb
+          git -C "$RUNNER_TEMP/firmware" checkout --detach FETCH_HEAD
+          git -C "$RUNNER_TEMP/firmware" submodule update --init --depth 1 protobufs
+      - name: Build qualified native runtime with full corresponding source
+        run: |
+          docker build -t cz-native-runtime scripts/meshtasticd-gps
+          mkdir -p "$RUNNER_TEMP/native-out" "$RUNNER_TEMP/pio-core"
+          docker run --rm \
+            -v "$RUNNER_TEMP/firmware:/work" \
+            -v "$RUNNER_TEMP/pio-core:/root/.platformio" \
+            -v "$RUNNER_TEMP/native-out:/out" \
+            -v "$PWD/scripts/meshtasticd-gps:/support:ro" \
+            cz-native-runtime sh -c 'git config --global --add safe.directory /work; sh /support/build.sh'
+          docker run --rm --network none -e CZ_MESH_ISOLATED_TEST=1 \
+            -v "$RUNNER_TEMP/native-out:/out:ro" \
+            -v "$PWD/scripts/meshtasticd-gps:/support:ro" \
+            cz-native-runtime python3 /support/test_daemon.py /out/meshtasticd
+      - name: Prepare hash-locked Python wheels and private runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/runtime-stage" "$RUNNER_TEMP/python-cache"
+          docker run --rm -v "$PWD:/src:ro" \
+            -v "$RUNNER_TEMP/native-out:/native:ro" \
+            -v "$RUNNER_TEMP/runtime-stage:/out" \
+            -v "$RUNNER_TEMP/python-cache:/cache" \
+            cz-native-runtime python3 /src/scripts/runtime/prepare.py \
+              --native /native --cache /cache --output /out/runtime
       - name: Build matching Debian 13 arm64 environment
         run: docker build -t cz-mesh-arm64 -f tests/Dockerfile .
       - name: Build, install and validate package in an isolated namespace
@@ -63,6 +92,7 @@ jobs:
             -v "$RUNNER_TEMP/lvgl:/lvgl:ro" \
             -v "$RUNNER_TEMP/cz-baseline:/baseline:ro" \
             -v "$RUNNER_TEMP/cz-build:/work" \
+            -v "$RUNNER_TEMP/runtime-stage/runtime:/runtime:ro" \
             cz-mesh-arm64 sh /src/tests/linux-package-check.sh
       - name: Record checksums and corresponding source
         run: |
@@ -71,6 +101,28 @@ jobs:
           cd "$RUNNER_TEMP/cz-artifact"
           sha256sum *.deb > SHA256SUMS
           printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT
+      - name: Minimal Debian fresh-install, offline first-run and removal
+        run: |
+          mkdir -p "$RUNNER_TEMP/fresh-context"
+          cp "$RUNNER_TEMP/cz-artifact/"*.deb "$RUNNER_TEMP/fresh-context/cardputerzero-mesh.deb"
+          cp tests/Dockerfile.fresh-runtime "$RUNNER_TEMP/fresh-context/Dockerfile"
+          docker build -t cz-mesh-fresh "$RUNNER_TEMP/fresh-context"
+          docker run --rm --network none -e CZ_MESH_ISOLATED_TEST=1 \
+            -v "$PWD:/src:ro" cz-mesh-fresh sh /src/tests/fresh-runtime-check.sh
+      - name: Export complete release-ready source and dependency assets
+        run: |
+          mesh_version=$(python3 -c 'import json; print(json.load(open("app-builder.json"))["version"])')
+          docker run --rm --network none -v "$PWD:/src:ro" \
+            -v "$RUNNER_TEMP/cz-build:/work:ro" \
+            -v "$RUNNER_TEMP/native-out:/native:ro" \
+            -v "$RUNNER_TEMP/runtime-stage:/runtime-stage:ro" \
+            -v "$RUNNER_TEMP/lvgl:/lvgl:ro" \
+            -v "$RUNNER_TEMP/cz-artifact:/out" \
+            cz-mesh-arm64 python3 /src/scripts/runtime/export_release.py \
+              --deb "/work/linux/dist/cardputerzero-mesh_${mesh_version}-rev1_arm64.deb" \
+              --native /native --runtime /runtime-stage/runtime \
+              --python-source /runtime-stage/python-corresponding-source.tar.gz \
+              --lvgl /lvgl --output /out
       - name: Inspect the exact candidate without publishing
         run: |
           mesh_version=$(python3 -c 'import json; print(json.load(open("app-builder.json"))["version"])')
@@ -87,6 +139,10 @@ jobs:
             ${{ runner.temp }}/cz-artifact/SHA256SUMS
             ${{ runner.temp }}/cz-artifact/SOURCE_COMMIT
             ${{ runner.temp }}/cz-artifact/store-preflight.json
+            ${{ runner.temp }}/cz-artifact/*-source-and-dependencies.tar.gz
+            ${{ runner.temp }}/cz-artifact/RUNTIME_BUILD_INFO.json
+            ${{ runner.temp }}/cz-artifact/INSTALL.txt
+            ${{ runner.temp }}/cz-artifact/VIDEO-CHECKLIST.md
           if-no-files-found: error
       - name: Stage the non-installed keyboard replay helper
         run: |

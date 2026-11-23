@@ -1,0 +1,6 @@
+FROM debian:13-slim
+ENV DEBIAN_FRONTEND=noninteractive
+COPY cardputerzero-mesh.deb /tmp/cardputerzero-mesh.deb
+RUN apt-get update && apt-get install -y --no-install-recommends /tmp/cardputerzero-mesh.deb \
+    && rm -rf /var/lib/apt/lists/* /tmp/cardputerzero-mesh.deb
+# No SDK, compiler, pip downloads, global daemon, user venv or hardware is prepared.

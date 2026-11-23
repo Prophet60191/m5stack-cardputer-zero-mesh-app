@@ -179,8 +179,8 @@ class ReviewTests(unittest.TestCase):
             original_send(event)
         def query(*args, **kwargs):
             self.assertFalse(self.s._life_lock._is_owned())
-            return subprocess.CompletedProcess(args, 0, '2.7.26-synthetic', '')
-        with patch('subprocess.run', side_effect=query) as run, patch.object(self.s, '_read_lines', return_value=iter(())), \
+            return ('/synthetic/bundled/meshtasticd', '2.7.26-synthetic')
+        with patch('bundled_runtime.daemon', side_effect=query) as run, patch.object(self.s, '_read_lines', return_value=iter(())), \
                 patch.object(self.s, '_check_firewall', return_value={'ok': True}), patch.object(self.c, 'close', create=True), \
                 patch.object(self.c, 'send', side_effect=send):
             self.s._handle_client(None, self.c)

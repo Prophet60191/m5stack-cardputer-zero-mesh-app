@@ -7,9 +7,10 @@ if [ ! -f /.dockerenv ] || [ "${CZ_MESH_ISOLATED_TEST:-}" != 1 ]; then
     exit 1
 fi
 mesh_build="${CZ_MESH_BUILD_DIR:-/work/linux}"
+test -f /runtime/manifest.json
 cmake -S /src -B "$mesh_build" -G Ninja -DUSE_DESKTOP=OFF -DCM0_SDK_ROOT=/ \
     -DCM0_ALLOW_FETCH_DEPS=OFF -DFETCHCONTENT_SOURCE_DIR_LVGL=/lvgl \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DMESH_BUILD_BENCHMARKS=ON \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DMESH_BUILD_BENCHMARKS=ON -DMESH_RUNTIME_BUNDLE=/runtime \
     -DCPACK_OUTPUT_FILE_PREFIX="$mesh_build/dist"
 cmake --build "$mesh_build" -j 8
 cd "$mesh_build"
@@ -27,6 +28,9 @@ test -f /usr/lib/cardputerzero-mesh/user_service.py
 test -f /usr/lib/cardputerzero-mesh/phone_gateway.py
 test -f /usr/lib/cardputerzero-mesh/phone_services.py
 test -f /usr/lib/cardputerzero-mesh/local_node_refresh.py
+test -x /usr/lib/cardputerzero-mesh/runtime/radio/meshtasticd
+test -f /usr/lib/cardputerzero-mesh/runtime/requirements.lock
+test -f /usr/lib/cardputerzero-mesh/runtime_prepare.py
 test ! -e /usr/bin/mesh-launch
 test ! -e /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
 test ! -e /usr/bin/mesh_benchmarks
@@ -100,4 +104,5 @@ kill "$mesh_monitor"
 wait "$mesh_monitor"
 trap - EXIT
 python3 /usr/lib/cardputerzero-mesh/firewall.py ensure
+python3 /src/tests/runtime-package-check.py
 python -m unittest discover -s /src/tests -p 'test_*.py' -v

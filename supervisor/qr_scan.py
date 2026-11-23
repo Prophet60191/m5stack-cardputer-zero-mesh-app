@@ -35,7 +35,7 @@ def scan():
     try:
         from pyzbar.pyzbar import decode
     except (ImportError, OSError):
-        raise RuntimeError('Install pyzbar==0.1.9 in the radio venv and Debian libzbar0t64') from None
+        raise RuntimeError('Repair the app installation and Debian libzbar0t64 dependency') from None
     program = capture_program()
     if program:
         try: from PIL import Image

@@ -5,7 +5,7 @@
 # Licensed GPL-3.0-or-later because this process links the GPL-3.0 `meshtastic`
 # Python library. The C++ UI it serves is a separate process (MIT) that talks to
 # it only over a local socket. meshtasticd and the meshtastic library are
-# separate GPL-3.0 projects, installed by the user, not bundled here.
+# separate GPL projects, bundled with their licenses and corresponding source.
 """
 Mesh supervisor: the one process that owns the radio and serves the UI.
 
@@ -28,8 +28,8 @@ Pieces it owns:
                               via a pipe-monitored guardian
 - the mesh itself          -> the official `meshtastic` client over localhost TCP
 
-Linux-only; runs ON the device with a venv python that has `meshtastic`:
-    venv/bin/python supervisor/supervisor.py
+Linux-only; the installed run-supervisor helper prepares the managed runtime
+offline and launches this process as the logged-in user.
 """
 
 from __future__ import annotations
@@ -87,13 +87,8 @@ ERROR_RE = re.compile(r"(cannot open|resource busy|already in use|permission den
 
 
 def find_meshtasticd() -> str:
-    found = shutil.which("meshtasticd")
-    if found:
-        return found
-    for c in ("/usr/bin/meshtasticd", "/usr/sbin/meshtasticd"):
-        if os.path.exists(c):
-            return c
-    raise FileNotFoundError("meshtasticd not installed")
+    from bundled_runtime import daemon
+    return daemon()[0]
 
 
 def socket_dir() -> Path:
@@ -1534,7 +1529,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                 return   # oversized line with no newline -> hang up
 
     def _handle_client(self, conn: socket.socket, client: Client) -> None:
-        self._daemon_version() # A cache miss may run dpkg-query; never under _life_lock.
+        self._daemon_version() # Validate/cache package metadata outside _life_lock.
         # Capture/queue greeting config under the lifecycle lock too, so a
         # reconnect cannot enqueue old confirmed values after a stop/write.
         with self._life_lock:

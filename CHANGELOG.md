@@ -642,3 +642,20 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   external dependency/fresh-image and demo/release work in
   docs/store-submission-readiness-20261123.md. No metadata identity change,
   submission, authentication, upload or release was performed.
+
+
+## 0.1.19 — 2026-11-23 (distribution candidate, not yet installed)
+
+- Bundle the qualified GPS-corrected native runtime and 15 hash-pinned Python
+  wheels; prepare/reuse/repair a private user cache offline without manual pip.
+- Preserve legacy venv/user data; validate fixed root-owned runtime files and
+  stop only the app's user service before package replacement. Installation
+  never starts RF or installs/unmasks a competing global daemon.
+- Adopt available Store code CZMS; refresh policy/catalog pins and automate
+  minimal fresh Debian first-launch/remove checks and full corresponding source
+  export. Add a one-command builder, install/source and owner video instructions.
+- Prototype: 175 backend tests, native/package/upgrade/firewall checks, fresh
+  minimal Debian offline runtime/cache/QR/remove and current preflight pass.
+  Final clean-source CI, artifact audit and existing-device upgrade are pending.
+  No spare card: owner explicitly defers fresh-image hardware qualification.
+  Owner will supply real-device video; no submission or public release.

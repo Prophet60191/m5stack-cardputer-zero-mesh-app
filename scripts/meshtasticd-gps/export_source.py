@@ -14,6 +14,16 @@ with tarfile.open(bundle,'w:gz') as t:
  t.add(source,arcname='firmware',filter=keep)
  for folder in ('packages','platforms'):t.add(core/folder,arcname='build-dependencies/'+folder,filter=keep)
  t.add(support,arcname='build-support',filter=keep)
+ # Minimal PUBLIC upstream Git objects preserve the version banner for offline
+ # rebuilds. Never include configs, remotes, hooks, credentials or reflogs.
+ git=source/'.git'
+ def public_git(info):
+  info.uid=info.gid=0;info.uname=info.gname='root'
+  return info if not info.issym() and not info.islnk() else None
+ for name in ('HEAD','shallow','objects','refs'):
+  p=git/name
+  if p.exists():t.add(p,arcname='firmware/.git/'+name,filter=public_git)
+
 info={'upstream_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=source,text=True).strip(),
  'patch_sha256':hashlib.sha256((support/'atgm-probe-timeout.patch').read_bytes()).hexdigest(),
  'platformio':subprocess.check_output(['pio','--version'],text=True).strip(),

@@ -5,7 +5,7 @@ Two targets share one codebase:
 - **Desktop simulator** (SDL) — fast, flash-free UI iteration on your computer. It renders at the device-native `320x170` and composites into a windowed shell.
 - **Device build** — the real app on the CardputerZero's framebuffer.
 
-The UI builds on its own. The **radio side** (`meshtasticd` + the `meshtastic` Python library) is GPL-3.0 and is installed separately — see the main [README](../README.md#install--run).
+The UI builds on its own. The **radio side** (`meshtasticd` + the `meshtastic` Python library) is GPL-3.0 and is bundled in the device package — see [distribution](distribution.md).
 
 ## Dependencies
 
@@ -60,31 +60,23 @@ cmake --preset cp0-cross
 cmake --build --preset cp0-cross-rel
 ```
 
-## Debian package (optional)
+## Complete Debian package
 
-Package on a matching Debian arm64 build environment so `dpkg-shlibdeps`
-resolves the actual ELF library dependencies. CMake must be **3.31 or later**;
-check your distro's version. Desktop simulator builds are not device packages.
+Use Docker with Linux arm64 support and Python 3 on the build host:
 
 ```bash
-cmake --preset cp0-native -DCM0_SDK_ROOT=/ -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build build/cp0-native --config Release
-cd build/cp0-native
-cpack -G DEB -C Release
+python3 scripts/build-package.py
 ```
 
-Output is `build/cp0-native/dist/cardputerzero-mesh_0.1.18-rev1_arm64.deb`.
-The package contains the UI, assets, launcher, supervisor/guardian sources, both
-licenses, a fixed transient user-service controller, capability-limited firewall boot service, and canonical version metadata. The launcher starts the supervisor; it does not automatically start
-RF. Follow the README for platform permissions and pinned venv setup. The optional
-system-level UI autostart unit is unrelated to the radio supervisor and stays off.
+This fetches pinned sources, builds the GPS-corrected private radio runtime,
+verifies locked wheels, builds the app and runs isolated native/backend/package
+checks. It does not access hardware or transmit. See [distribution](distribution.md)
+for caches, offline mode, complete source export and release verification.
 
-Inspect before installation:
-
-```bash
-dpkg-deb --info dist/*.deb
-dpkg-deb --contents dist/*.deb
-```
+Raw CMake/CPack builds require `-DMESH_RUNTIME_BUNDLE=/absolute/runtime/path`;
+installing a native build without that verified bundle fails deliberately.
+Desktop-only UI builds do not need the radio bundle. Keep the platform's
+permissions and firewall integration; do not run the UI as root.
 
 ## Regression checks
 

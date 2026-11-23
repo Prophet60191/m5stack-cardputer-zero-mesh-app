@@ -2,7 +2,8 @@
 
 The C++/LVGL UI is MIT; the radio supervisor and guardian/firewall helpers are
 GPL-3.0-or-later. Their full license is shipped alongside the Python sources.
-The external Meshtastic daemon/library are installed separately.
+The private Meshtastic daemon/library are bundled with exact hash/source locks;
+the first-launch user runtime is prepared offline. See distribution.md.
 
 ## Trust boundaries
 
@@ -30,7 +31,8 @@ can still change networking or remove rules between checks. Loopback clients
 can access the unauthenticated daemon API; this is not isolation from local users.
 
 The separate system-wide `meshtasticd.service` must be masked or disabled and
-inactive. Mask it **before** dependency installation so its package cannot start
+inactive. The app does not install that separate daemon package. If installing it for
+another purpose, mask it **before** installation so its package cannot start
 an unrelated API listener (normally TCP 4403) outside this app's firewall and
 lifecycle. Radio startup checks for this conflict before powering the Cap.
 
@@ -264,3 +266,18 @@ power interruption can leave the existing roll-forward recovery transaction,
 and startup still removes unapproved public location before power. Software
 cannot guarantee recovery from failed storage/hardware or power loss. Stored
 verification is distinguished from live readback and from actual peer delivery.
+
+## Offline runtime integrity and package upgrades
+
+The package uses a fixed root-owned native binary, never a PATH lookup. Runtime
+manifest, locks, wheel sizes/hashes, ownership, modes and symlinks are validated.
+Python preparation strips operator pip configuration and index overrides, uses
+only bundled wheels with hash verification and takes a bounded per-user lock.
+Its managed cache is disposable; chats, settings and legacy venv are not. This
+is integrity against accidental damage/untrusted package inputs, not a sandbox
+against the same user modifying their own executable Python cache.
+
+Only package-manager maintainer scripts run as root. They stop the fixed app
+unit through verified user buses and mark file replacement in progress; they
+never run the app or prepare a user's Python environment as root. Finishing
+package configuration clears the marker. Installation does not power RF.

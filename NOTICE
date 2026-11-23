@@ -33,15 +33,15 @@ Third-party components vendored or fetched by the app build
     * Kenney Input Prompts (CC0)
     * Noto Sans CJK (OFL) — loaded from the system on the device
 
-Radio stack — NOT bundled; you install it yourself
---------------------------------------------------
-This repository does not distribute the Meshtastic radio stack. The supervisor
-depends on, and the user separately installs:
+Radio stack — private bundled runtime from 0.1.19
+------------------------------------------------
 - meshtasticd (GPL-3.0) — https://github.com/meshtastic/firmware
-- the meshtastic Python client library (GPL-3.0) — https://github.com/meshtastic/python
-Because these are installed by the user and run as separate programs, this
-repository distributes no GPL binaries; the supervisor and its guardian/firewall helpers are GPL-3.0-or-later.
-See supervisor/LICENSE.GPL for the full license.
+- meshtastic Python client (GPL-3.0) — https://github.com/meshtastic/python
+The private radio process and Python wheels retain their original licenses.
+Release assets pair the installer with full corresponding source and dependency
+archives; runtime/manifest.json identifies exact hashes, source and GPS patch.
+See THIRD_PARTY_NOTICES.md and docs/distribution.md. The supervisor and its
+guardian/firewall helpers are GPL-3.0-or-later; see supervisor/LICENSE.GPL.
 
 Meshtastic(R) is a registered trademark of Meshtastic LLC. This is an
 independent community project, not affiliated with or endorsed by Meshtastic LLC

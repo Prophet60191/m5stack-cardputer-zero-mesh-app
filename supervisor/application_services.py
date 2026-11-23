@@ -33,16 +33,15 @@ class ApplicationServices:
             if not refresh and cached and time.monotonic() - cached[0] < 60:
                 return cached[1]
             try:
-                result = subprocess.run(["/usr/bin/dpkg-query", "-W", "-f=${Version}", "meshtasticd"],
-                                        capture_output=True, text=True, timeout=3)
-                version = result.stdout.strip()[:80] if result.returncode == 0 else "not installed"
-            except (OSError, subprocess.TimeoutExpired): version = "unavailable"
+                from bundled_runtime import daemon
+                version = daemon()[1]
+            except (OSError, ValueError): version = "bundled runtime unavailable"
             self._daemon_version_cache = (time.monotonic(), version)
             return version
 
     def _check_daemon_compatibility(self):
         if self._client_version() != "2.7.11":
-            raise ValueError("install the qualified meshtastic==2.7.11 client in the configured radio venv")
+            raise ValueError("reinstall the app package: the bundled meshtastic 2.7.11 client is required")
         version = self._daemon_version(refresh=True)
         if not version.startswith("2.7.26"):
             raise ValueError("this candidate requires the qualified meshtasticd 2.7.26 build (schema 24); detected " + version)
@@ -66,7 +65,7 @@ class ApplicationServices:
             region = config.lora.RegionCode.Name(config.lora.region)
         except (OSError, ValueError, DecodeError, RuntimeError): pass
         # Greetings warm this cache outside the lifecycle lock. Never wait for
-        # dpkg-query here while serializing radio control.
+        # a runtime checksum here while serializing radio control.
         cached = getattr(self, "_daemon_version_cache", (0, "not checked"))
         dependencies = {"daemon": cached[1], "client": self._client_version()}
         try:

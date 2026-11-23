@@ -1,6 +1,38 @@
 # Store submission readiness — 2026-11-23
 
-**Disposition: prepare for submission, but do not publish this candidate yet.**
+**Current disposition: prepare for submission; no Store upload is authorized.**
+
+## Distribution follow-up — 0.1.19 candidate
+
+The owner authorized addressing this review and will record the device video.
+CZMS replaces MESH in current metadata; it does not rename the app. Current
+catalog b6c559a preflight passes for the local prototype, with only an optional
+localization recommendation. This is not a reservation or final source/artifact
+acceptance. CI now pins the refreshed guide/catalog and builds the private
+GPS-corrected native daemon, locked wheels and full source/dependency assets.
+
+A minimal Debian 13 arm64 container successfully installed the complete package,
+prepared/reused/repaired the ordinary-user Python cache offline, imported QR
+dependencies, ran real native/SDK simulated-radio checks and removed the package
+without removing user data or a legacy venv. No global radio package or existing
+SDK environment was used. Standard OS libraries are resolved by APT; optional
+camera capture and Tailscale remain platform/account facilities.
+
+The owner has **no spare microSD** and explicitly deferred fresh-image hardware
+qualification. Do not erase Lockon's existing setup. The existing-device upgrade
+and final source-correlated CI artifact must be qualified separately; neither
+container success nor prior 0.1.18 hardware checks prove those newer results.
+
+See [distribution](distribution.md) and [the video checklist](store-demo-checklist.md).
+Durable public hosting of the paired installer/source assets, owner video and
+final publication/privacy review remain before submission. No release, Store PR
+or upstream submission is created by this work.
+
+## Original review (historical 0.1.18 baseline)
+
+The following describes the original review before the above changes.
+
+**Original disposition: prepare for submission, but do not publish this candidate yet.**
 One automated blocker is confirmed: the Store share code MESH is now owned by
 MeshTandem. Separate installation/dependency and first-submission evidence work
 also remains. This review changes no app behavior, metadata identity, installed

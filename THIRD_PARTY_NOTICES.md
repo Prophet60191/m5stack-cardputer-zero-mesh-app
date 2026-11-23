@@ -37,10 +37,13 @@ to those packages' copyright/license files for their build-specific terms.
 Radio supervisor and guardian/firewall helpers: GPL-3.0-or-later; the full
 text is supervisor/LICENSE.GPL and the Python sources are shipped in the
 package. cap_lora.py, qr_scan.py and the retired radio_up.py entry point are
-MIT. External meshtasticd and meshtastic==2.7.11 are installed separately,
-not redistributed in the package. See NOTICE for project attribution and
-trademarks. Not bundling these dependencies is a project distribution choice,
-not a claim that GPL prohibits redistribution under its terms.
+MIT. Starting with 0.1.19, the package redistributes a private native
+meshtasticd and hash-pinned Python wheels. Their original license files are
+installed under `/usr/lib/cardputerzero-mesh/runtime/licenses/`; the runtime
+manifest records exact sources, patches and hashes. Release assets must include
+the complete corresponding-source/dependency archive, not only the installer.
+See [distribution](docs/distribution.md). The MIT UI and GPL runtime remain
+separate processes; redistribution preserves each component's own terms.
 
 ## Optional phone transport
 
@@ -50,10 +53,10 @@ protocol interface. The official Meshtastic phone application is also separate.
 Consult their own licenses and terms; the existing UI/supervisor license split
 is unchanged.
 
-The optional native GPS compatibility build under `scripts/meshtasticd-gps/`
-rebuilds separately installed Meshtastic firmware/meshtasticd from pinned official
+The native GPS compatibility build under `scripts/meshtasticd-gps/`
+rebuilds the package-private Meshtastic firmware/meshtasticd from pinned official
 GPL-3.0-or-later source with an identification-timeout patch. It is not linked
 into the MIT UI. Native artifacts must retain attribution and their paired full
 corresponding-source/dependency archive; the scripts document the version/hash
-and separate installation/qualification boundary. No upstream submission is
+and the qualification boundary. Historical standalone package instructions remain for 0.1.18 rollback only. No upstream submission is
 implied by retaining a local downstream patch.

@@ -8,3 +8,7 @@ if [ "${1:-}" = remove ] || [ "${1:-}" = purge ]; then
         systemctl daemon-reload
     fi
 fi
+
+if [ "${1:-}" = remove ] || [ "${1:-}" = purge ]; then
+    /usr/bin/python3 -I -c 'from pathlib import Path; Path("/run/cardputerzero-mesh-package-update").unlink(missing_ok=True)'
+fi

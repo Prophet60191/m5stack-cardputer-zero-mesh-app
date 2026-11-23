@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.18 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
+> For Mesh **0.1.19 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 

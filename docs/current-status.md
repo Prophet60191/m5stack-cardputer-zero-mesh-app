@@ -1,3 +1,19 @@
+# Current distribution candidate — 0.1.19
+
+0.1.19 is in packaging qualification; **0.1.18 remains installed** until a final
+source-correlated artifact passes CI and controlled upgrade checks. The new
+candidate bundles the qualified native GPS correction and locked Python wheels,
+removing separate radio/pip setup. Prototype minimal Debian offline first-run,
+cache repair, QR dependencies, uninstall/data preservation and current Store
+preflight pass. See [distribution](distribution.md) and the [readiness report](store-submission-readiness-20261123.md).
+
+No spare card is available: fresh-image hardware qualification is explicitly
+deferred. Owner will provide the real-device video. No Store submission/public
+release has occurred. USB GPS/SIM tasks remain deferred. Existing phone/GPS/RF
+qualification limits below still apply; packaging does not erase them.
+
+## Last installed baseline
+
 # Current app status — 2026-11-23
 
 Mesh 0.1.18 is installed and qualified for its header change: no battery glyph,

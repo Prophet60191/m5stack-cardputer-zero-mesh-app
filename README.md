@@ -31,7 +31,7 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.18, a release candidate** with public/private channel
+The current source is **0.1.19, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. The header shows battery percentage without a battery
 icon. The [latest status](docs/current-status.md) separates current changes from
@@ -134,59 +134,35 @@ TX or location settings. The daemon API remains confined to loopback.
 
 ## Install & run
 
-> This repo ships the **app** and the **supervisor**. The radio stack it depends on — `meshtasticd` and the
-> `meshtastic` Python library — are **GPL-3.0** and are **not** bundled here; you install them yourself (below).
-
-**1. Install the built Debian package on the device:**
-
-```bash
-# Prevent the dependency package from starting its separate system daemon.
-sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.18-rev1_arm64.deb
-# The qualified Debian build used for this candidate:
-sudo apt install 'meshtasticd=2.7.26.61~obs54e0d8d~beta'
-```
-
-The package installs the supervisor and a boot-persistent capability firewall
-service, with no app sudo grant. On launch, a fixed helper creates a transient
-service in the logged-in user’s systemd manager. No shared user-unit file is
-installed and package installation does not start RF.
-Keep the existing platform SPI/GPIO/I2C/video/input permissions;
-do not run the app as root or grant blanket sudo.
-If that exact daemon build is unavailable from the configured repositories, obtain
-the corresponding verified upstream package rather than substituting a newer
-firmware/client combination. Runtime compatibility checks fail closed before
-power-on; this installer does not add repositories or install the radio stack.
-
-For the fitted Cap GPS, app 0.1.17 fixes local-position refresh but the baseline
-native service can still miss receiver identification. The separate `+czgps1`
-service patch/build and rollback instructions are in
-[scripts/meshtasticd-gps](scripts/meshtasticd-gps/README.md); qualification and exact
-artifact hashes are in the [GPS record](docs/internal-gps-validation.md). This is
-a separate Linux package, not receiver firmware, and is not installed by the app.
-
-**2. Install the pinned radio client in your own venv:**
+The **0.1.19 candidate** bundles the qualified GPS-corrected `meshtasticd`,
+Python client and QR decoder wheels. No separate radio package or pip commands
+are needed. Install on the official Debian 13 arm64 image:
 
 ```bash
-python3 -m venv "${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv"
-"${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv/bin/pip" install 'meshtastic==2.7.11'
+sudo apt install ./cardputerzero-mesh_0.1.19-rev1_arm64.deb
 ```
 
-Camera QR scanning is optional. The built-in CSI camera uses the fixed
-`rpicam-still`/libcamera capture program; it does not open the raw CSI video node
-as a webcam. On Debian 13, install `python3-pil` and `libzbar0t64` from Debian,
-and install `pyzbar==0.1.9` in the radio venv:
+APT resolves missing standard Debian libraries automatically. The first launch
+prepares a private user runtime **offline** from checked, bundled wheels; later
+launches reuse it. Existing operator-created Python environments stay untouched.
+See [distribution and source builds](docs/distribution.md) for the one-command
+builder, checksums, corresponding source and explicit qualification limits.
 
-```bash
-sudo apt install python3-pil libzbar0t64
-"${XDG_DATA_HOME:-$HOME/.local/share}/cardputerzero-mesh/venv/bin/pip" install 'pyzbar==0.1.9'
-```
+The app runs as the logged-in user, using the platform's SPI/GPIO/I2C/video/input
+permissions and its capability-limited firewall service. Package installation
+stops this app's existing background service before replacing files, but does
+not start RF. Close Mesh and turn its radio Off before upgrading; relaunch it
+when installation finishes. Keep a separately installed global meshtasticd
+service stopped/masked if one already exists; this package does not manage it.
+Do not run Mesh as root or grant blanket sudo.
 
-Create/update the venv with `python3 -m venv --system-site-packages <venv-path>`
-so it can import the system Pillow package. `python3-opencv` is needed only for a
-USB/V4L2 webcam fallback. Pasting a private share URL works without a camera.
+Camera scanning uses the image's `rpicam-still` provider (`rpicam-apps-core`).
+Pillow/zbar are declared Debian dependencies; the Python QR decoder is bundled.
+USB webcam fallback additionally needs `python3-opencv`. Pasting a share link
+works without a camera. Optional phone access needs separately administered
+Tailscale and the official Meshtastic phone app; accounts are never bundled.
 
-**3. Attach the antenna and launch Mesh from the grid.** On an empty state directory, first-run setup creates a receive-only profile. Choose your permitted region and public or newly generated private primary channel. Existing profiles are preserved. Use Settings → Transmit mode to enable TX deliberately. A private group needs its selected-channel QR shared with the intended peer.
+**2. Attach the antenna and launch Mesh from the grid.** On an empty state directory, first-run setup creates a receive-only profile. Choose your permitted region and public or newly generated private primary channel. Existing profiles are preserved. Use Settings → Transmit mode to enable TX deliberately. A private group needs its selected-channel QR shared with the intended peer.
 
 The launcher starts the
 transient user supervisor service; radio startup stays an explicit action unless you enable
@@ -216,7 +192,7 @@ is created on demand after login; it is not enabled for boot. A cold boot starts
 without RF until Mesh is opened and its normal explicit/approved auto-start
 setting is applied. Before uninstall, stop the supervisor with the helper above.
 
-Source development can run the supervisor manually with the pinned venv, after
+Source development should use the packaged run-supervisor helper after
 installing this package's runtime/firewall integration. The retired `radio_up.py`
 entry point cannot bypass those checks.
 
@@ -281,7 +257,7 @@ See [docs/security.md](docs/security.md) for the full list. Found something? Ple
 - **Supervisor** (`supervisor/supervisor.py`) — **GPL-3.0-or-later**, because it links the GPL `meshtastic`
   library. See [supervisor/LICENSE.GPL](supervisor/LICENSE.GPL).
 - Bundled fonts/assets keep their own licenses (see [NOTICE](NOTICE)); `meshtasticd` and the `meshtastic`
-  library are separate GPL-3.0 projects you install yourself.
+  library are GPL projects redistributed with their licenses and paired corresponding source.
 
 See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 

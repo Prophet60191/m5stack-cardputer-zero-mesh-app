@@ -44,6 +44,8 @@ def start_command():
 
 
 def ensure():
+    if Path("/run/cardputerzero-mesh-package-update").exists():
+        raise RuntimeError("Mesh package installation is incomplete; finish package configuration before reopening")
     state = command(SYSTEMCTL, "--user", "show", "--property=ActiveState", "--value", UNIT,
                     check=False).stdout.strip()
     if state in ("active", "activating", "reloading"):

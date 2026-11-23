@@ -8,4 +8,5 @@ if [ "${1:-}" = configure ]; then
         systemctl enable cardputerzero-mesh-firewall.service
         systemctl restart cardputerzero-mesh-firewall.service
     fi
+    /usr/bin/python3 -I -c 'from pathlib import Path; Path("/run/cardputerzero-mesh-package-update").unlink(missing_ok=True)'
 fi

@@ -118,7 +118,8 @@ set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 # Derive native library dependencies from the built ELF, including SONAMEs.
 # Hardcoded libjpeg/libfmt package names were wrong across Debian/Ubuntu/BSPs.
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3, python3-venv, nftables, adduser, systemd")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3 (>= 3.13), python3 (<< 3.14), python3-venv, python3-pil, libzbar0t64, fonts-noto-cjk, nftables, adduser, systemd")
+set(CPACK_DEBIAN_PACKAGE_SUGGESTS "rpicam-apps-core, python3-opencv, tailscale")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CM0_LIBRARY_HINTS}")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
@@ -132,10 +133,25 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/supervisor/"
     DESTINATION "lib/cardputerzero-mesh"
     FILES_MATCHING PATTERN "*.py" PATTERN "*.yaml" PATTERN "LICENSE.GPL")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/app-builder.json" DESTINATION "lib/cardputerzero-mesh")
+# Native releases are complete offline runtimes. Desktop/build-only work may
+# omit this path, but a thin Debian installer must never be produced silently.
+set(MESH_RUNTIME_BUNDLE "" CACHE PATH "Prepared, checksummed arm64 runtime directory")
+if(MESH_RUNTIME_BUNDLE)
+    if(NOT EXISTS "${MESH_RUNTIME_BUNDLE}/manifest.json")
+        message(FATAL_ERROR "Runtime manifest missing; use scripts/build-package.py")
+    endif()
+    install(DIRECTORY "${MESH_RUNTIME_BUNDLE}/" DESTINATION "lib/cardputerzero-mesh/runtime"
+        USE_SOURCE_PERMISSIONS)
+elseif(NOT USE_DESKTOP)
+    install(CODE "message(FATAL_ERROR \"Release runtime missing: use scripts/build-package.py or set MESH_RUNTIME_BUNDLE\")")
+endif()
+
 install(PROGRAMS supervisor/firewall-setup.sh packaging/run-supervisor
     DESTINATION "lib/cardputerzero-mesh")
 install(PROGRAMS packaging/cardputerzero-mesh-launch DESTINATION "bin")
 install(FILES packaging/cardputerzero-mesh-firewall.service DESTINATION "lib/systemd/system")
-set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${APP_GENERATED_DIR}/conffiles;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postinst;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postrm")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/stop-user-service" "${APP_GENERATED_DIR}/preinst" COPYONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/stop-user-service" "${APP_GENERATED_DIR}/prerm" COPYONLY)
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${APP_GENERATED_DIR}/conffiles;${APP_GENERATED_DIR}/preinst;${APP_GENERATED_DIR}/prerm;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postinst;${CMAKE_CURRENT_SOURCE_DIR}/packaging/postrm")
 
 include(CPack)

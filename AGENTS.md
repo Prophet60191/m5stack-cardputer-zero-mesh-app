@@ -261,3 +261,16 @@ are suggestions only, not reserved or applied. No submission/upload/auth or app/
 device/metadata changes in this review. Guide GPS recipe reuses official parsing/
 ownership/freshness and adds integration/qualification lessons; do not label
 Meshtastic's native probe/cache fixes as M5Stack GPS-app defects. Dongle deferred.
+
+## Self-contained distribution candidate — 2026-11-23
+
+0.1.19 packaging work is in progress; 0.1.18 remains installed until exact final
+CI artifact qualification. Read docs/distribution.md and the readiness report.
+Private native GPS runtime and 15 locked wheels replace global-daemon/PATH and
+manual-venv setup. Preserve legacy venv and all owner state. Minimal fresh Debian
+container offline cache/import/remove checks and current CZMS Store preflight
+pass for the prototype; no final source-correlated acceptance implied.
+Owner has no spare card: fresh-image hardware test explicitly deferred, never
+erase Lockon. Owner will record video; no Store submission or public release.
+Leave ADB enabled, global standalone daemon masked, TX/privacy/GPS/phone choices
+unchanged. Do not conflate bundled source completeness with an OS/toolchain image.
