@@ -127,13 +127,22 @@ automatic handset reconnection after an intentional access toggle is not proven.
 A normal `radio.stop`/`radio.start` lifecycle check passed. Phone access stopped
 with the radio and resumed after Online; the send/receive setting and hashes of
 saved channel/radio/module settings, named profiles and app configuration remain
-unchanged. Actual handset reconnection after this step is being checked separately.
+unchanged. The owner confirms that the iPhone required a manual reconnect
+afterward and that its private test message then arrived. This is successful
+manual recovery, not proof of automatic reconnection.
+
+The first longer-idle attempt sampled a phone disconnect after approximately
+153 seconds while RF stayed Online/send-receive, the firewall remained healthy
+and the physical radio connection count stayed one. The owner confirms the
+phone locked or switched apps during that interval. This is not a qualified
+foreground idle failure or pass. A new five-minute test waits for a real phone
+connection and asks the owner to keep Meshtastic visible on an awake screen;
+its result is still pending. Earlier owner-confirmed reopening after lock worked.
 
 Still pending with the owner:
 
 - Explicit confirmation of both message directions on Lockon's own screen.
-- Actual handset reconnection after radio restart; longer foreground idle
-  behavior and roaming between Wi-Fi and cellular.
+- Longer foreground idle behavior and roaming between Wi-Fi and cellular.
 - Cold-boot phone/VPN recovery and representative longer handset use. Automated
   recovery/slow-client tests and a stationary 40-second heartbeat check do not
   substitute for these physical results.

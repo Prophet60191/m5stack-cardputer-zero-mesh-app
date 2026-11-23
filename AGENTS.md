@@ -114,6 +114,14 @@ approximately two-minute lock/background interval and successful reconnect/send
 after toggling iPhone Wi-Fi. Phone access Off/On preserves the live radio; the
 owner needed a manual reconnect afterward, then messaging worked. Normal radio
 stop/start also passed on device with saved configuration/profile hashes unchanged;
-its handset recovery and the foreground idle check are still pending. Current
+the owner confirms manual handset reconnect/message delivery afterward. The
+foreground idle check remains in progress. Current
 checks are logged in docs/phone-access-validation.md; do not infer cellular
 handover from the Wi-Fi interruption. Lockon itself does not need a SIM.
+
+The first idle attempt was interrupted by confirmed phone lock/app switching;
+it does not qualify foreground stability. A replacement awake-screen test is
+running read-only via `/tmp/cz-phone-awake-idle.py`, with reduced status output
+in ignored `build/phone-access-016/manual-checks/awake-idle-observation.jsonl`.
+Wait for the owner's result; do not claim five-minute foreground success without
+checking it. No radio/profile/security defaults or production code changed.

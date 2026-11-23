@@ -270,6 +270,10 @@ with the Cardputer's private forwarding configured. See the repository's
 The phone supports messages and viewing live mesh information. Make radio,
 channel and sharing changes on the Cardputer. Text is limited to 200 UTF-8 bytes.
 Receive-only mode still blocks sending. A changed setup may require reconnecting.
+After turning Phone access or the radio off and back on, manually reconnect the
+saved TCP connection if the phone does not reconnect itself. Tailscale's VPN must
+stay connected; its app does not need to stay open. The Cardputer can use Wi-Fi
+without a SIM.
 Messages sent while connected appear on both screens; the phone keeps its own
 history, and existing saved Cardputer conversations/drafts are not imported.
 

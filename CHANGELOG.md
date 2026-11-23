@@ -465,3 +465,12 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   messaging worked. Device radio stop/start preserves saved configuration and
   profiles; actual handset recovery and longer foreground idle remain pending.
   No production code/configuration changes; leave ADB and send/receive enabled.
+
+- Radio-restart handset follow-up: owner needed a manual reconnect, then the
+  private message arrived. Document that limitation in setup/troubleshooting and
+  the user guide; rebuild/visually check the PDF and refresh the existing Drive
+  manual in place. Five-minute connected idle observation is in progress.
+
+- First idle attempt was interrupted by owner-confirmed phone lock/app switching;
+  RF/firewall stayed healthy. Repeat awake-screen idle qualification separately;
+  do not count the interrupted attempt as foreground success or failure.

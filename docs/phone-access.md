@@ -114,6 +114,16 @@ history also protects those IDs after reconnect/restart. Opting out of history,
 clearing it or expiring the RAM window limits that protection. This is not an
 exactly-once guarantee across arbitrary failures.
 
+## Reconnection
+
+Tailscale's VPN must be connected, but its app does not need to remain in the
+foreground. The Cardputer can stay on Wi-Fi without a SIM; the phone needs a
+working network path to it. If Phone access or the radio was turned off and back
+on, manually reconnect the saved TCP entry if the phone does not reconnect.
+Owner testing recovered successfully this way after both deliberate shutdowns;
+automatic reconnection in those cases is not qualified. Reconnecting never
+replays an outgoing message automatically.
+
 ## Troubleshooting and qualification
 
 - **No endpoint / setup required:** verify both Tailscale sign-ins, Serve's exact
