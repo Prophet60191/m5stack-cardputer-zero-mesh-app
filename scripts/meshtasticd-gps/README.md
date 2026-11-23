@@ -2,7 +2,9 @@
 
 This is a small downstream Meshtastic **Linux daemon** correction, not Cardputer
 firmware or a GPS receiver firmware update. No upstream submission is implied.
-The application and radio service remain separate processes/packages.
+The UI and radio remain separate processes. From Mesh 0.1.19, the app package
+bundles a private corrected runtime; the standalone-package path below is retained
+for historical 0.1.18 rollback/qualification. See [distribution](../../docs/distribution.md).
 
 The Cap's ATGM336H-6N/AT6668 answered eight read-only hardware identity queries
 in 98, 613, 977, 771, 771, 770, 771 and 771 ms (rounded). The qualified native
@@ -31,8 +33,10 @@ in a scratch directory. Build this directory's Dockerfile. Mount the clean
 checkout at `/work`, this support directory read-only at `/support`, a persistent
 PlatformIO core directory at `/root/.platformio`, and an output directory at
 `/out`, then run `sh /support/build.sh`. Do not put private runtime state into the
-source directory. The source exporter excludes Git metadata, object files and
-caches; includes resolved library/framework/platform sources and their licenses.
+source directory. The source exporter excludes private Git configuration/remotes/hooks/reflogs,
+object build output and caches, and includes resolved dependency sources/licenses.
+It retains only public upstream Git HEAD/objects/refs/shallow metadata for the
+compiled version banner.
 
 `test_probe.py SOURCE` compiles the **actual upstream response-parser body** with
 synthetic delayed input under ASan/UBSan: the old deadline accepts one of eight
@@ -45,9 +49,9 @@ The full simulator smoke test does not claim a physical GNSS acquisition.
 
 To rebuild from the source archive, restore its `build-dependencies/packages` and
 `platforms` under the PlatformIO core directory, use the included Dockerfile/tools,
-and build `firmware` with `pio run -e native-tft`. Reconstructing Git metadata from
-the recorded public commit gives the original version banner; a source-only
-rebuild without Git still builds but may omit that banner suffix.
+and build `firmware` with `pio run -e native-tft`. The current archive retains
+minimal public Git metadata for the version banner; older archives require
+reconstructing it from the recorded public commit, or omit that banner suffix.
 
 ## Debian package and installation boundary
 

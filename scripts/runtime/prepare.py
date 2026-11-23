@@ -106,12 +106,24 @@ def main():
         for original in sources:
             src = fetch(original, a.cache, a.offline);shutil.copyfile(src, source_dir/src.name)
             source_inventory.append({'package':p['name'],'version':p['version'], **original})
+            # Older wheels (notably pyserial 3.5) omit license files; retain
+            # their original source-distribution texts as well.
+            if original['kind']=='sdist':
+                with tarfile.open(src) as archive:
+                    for member in archive:
+                        part=PurePosixPath(member.name);name=part.name.lower()
+                        if not member.isfile() or not name.startswith(('license','copying','notice','copyright')):continue
+                        if part.is_absolute() or '..' in part.parts or member.size>1024*1024:raise ValueError('unsafe source license member')
+                        dest=a.output/'licenses/python'/p['name']/'source'/part
+                        dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(archive.extractfile(member).read())
         with zipfile.ZipFile(path) as z:
             for name in z.namelist():
                 part = PurePosixPath(name)
                 if part.is_absolute() or '..' in part.parts: raise ValueError('unsafe wheel path')
                 if '.dist-info/' in name and any(t in part.name.lower() for t in ('license','copying','notice','copyright')) and not name.endswith('/'):
                     dest = a.output/'licenses/python'/p['name']/part;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(z.read(name))
+    for package in lock['packages']:
+        if not any((a.output/'licenses/python'/package['name']).rglob('*')):raise ValueError('Missing original license text: '+package['name'])
     (a.output/'requirements.lock').write_text('\n'.join(requirements)+'\n')
     shutil.copyfile(lock_path,a.output/'python-lock.json')
     (source_dir/'SOURCE_INVENTORY.json').write_text(json.dumps(source_inventory,indent=2)+'\n')

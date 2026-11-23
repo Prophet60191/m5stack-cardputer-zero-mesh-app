@@ -22,6 +22,7 @@ first=run_user(['/usr/bin/python3','-I',script]);python=Path(first.stdout.strip(
 assert python.is_file() and 'managed-runtimes' in python.parts and 'Preparing the bundled' in first.stderr
 second=run_user(['/usr/bin/python3','-I',script]);assert second.stdout==first.stdout and 'Preparing the bundled' not in second.stderr
 m=json.loads((root/'runtime/manifest.json').read_text())
+assert all(any((root/'runtime/licenses/python'/name).rglob('*')) for name in m['python_packages']), 'missing Python license texts'
 code='''import importlib.metadata as md,json,sys
 from pathlib import Path
 expected=json.loads(sys.argv[1]);prefix=Path(sys.prefix)
