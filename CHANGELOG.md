@@ -604,3 +604,8 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Refresh current guide versions, status/README and stale package examples; keep
   historical qualification records/versioned release links accurate. Explicitly
   defer USB GPS. Validation/install closeout follows after matching checks.
+
+- Actual framebuffer checks caught unchanged left status text disappearing after
+  glyph removal. Restore full-strip invalidation for header updates; real-device
+  A/B checks confirm text and percentage render together without the glyph. Font
+  preloading did not fix this and is not retained.

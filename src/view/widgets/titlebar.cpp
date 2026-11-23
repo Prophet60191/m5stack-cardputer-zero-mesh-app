@@ -52,7 +52,6 @@ void TitleBar::build() {
     const lv_font_t* text_font = assets_.load_standard_font(13, app::StandardFontWeight::Regular);
     if (!text_font) text_font = &lv_font_montserrat_14;
 
-
     // Left: radio dot + state + region.
     auto* left = lv_obj_create(core_obj_);
     lv_obj_remove_style_all(left);
@@ -135,6 +134,7 @@ void TitleBar::update_radio_dot() {
     lv_label_set_text(state_label_, label);
     lv_obj_set_style_bg_opa(radio_dot_, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(radio_dot_, color, 0);
+    lv_obj_invalidate(core_obj_);
 }
 
 void TitleBar::refresh_device_status() {
@@ -145,6 +145,9 @@ void TitleBar::refresh_device_status() {
         std::snprintf(percent.data(), percent.size(), "%d%%", std::clamp(status.battery_percent, 0, 100));
         lv_label_set_text(battery_percent_label_, percent.data());
     }
+    // Refresh the complete strip: partial fbdev redraws can otherwise erase
+    // unchanged status text after removing the neighboring battery glyph.
+    lv_obj_invalidate(core_obj_);
 }
 
 void TitleBar::update_node_count() {
@@ -153,6 +156,7 @@ void TitleBar::update_node_count() {
     char buf[24];
     std::snprintf(buf, sizeof(buf), "%zu node%s", count, count == 1 ? "" : "s");
     lv_label_set_text(nodes_label_, buf);
+    lv_obj_invalidate(core_obj_);
 }
 
 void TitleBar::update_unread() {
@@ -160,6 +164,7 @@ void TitleBar::update_unread() {
     const int unread = view_model_.total_unread();
     if (unread <= 0) {
         lv_obj_add_flag(unread_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_invalidate(core_obj_);
         return;
     }
     const auto colors = view::palette(view_model_.is_dark_mode());
@@ -168,6 +173,7 @@ void TitleBar::update_unread() {
     lv_label_set_text(unread_label_, buf);
     lv_obj_set_style_text_color(unread_label_, colors.primary, 0);
     lv_obj_remove_flag(unread_label_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_invalidate(core_obj_);
 }
 
 void TitleBar::radio_cb(lv_observer_t* observer, lv_subject_t* /*subject*/) {
