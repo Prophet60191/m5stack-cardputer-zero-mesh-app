@@ -144,8 +144,12 @@ API connection (30s interval, 10s completion timeout/backoff). Preserve library
 channels/caches, sharing/TX settings and single serial/TCP ownership. No location
 RF packet or synthetic timestamp. PositionLite omits satellites; do not fake them.
 All 167 backend tests, both source-correlated CI jobs and arm64 package gates
-pass for b430b20. Verified package is ready; owner USB/Slave connection is
-pending for installation, followed by outdoor/map/freshness retest. Helpers/reduced evidence are ignored in
+pass for b430b20. Exact 0.1.17 package is installed; 116 file hashes/modes/owners
+and all 24 original messages/settings/profiles are verified preserved. The
+restarted owner reports gps_refresh current, one TCP connection, Online/send-
+receive, GPS ENABLED, location/MQTT sharing Off and ADB active. The owner is asked
+to open Map and position outside again; wait for confirmation before starting
+the corrected five-minute watch. Outdoor/map/freshness acceptance is pending. Helpers/reduced evidence are ignored in
 build/internal-gps-qualification. Never commit raw coordinates, device IDs or
 private endpoints. Preserve chats/profiles/phone access/other apps; leave ADB On.
 User may bring device indoors while the correction is built. Do not begin the

@@ -539,3 +539,9 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   CI jobs and guide CI. Downloaded exact checksummed 0.1.17 artifact; installation
   awaits USB/Slave connection. Polish map guidance to retain the 41-page manual
   and one-page reference. Installed correction/outdoor retest remain pending.
+
+- Installed exact b430b20 CI package after private backup; all 116 installed file
+  hashes/modes/owners match, and all 24 messages plus saved threads/preferences/
+  settings/profiles are preserved. Restarted owner reports 0.1.17 and GPS refresh
+  current, one daemon connection, healthy firewall, Online/send-receive, GPS
+  enabled and location/MQTT Off. ADB stays On. Await owner outdoor Map retest.

@@ -107,3 +107,22 @@ The owner may bring Lockon inside during preparation. Current running runtime
 remains 0.1.16, with GPS enabled and sharing Off. New guide text is tightened to
 keep the offline manual at 41 pages; the one-page reference stays one page.
 No installed correction or map acceptance is claimed yet.
+
+## Installed correction — 2026-11-23
+
+The owner reconnected USB/Slave and authorized installation. A consistent private
+backup was saved outside Git before replacing the package. The exact candidate
+above is installed; all 116 regular files match archive hashes, modes and UID/GID.
+The ordinary-user supervisor was restarted from the installed package and reports
+0.1.17. All 24 original message rows, three thread rows and three preference rows
+are preserved, with zero added/removed rows during the install check. Saved app
+configuration, radio/module/channel files, profiles and identity/privacy files
+match the pre-install baseline; runtime log/airtime bookkeeping is excluded.
+
+Resume through normal radio.start, preserving send/receive, GPS ENABLED, location
+sharing/MQTT Off. `gps_refresh` reports current, with one physical daemon TCP
+connection and a healthy firewall; ADB remains active. Indoor diagnostics do not
+yet show a valid position and are not counted as an outdoor failure. The owner
+is asked to open Map and position the device outside again before starting the
+corrected five-minute interval. The installed correction's outdoor/map/freshness
+acceptance remains pending; no dongle work has begun.
