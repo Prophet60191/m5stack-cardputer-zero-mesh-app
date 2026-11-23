@@ -583,3 +583,15 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 
 - Subsequent indoor readback obtains valid/fresh coordinates with both installed
   corrections (source age 65s). Final steady outdoor interval remains requested.
+
+
+## 2026-11-23 — Combined fitted GPS outdoor acceptance passed
+
+- After owner placement confirmation, run a complete 321.5s/31-sample SSH watch
+  with installed app 0.1.17 and native +czgps1. All positions are valid; three
+  newer fixes arrive, 24 samples are fresh/seven correctly stale, final age 84s.
+- Radio stays Online/send-receive, GPS enabled, local refresh current, firewall
+  healthy and location/MQTT Off. No additional reader or location broadcast.
+  Post-watch status remains fresh and standalone daemon masked.
+- Record bounded fitted-GPS acceptance and limits. Dongle/source selection is
+  separate next work; no automatic USB preference is claimed. Preserve ADB On.

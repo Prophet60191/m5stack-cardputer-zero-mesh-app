@@ -1,12 +1,11 @@
 # Built-in Cap GPS qualification
 
-Status: fitted receiver and app Map confirmed outdoors; both identified defects
-have corrections installed. App 0.1.17 refreshes local fixes without broadcasting.
-The separate native `+czgps1` package passes eight physical receiver starts and
-private RF/phone-gateway checks. A subsequent indoor readback also has a valid, fresh fix (source age 65s)
-with both installed. A final steady outdoor acquisition/freshness interval is
-requested; do not present the indoor readback as that outdoor interval.
-USB GPS dongle work remains deferred until it completes.
+Status: the fitted Cap GPS path passes the bounded qualification. App 0.1.17
+and native `+czgps1` are installed: eight physical receiver starts, private RF/
+phone-gateway checks and the final 321.5-second outdoor watch pass. New fixes
+reach the app without RF location sharing. The owner previously confirmed the
+Map marker; the final watch runs with Map open. USB GPS is a separate next task,
+not automatically supported or qualified by these results.
 
 ## Starting state — 2026-11-23
 
@@ -275,3 +274,39 @@ update. The refreshed manual stays 42 pages, 416535 bytes, SHA-256
 Changed FAQ/adjacent-page layout and source/link/version checks pass. The same
 Drive file is replaced in place; readback verifies its ID, folder and size. The one-page quick
 reference is unchanged.
+
+## Final combined outdoor qualification — 2026-11-23
+
+The owner confirms outside placement with Map open, USB unplugged, the antenna
+attached and Wi-Fi coverage. Use authenticated SSH without changing networking
+or opening another serial reader. The exact installed app/native packages above
+remain unchanged. The complete watch runs **321.5 seconds / 31 samples**, with
+zero request errors:
+
+- All 31 samples have valid coordinates and this node's coordinates in app state.
+- Three decreases in source age demonstrate newer fixes replacing older ones;
+  source ages range 26–144 seconds. There are 24 fresh and seven correctly stale
+  samples, with five fresh/stale transitions. Final source age is 84 seconds,
+  fresh. This does not promise a continuously fresh fix between receiver updates.
+- Every sample reports Online/send-receive, GPS ENABLED, current local refresh,
+  healthy firewall, automatic location sharing Off and MQTT Off.
+- Satellite count stays unknown because the qualified node snapshot omits it;
+  no raw count, coordinate or synthetic acquisition timestamp is injected.
+
+This completes the requested bounded fitted-receiver/app-path check with both
+corrections installed. A subsequent status remains Online/send-receive with a
+valid fresh fix, and the standalone daemon remains masked. No user setting is
+changed during the watch, no location is transmitted and no raw coordinate or
+NMEA sentence enters the retained evidence. Reduced evidence remains ignored
+under `build/internal-gps-qualification/outdoor-combined-final-{watch,summary}`.
+The guide/Drive PDF already reflects the two corrections and needs no content
+change for this acceptance result.
+
+Bounds remain explicit: eight receiver starts and five minutes outdoors do not
+prove unlimited reliability, indoor reception, every receiver variant or a new
+full-system cold-power test. The existing nonfatal receiver configuration ACK
+warning and earlier unrelated iPhone foreground drop are not claimed fixed.
+No dongle, SIM-dependent work, upstream submission or public release is included.
+Task helpers are bounded/idle; root-owned temporary installation/backup helpers
+can be removed at the next USB maintenance connection after retaining the verified
+private host backup. Keep ADB enabled and preserve current radio/privacy settings.

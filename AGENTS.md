@@ -208,3 +208,21 @@ are not claimed fixed. Retain backups privately outside Git.
 Subsequent indoor status also reports valid/fresh coordinates (source age 65s),
 confirming both installed fixes together. This is not a new five-minute outdoor
 interval; the requested final placement confirmation remains pending.
+
+
+## Fitted GPS acceptance complete — 2026-11-23
+
+This supersedes the requested/pending outdoor notes above. Owner confirmed outside
+with Map open; exact app 0.1.17/native +czgps1 passed the final SSH watch:
+31 samples/321.5s, all valid/self coordinates, three newer fixes, 24 fresh/seven
+correctly stale samples, five freshness transitions, final age 84s. Radio remains
+Online/send-receive, GPS enabled, refresh current, firewall healthy and sharing/
+MQTT Off throughout. Post-watch readback remains fresh; standalone daemon masked.
+See docs/internal-gps-validation.md for bounded acceptance and prior eight-start/
+RF/phone checks. No settings, coordinate broadcasts or additional reader.
+USB GPS can now be addressed as a separate task: identify the dongle and agree
+source/priority/fallback; do not assume it is automatically detected or preferred.
+Preserve selected Phone access, settings/chats, other apps and ADB On. Bounded
+root-owned task temporary helpers remain idle for cleanup at the next USB
+maintenance connection; verified private rollback/backups are retained on host.
+Do not claim the nonfatal config ACK warning or earlier phone-drop cause fixed.

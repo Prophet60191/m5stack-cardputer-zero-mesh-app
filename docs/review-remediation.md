@@ -315,6 +315,7 @@ The [GPS record](internal-gps-validation.md) supersedes earlier GPS deferrals:
 raw receiver fixes, an app-cache correction, a successful outdoor freshness watch
 and owner-confirmed Map marker are observed. A separate native identification
 window correction passes eight physical radio starts and private RF/phone-gateway
-compatibility. A final combined outdoor retest is requested; dongle work remains
+compatibility. The final combined outdoor watch passes 31 samples/321.5s with
+valid coordinates throughout and successive fresh fixes; dongle work remains
 separate. Do not extend these results to public-peer RF, unrelated phone-drop
 causes or untested receivers.
