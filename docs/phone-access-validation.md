@@ -1,86 +1,106 @@
 # Phone access qualification — 0.1.16
 
-Status: implementation and offline qualification in progress. Device/iPhone/RF
-results will be recorded separately; no end-to-end acceptance is claimed yet.
+Status: implemented, installed and checked with automated/device protocol and
+private-peer tests. **Owner acceptance in the actual iPhone app is pending.**
+Do not treat a protocol fixture as proof of the handset UI or roaming behavior.
 
-## Scope and rationale
+## Source and exact installed artifact — 2026-11-23
 
-The official native Meshtastic client API admits one TCP client and can replace
-its previous connection. The implementation therefore adds a protocol-aware,
-restricted gateway to the existing owner; it does not expose meshtasticd or add
-another physical client. A separately administered Tailscale Serve forwarder
-adds authenticated transport and source identity. Mesh checks the selected peer.
-
-Current Apple sources use separate configuration/database nonce values 69420 and
-69421, a framed TCP stream and a live heartbeat watchdog. The gateway handles
-both phases, ordinary legacy full snapshots and the official Python wake preamble.
-The source revision and qualification results will be pinned at closeout.
-
-## Required acceptance checks
-
-- Offline: native sanitizer UI/navigation tests; all existing backend tests;
-  protocol parsing, partial/oversized input, selected-peer identity/reassignment,
-  redaction, forbidden writes, malformed/slow/flooding clients, bounded recovery,
-  duplicate sends, real ACK IDs and a real unmodified Python TCP client.
-- Debian arm64: build/install/upgrade package checks, privileges/firewall and
-  matching source/artifact hashes; no hardware access during those tests.
-- Device: consistent private backups; exact installed artifact; ordinary-user
-  runtime; unchanged channel/tuning/TX/sharing/history; raw API still blocked.
-- iPhone: official App Store app connects over the private VPN; nodes/channels
-  load; incoming/outgoing messages appear; idle, background/foreground,
-  disconnect/reconnect, radio restart and Access Off/On behave predictably.
-- RF: recipient ACK/peer receive and a reply on an existing private channel,
-  without reconfiguring the peer or sending public-channel test messages.
-
-Any unperformed check stays pending. A stationary connection test does not
-qualify roaming between Wi-Fi and cellular or general off-grid performance.
-
-## Offline checkpoint — 2026-11-23
-
-- All 153 backend tests pass, including 29 phone protocol/security/failure tests.
-  An unmodified meshtastic 2.7.11 TCP client completes configuration and sends
-  over a local PROXY-v2 fixture. This is not an actual-iPhone result.
+- Functional source: `8cfa3b64eedea06bbb77190e22feb892aabbb617`.
+- [Source-correlated CI](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45196242905):
+  Debian 13 arm64 build, fresh install, upgrade, firewall and non-publishing Store
+  preflight passed. The parallel Linux sanitizer job was still running when the
+  device checks below completed; its final status must be read separately.
+- Installed package: `cardputerzero-mesh_0.1.16-rev1_arm64.deb`, SHA-256
+  `1419101f867601aded97b9658eac13f0e03d3b3003944ac941135307c40dc4b1`.
+  All 114 installed regular files match its bytes, modes and UID/GID. The
+  ordinary-user supervisor was restarted from the package, then the existing
+  send/receive setup was resumed with the owner's antenna confirmation.
+- All 158 backend tests pass, including 34 phone tests: selected-peer identity,
+  malformed/partial/oversized/slow/flooding input, bounded queues, redaction,
+  forbidden and unknown fields, snapshot/live ordering, retries and stale
+  targets, dormant key omission and delayed VPN recovery. An unmodified official
+  Python client is included in local protocol interoperability coverage.
 - Native macOS arm64 Address/Undefined sanitizer checks pass (four CTest targets),
-  including the phone settings flow, correlated enable/peer selection requests,
-  connection details and Esc. A later synthetic capture includes the sharing scope.
-- The Debian 13 arm64 package passed build/install/upgrade/firewall gates and
-  its then-current 148-test suite. Final CI will build the committed source and
-  rerun all tests; device installation must use that exact checked artifact.
-- Apple client behavior was reviewed at commit
-  `00984f381607568940efcf0b423101fa44d24285` (TCPConnection.swift and
-  AccessoryManager's Connect/ToRadio/current manager sources). The 69420/69421
-  phases and real-daemon heartbeat response are covered by protocol tests.
-- On the owner-authorized device, the separately installed Tailscale 1.104.7
-  signed in successfully; private Serve PROXY v2 was configured without Funnel
-  or ACL changes. The existing daemon firewall still verifies. The app remains
-  at its previous version with the radio Off while the candidate is qualified.
-- A consistent SQLite backup plus settings/profile files were saved privately
-  outside Git before installation. No private peer IDs, IPs, auth links or keys
-  belong in this record. Actual iPhone, live RF and installed-candidate checks
-  remain pending.
+  including real settings navigation/events and full synthetic screenshot capture.
+  The capture fixture restores its surviving screen after temporary theme tests.
 
-## Native Retry compatibility follow-up
+Later closeout changes to this record do not change the installed runtime source.
 
-Review of the same pinned Apple client's `resendMessage` showed that explicit
-Retry preserves its original ID. Matching failed messages may now retry after
-five seconds; pending/completed duplicates and changed payload, recipient or
-channel identity cannot be silently retransmitted. A canonical private payload
-hash accompanies phone history for this check. Two additional regression cases
-bring the backend suite to 153. No receipt is invented for an unknown outcome.
+## Design and reviewed official behavior
 
-## Strict protocol-boundary follow-up
+The firmware API admits one TCP client and can replace its previous connection.
+The gateway therefore runs in the existing owner, with one physical daemon
+connection, rather than exposing meshtasticd or adding a competing client.
+A separately administered private Tailscale Serve forwarder supplies authenticated
+transport and PROXY-v2 identity; Mesh admits only the explicitly selected peer.
+No Funnel, tailnet ACL changes, app root/operator grants or public daemon exposure.
 
-Keepalive forwarding now constructs a fresh allowed Heartbeat message rather
-than forwarding an untrusted protobuf with retained unknown fields. Exported
-snapshots/live records discard unqualified future fields as well as redacting
-known host secrets. Three hostile-field cases bring the backend suite to 156.
-These checks prevent a schema mismatch from becoming an implicit command or
-credential-export permission; they do not qualify arbitrary future firmware.
+Apple client sources were reviewed at commit
+`00984f381607568940efcf0b423101fa44d24285`: TCPConnection.swift and the
+AccessoryManager Connect/ToRadio/manager sources. The gateway supports its
+69420/69421 configuration/database phases, actual-daemon heartbeat responses,
+quiet rejection of the automatic clock-setting hint and explicit Retry retaining
+its original ID. Only matching failed sends may retry after five seconds;
+pending/completed duplicates and changed payloads/targets are rejected. This is
+not an exactly-once guarantee across arbitrary history deletion or crashes.
+The official Python client's bounded UART wake preamble is also supported.
 
-## Recovery and minimum-export follow-up
+Radio/channel/profile administration, phone position upload, MQTT proxy and
+arbitrary opaque/encrypted packets are outside this messaging/viewing gateway.
+Host Wi-Fi/security/admin/MQTT secrets and dormant channel credentials are omitted;
+active mesh keys/messages/positions are intentionally shared with the chosen phone.
+Forwarding reconstructs allowed heartbeat fields and discards unknown exported
+protobuf fields. An absent listener retries after delayed VPN startup while RF
+remains owned by the supervisor; healthy listeners do not poll the VPN CLI.
 
-Disabled channel slots export empty settings instead of retaining credentials
-from an older setup. An absent phone listener retries every 15 seconds while
-Radio is Online, so delayed VPN startup does not require restarting RF. Healthy
-listeners do not poll the VPN CLI. Both cases are covered; all 158 backend tests
-pass before the final source-correlated CI/package run.
+## Installed-device and private RF evidence
+
+- A consistent private SQLite/settings/profile backup was made outside Git before
+  installation. Final comparison preserves all five original message rows, three
+  thread rows, the original preference row, saved radio/profile/identity/privacy
+  and app configuration files. Qualification adds test messages and phone
+  preferences. Runtime logs and the RF airtime ledger legitimately change; they
+  are not required to match their earlier bytes. No private data is restored over
+  newer state or published in this record.
+- Tailscale 1.104.7 was installed from its signed official Debian repository and
+  signed in by the owner. Private Serve TCP 4403 forwards PROXY v2 to loopback
+  47401. DNS was left unchanged. ADB remains enabled by owner instruction.
+- After final installation: Radio Online/send-receive; existing private channel
+  and tuning unchanged; one physical daemon TCP connection; firewall healthy.
+  A non-selected VPN client received no Mesh bytes from 4403; raw radio 47400
+  remained blocked over the VPN. Earlier LAN checks also blocked raw/gateway
+  ports. No public-channel RF test or peer reconfiguration was performed.
+- A native owner-path private message received a T-Deck recipient ACK. On the
+  final installed source, an official Python TCP client through a trusted local
+  PROXY-v2 fixture completed configuration and sent a private directed message
+  with PKI requested; the real T-Deck recipient ACK reported NONE/no error.
+  This proves the gateway/daemon/RF/ACK path, not positive iPhone/VPN admission.
+- On the final installed source, a separate Apple-like local fixture completed
+  both snapshot phases, checked host-secret redaction and received eight actual
+  daemon heartbeat replies over 40 seconds. No invented keepalive receipt or
+  extra physical radio connection was used. Fixtures leave a real phone session
+  undisturbed if already connected.
+- At closeout the radio remains Online/send-receive and Phone access is enabled
+  for the selected iPhone, ready for its connection. Test fixture sessions closed.
+
+## Documentation and remaining acceptance
+
+The Markdown guide and 41-page PDF cover setup, permissions, limits and Retry;
+the one-page reference stays one page. All seven chapters, 31 synthetic images,
+links/anchors and version markers pass source validation. Reflowed pages and the
+final Retry paragraph were visually checked. The existing Drive manual was
+replaced in place, preserving its file ID/folder; metadata confirms the new size.
+Real addresses, peer IDs, keys, auth links, private chats and backups stay out of Git.
+
+Still pending with the owner:
+
+- Actual official App Store iPhone connection, nodes/channels and live message
+  display; a phone-originated send and peer reply visible on both screens.
+- Actual iPhone idle/background/foreground, disconnect/reconnect, access toggle
+  and radio restart behavior; roaming between Wi-Fi and cellular.
+- Cold-boot phone/VPN recovery and representative longer handset use. Automated
+  recovery/slow-client tests and a stationary 40-second heartbeat check do not
+  substitute for these physical results.
+
+No release, Store submission or upstream contribution was created.

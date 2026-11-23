@@ -100,3 +100,11 @@ VPN account/Serve setup is a separate administrator action, not an app privilege
 grant. Keep real peer IDs, addresses/auth links and qualification backups private.
 Offline checks are not yet the owner's actual-iPhone acceptance; record those
 results separately. Preserve settings/chats and leave ADB enabled.
+
+Phone candidate installed from functional source `8cfa3b6`; all 158 backend tests,
+Debian arm64 package gates and exact 114-file installed verification pass. Native
+sanitisers pass locally. Private T-Deck recipient ACK and real-daemon heartbeat
+checks passed on installed code through protocol fixtures. Actual App Store
+iPhone acceptance is still pending; do not conflate those results. The current
+setup is Online/send-receive, Phone access On, and ADB On. Read the qualification
+record for remaining checks and source-correlated CI status.

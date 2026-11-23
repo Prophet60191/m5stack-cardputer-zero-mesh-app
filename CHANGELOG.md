@@ -426,8 +426,8 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Support Apple two-phase snapshots and actual-daemon heartbeats, buffer live
   packets during handshakes, redact host secrets and isolate bounded slow/bad
   clients from radio lifecycle failures. Update user/security/protocol guides.
-- Qualification is in progress; see docs/phone-access-validation.md. Device,
-  iPhone and RF results remain separate from offline checks.
+- Installed qualification is recorded in docs/phone-access-validation.md. Actual
+  iPhone acceptance remains pending, distinct from device/protocol/RF checks.
 - Offline checkpoint: all 151 backend tests pass, plus native sanitizer/UI
   assertions and the full synthetic screenshot run. Restore the surviving screen
   after a temporary theme capture in the test fixture. Debian arm64 package,
@@ -443,3 +443,9 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Minimum-export/recovery follow-up: omit inactive channel credentials and retry
   an absent gateway after delayed VPN startup without restarting RF. Healthy
   listeners do not poll. All 158 backend tests pass.
+
+- Installed closeout: source `8cfa3b6`, exact CI arm64 artifact and all 114 installed
+  file hashes/modes/owners verified. Original settings/profile/chats preserved;
+  private T-Deck recipient ACK and eight actual-daemon heartbeats pass on the
+  final gateway. Radio remains Online/send-receive, selected-phone access On,
+  ADB On. Updated guide and existing Drive PDF; actual iPhone checks pending.
