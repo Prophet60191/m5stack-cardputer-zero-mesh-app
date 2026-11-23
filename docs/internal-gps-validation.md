@@ -184,3 +184,31 @@ Map/FAQ/final reference layouts were visually checked. Replace the existing
 Drive PDF in place (same ID/folder), with metadata readback confirming 416523
 bytes. Source/link/version checks pass. Earlier 41-page counts describe the
 pre-FAQ-reflow intermediate PDF, not this final guide.
+
+## Startup timing cause and prepared dependency correction
+
+After the owner confirmed the Map marker, they brought the device inside and
+reconnected USB. Eight exclusive, read-only identity queries at 115200 measured
+98.02, 612.95, 977.04, 770.71, 771.38, 769.87, 770.69 and 771.39 ms. Seven exceed
+the native ATGM-family identification window of 500 ms. This explains the phase-
+dependent detection failure: a queued 1 Hz TXT response can arrive after the
+probe moves on. The probe disables periodic NMEA before identification, so a
+miss can also leave output suppressed. Receiver firmware is not being flashed.
+
+Prepare a downstream correction on exact upstream commit
+`54e0d8d0ab2ff56b3a9ce967e53f79e49af560fb`: only the ATGM-family window changes
+to 1500 ms, plus its comment. Actual native-parser replay under ASan/UBSan passes
+all eight measured timings versus one with the old deadline, while over-late,
+unrelated and overlong responses remain bounded. The arm64 native-tft build and
+version/link smoke pass. A full simulated-daemon/official-SDK smoke passes a
+complete eight-slot synthetic private RX setup and node-only refresh. An earlier
+incomplete channel fixture was corrected; no device setup was changed by it.
+
+All 266 baseline payload checksums and 64 conffile checksums match the installed
+original. Since the old repository version is unavailable, reconstruct a pristine
+rollback package; do not call it the original distribution archive. Candidate
+payload comparison changes only the executable and adds two provenance files.
+Its fresh/upgrade container checks retain the administrator service mask and do
+not run a daemon. Native dependency CI/build/source instructions are prepared;
+no patched native service has yet been installed. Existing app 0.1.17 remains
+installed. Repeated physical starts and RF/phone compatibility remain required.

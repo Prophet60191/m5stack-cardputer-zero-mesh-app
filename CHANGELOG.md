@@ -554,3 +554,14 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   transitions. Backend GPS data-path correction is verified; physical Map-marker
   confirmation and startup reliability remain open. Document unknown satellites
   and the startup limitation in the FAQ; do not begin dongle work yet.
+
+## 2026-11-23 — GPS startup cause and downstream correction prepared
+
+- Owner confirms the Map marker. Indoor identity timing measures 98-977ms, with
+  seven of eight replies beyond native's 500ms ATGM probe deadline. Prepare the
+  pinned upstream 1500ms timeout-only patch, sanitized real-parser replay and
+  arm64 native build/protocol/source-artifact workflow; no receiver flash.
+- Verify pristine native payload/conffiles, reconstruct a private rollback
+  package and pass candidate package comparison/upgrade/mask checks. Physical
+  patched-daemon startup and compatibility checks remain pending; the installed
+  daemon has not yet been replaced. Keep settings/sharing/ADB unchanged.

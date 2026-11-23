@@ -49,3 +49,11 @@ is bundled in this package. Phone access uses its documented private Serve/PROXY
 protocol interface. The official Meshtastic phone application is also separate.
 Consult their own licenses and terms; the existing UI/supervisor license split
 is unchanged.
+
+The optional native GPS compatibility build under `scripts/meshtasticd-gps/`
+rebuilds separately installed Meshtastic firmware/meshtasticd from pinned official
+GPL-3.0-or-later source with an identification-timeout patch. It is not linked
+into the MIT UI. Native artifacts must retain attribution and their paired full
+corresponding-source/dependency archive; the scripts document the version/hash
+and separate installation/qualification boundary. No upstream submission is
+implied by retaining a local downstream patch.

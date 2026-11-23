@@ -1,0 +1,15 @@
+diff --git a/src/gps/GPS.cpp b/src/gps/GPS.cpp
+index 69b5b71..f76217b 100644
+--- a/src/gps/GPS.cpp
++++ b/src/gps/GPS.cpp
+@@ -1337,7 +1337,9 @@ GnssModel_t GPS::probe(int serialSpeed)
+             {"ATGM336H", "$GPTXT,01,01,02,HW=ATGM336H", GNSS_MODEL_ATGM336H},
+             /* ATGM332D series (-11(GPS), -21(BDS), -31(GPS+BDS), -51(GPS+GLONASS), -71-0(GPS+BDS+GLONASS)) based on AT6558 */
+             {"ATGM332D", "$GPTXT,01,01,02,HW=ATGM332D", GNSS_MODEL_ATGM336H}};
+-        PROBE_FAMILY("ATGM33xx Family", "$PCAS06,1*1A", atgm, 500);
++        // AT6668-based ATGM336H receivers can queue TXT identity replies at 1 Hz.
++        // Wait a full cycle plus margin rather than intermittently missing one.
++        PROBE_FAMILY("ATGM33xx Family", "$PCAS06,1*1A", atgm, 1500);
+         currentDelay = 20;
+         currentStep = 3;
+         return GNSS_MODEL_UNKNOWN;

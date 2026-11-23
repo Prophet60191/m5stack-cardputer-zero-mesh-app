@@ -1,0 +1,53 @@
+name: Native GPS compatibility patch
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/meshtasticd-gps/**'
+      - '.github/workflows/meshtasticd-gps.yml'
+  pull_request:
+    paths:
+      - 'scripts/meshtasticd-gps/**'
+      - '.github/workflows/meshtasticd-gps.yml'
+permissions:
+  contents: read
+concurrency:
+  group: native-gps-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Fetch the qualified official source and protobufs
+        run: |
+          git init "$RUNNER_TEMP/firmware"
+          git -C "$RUNNER_TEMP/firmware" remote add origin https://github.com/meshtastic/firmware.git
+          git -C "$RUNNER_TEMP/firmware" fetch --depth 1 origin 54e0d8d0ab2ff56b3a9ce967e53f79e49af560fb
+          git -C "$RUNNER_TEMP/firmware" checkout --detach FETCH_HEAD
+          git -C "$RUNNER_TEMP/firmware" submodule update --init --depth 1 protobufs
+      - name: Build native tools
+        run: docker build -t cz-native-gps scripts/meshtasticd-gps
+      - name: Test the actual parser and build the arm64 daemon with corresponding source
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-out" "$RUNNER_TEMP/pio-core"
+          docker run --rm \
+            -v "$RUNNER_TEMP/firmware:/work" \
+            -v "$RUNNER_TEMP/pio-core:/root/.platformio" \
+            -v "$RUNNER_TEMP/native-out:/out" \
+            -v "$PWD/scripts/meshtasticd-gps:/support:ro" \
+            cz-native-gps sh -c 'git config --global --add safe.directory /work; sh /support/build.sh'
+      - name: Check the rebuilt client protocol without hardware or network access
+        run: |
+          docker run --rm --network none -e CZ_MESH_ISOLATED_TEST=1 \
+            -v "$RUNNER_TEMP/native-out:/out:ro" \
+            -v "$PWD/scripts/meshtasticd-gps:/support:ro" \
+            cz-native-gps python3 /support/test_daemon.py /out/meshtasticd
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: meshtasticd-gps-arm64-with-source
+          path: ${{ runner.temp }}/native-out/
+          if-no-files-found: error

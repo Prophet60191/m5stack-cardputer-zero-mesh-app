@@ -173,3 +173,14 @@ native ATGM336H probe intermittently failing despite a valid direct identity
 reply at 115200 (no periodic output after failed probe). Do not change shared
 dependencies or permanent GNSS settings speculatively. Wait for Map confirmation
 before any further radio interruption, so that check is not invalidated.
+
+Owner confirmed Map marker and reconnected indoors via USB. Root cause measured:
+7/8 ATGM identity replies took 613-977ms, exceeding native 500ms probe window.
+Prepared pinned upstream 54e0d8d timeout-only 1500ms correction, actual-parser
+ASan/UBSan replay (old1/8/new8/8), native arm64 build, real SDK/sim-radio smoke and
+pristine package/upgrade/mask checks. Support is in scripts/meshtasticd-gps; native
+workflow must export full corresponding source with binary. Nothing patched has
+yet replaced the on-device daemon. Current user settings are preserved, GPS
+enabled, RF send/receive, sharing Off, ADB On. Next: exact CI native artifact,
+qualified dependency package install with rollback, repeated physical GPS starts
+and compatibility checks. Do not flash the receiver or silently change settings.
