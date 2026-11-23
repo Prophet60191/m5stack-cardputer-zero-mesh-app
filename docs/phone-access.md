@@ -1,7 +1,7 @@
 # Phone access
 
-Mesh 0.1.16 adds optional messaging and viewing through the **official Meshtastic
-phone app**. It does not install a replacement phone application. The Cardputer
+Introduced in 0.1.16 and retained in 0.1.19, optional messaging and viewing through the **official Meshtastic
+phone app** is available through Phone access. Mesh does not install a replacement phone application. The Cardputer
 and phone remain usable together: the supervisor retains the sole connection to
 meshtasticd and owns all radio/channel/privacy changes.
 
@@ -156,3 +156,13 @@ client connection proves protocol interoperability, not the iPhone UI experience
 - [Tailscale Serve and PROXY protocol](https://tailscale.com/docs/reference/tailscale-cli/serve).
 
 [Security](security.md) · [Supervisor contract](supervisor-protocol.md)
+
+## Bundled-runtime installation (0.1.19)
+
+Install/upgrade Mesh using [the operations runbook](install.md). The package
+already supplies the radio/client runtime; do not add a second daemon or manual
+Python venv for phone support. Only Tailscale, its account/Serve configuration
+and the official phone app remain separate. An upgrade can close the current
+phone session while the radio owner restarts; preserve the selected phone and
+reconnect its saved entry when needed. Existing radio/privacy choices remain
+unchanged; phone access does not enable transmission or location sharing.

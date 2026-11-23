@@ -1,5 +1,12 @@
 # Built-in Cap GPS qualification
 
+Current packaging: 0.1.19 includes this correction in its private runtime.
+[The distribution record](distribution-validation-20261123.md) adds three normal
+receiver starts for that exact binary; the outdoor watches below remain the
+historical qualification at their recorded versions. Use the
+[current installer](install.md), not the old standalone package procedure.
+
+
 Status: the fitted Cap GPS path passes the bounded qualification. App 0.1.17
 and native `+czgps1` are installed: eight physical receiver starts, private RF/
 phone-gateway checks and the final 321.5-second outdoor watch pass. New fixes

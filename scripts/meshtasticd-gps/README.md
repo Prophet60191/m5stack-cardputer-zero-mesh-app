@@ -53,7 +53,7 @@ and build `firmware` with `pio run -e native-tft`. The current archive retains
 minimal public Git metadata for the version banner; older archives require
 reconstructing it from the recorded public commit, or omit that banner suffix.
 
-## Debian package and installation boundary
+## Historical standalone package route (through Mesh 0.1.18)
 
 `package.py --base-deb ORIGINAL.deb --binary meshtasticd --output PATCHED.deb`
 accepts only the qualified arm64 baseline version and AArch64 ELF. Supply an
@@ -82,3 +82,49 @@ still needs compatibility/RF qualification. A future upstream package upgrade ma
 replace the downstream correction; recheck the probe rather than silently pinning
 or blocking unrelated security updates. This workflow intentionally uploads the
 binary and complete source together; keep them paired if redistributing.
+
+## Rebuild the native source included with the app release
+
+For a current archive containing `dependencies/native-corresponding-source.tar.gz`,
+run from the extracted app/source bundle root in a **scratch** workspace:
+
+```sh
+mkdir native-source
+tar -xzf dependencies/native-corresponding-source.tar.gz -C native-source
+mkdir -p native-source/pio native-source/out
+cp -a native-source/build-dependencies/packages \
+  native-source/build-dependencies/platforms native-source/pio/
+docker build --platform linux/arm64 -t cz-mesh-native-source-rebuild \
+  native-source/build-support
+docker run --rm --platform linux/arm64 --network none \
+  -e CZ_MESH_ISOLATED_TEST=1 \
+  -v "$PWD/native-source/firmware:/work" \
+  -v "$PWD/native-source/pio:/root/.platformio" \
+  -v "$PWD/native-source/out:/out" \
+  -v "$PWD/native-source/build-support:/support:ro" \
+  cz-mesh-native-source-rebuild sh -e -c '
+    git config --global --add safe.directory /work
+    pio run -e native-tft -j 4
+    cp .pio/build/native-tft/meshtasticd /out/meshtasticd
+    strip --strip-unneeded /out/meshtasticd
+    /out/meshtasticd --version > /out/NATIVE_VERSION
+    python3 /support/export_source.py /work /out /root/.platformio
+    python3 /support/test_daemon.py /out/meshtasticd
+  '
+```
+
+The build image can download OS/tool dependencies on creation. The subsequent
+container is network-disabled and has no hardware mounts. It compiles the source
+with its **already-applied** correction, exports a newly paired binary/source
+artifact set, then checks real SDK interoperability using simulated radio only.
+Do not call `build.sh` on this already-patched tree: that script expects a clean
+upstream checkout and applies the correction itself.
+
+Current source exports retain minimal public Git metadata for the banner. Older
+archives without it need the recorded upstream Git identity restored before they
+can meet the artifact version check; use a fresh pinned-source build if unsure.
+Compiler/dependency differences can change executable bytes. New compilation is
+not new hardware acceptance. Feed the resulting `native-source/out` through the
+complete app builder's `--native-artifact` route and qualification gates; never
+copy a changed binary over the installed package or edit its trusted manifest.
+See [complete distribution/build instructions](../../docs/distribution.md).

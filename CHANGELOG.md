@@ -683,3 +683,24 @@ erase current setup. Owner will record video; no public/Store/upstream submissio
 USB GPS/SIM, public-peer/IPv6/full keyboard and long-term/earlier phone-drop
 limits remain. App/guide public sources and Desktop/Drive/mirrors are refreshed
 with independent hardware notes/private backups preserved.
+
+
+## 2026-11-23 — Complete bundled-runtime documentation
+
+- Replace remaining external/manual dependency directions with the 0.1.19
+  package workflow; add a complete installation, download integrity, upgrade,
+  backup/restore, recovery, rollback, uninstall and optional transfer runbook.
+- Document wrapper options/cache/output contracts, source-archive builds, required
+  runtime mounts, source export, release checksum separation and publication limits.
+- Refresh backend/architecture/protocol/phone/security, documentation index,
+  user-guide intro/FAQ and historical-record signposts. Keep dated evidence intact.
+- Source complete offline INSTALL.txt from the maintained runbook instead of a
+  separate short literal. This is documentation-export tooling only; installed
+  runtime 8ada52a, saved state, settings and ADB are unchanged.
+- Refresh/review generated PDFs, maintained mirrors and current draft documentation
+  assets without changing the qualified installer or paired source archive.
+
+- Checked 204 local links and 36 shell example blocks with no failures, CLI flag
+  examples and full offline instruction generation; reviewed all manual pages
+  and changed guide sections. Guide's 22 checks pass. No runtime/device test is
+  newly claimed for this documentation-only refresh.

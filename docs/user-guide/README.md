@@ -20,6 +20,14 @@ Attach the antenna before powering the radio, and choose a permitted region.
 Public and private channels are both supported. A private channel's QR or share
 URL contains its secret key: share it only with the intended group.
 
+## Installation and maintenance
+
+0.1.19 bundles its private radio and Python wheels. Start with the
+[complete installation runbook](../install.md) for verified downloads, first
+launch, upgrade/backup, recovery, rollback and uninstall. The app's usage chapters
+below explain day-to-day operation. Release `INSTALL.txt` is an offline copy of
+the full runbook; the manuals use their own `GUIDE_SHA256SUMS` checksum set.
+
 ## Offline downloads
 
 For current candidate PDFs, download the `mesh-user-guide` artifact from the

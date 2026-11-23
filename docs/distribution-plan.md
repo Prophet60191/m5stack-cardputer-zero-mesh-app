@@ -1,5 +1,11 @@
 # Self-contained distribution work — 2026-11-23
 
+> Historical/versioned record. For 0.1.19 bundled-runtime installation use the
+> [current runbook](install.md); for current source/package evidence see
+> [qualification](distribution-validation-20261123.md). Earlier standalone
+> daemon/manual-venv and pending-state instructions below describe their named version.
+
+
 Owner authorized the remaining release-preparation items, a GitHub profile link
 on the guide cover, a new available Store code, and reducing manual dependencies.
 No Store submission, public release or upstream contribution is authorized here.

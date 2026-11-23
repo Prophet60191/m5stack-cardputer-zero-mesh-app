@@ -43,14 +43,19 @@ Other inherited desktop presets are unqualified.
 
 ## Device build
 
-Build **natively on the CardputerZero** (simplest), or cross-compile from a host.
+The complete container package route below is recommended for installation.
+The following presets build only the UI; they do not prepare/install the bundled
+backend by themselves. For manual framebuffer work, use a normal user, coordinate
+the launcher's display/input ownership and restore it afterward. Do not run a
+second UI against the active launcher or use an assumed `--version` GUI argument.
 
 **Native (on the device):**
 
 ```bash
 cmake --preset cp0-native -DCM0_SDK_ROOT=/ -DCM0_ALLOW_FETCH_DEPS=ON
 cmake --build build/cp0-native --config Release
-./build/cp0-native/Release/cardputerzero-mesh     # run on the framebuffer (stop APPLaunch first, or install to the grid)
+# Use the complete package route for normal device installation.
+# Raw UI execution needs the installed backend/firewall and exclusive display ownership.
 ```
 
 **Cross-compile (from a host with an `aarch64-linux-gnu` toolchain):**
@@ -80,6 +85,10 @@ permissions and firewall integration; do not run the UI as root.
 
 ## Regression checks
 
+The host venv below is a development test environment, not the installed app's
+managed runtime. Device users do not need these pip commands.
+
+
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install 'meshtastic==2.7.11'
@@ -97,12 +106,33 @@ radio socket, framebuffer or camera and is excluded from the installer.
 using the real LVGL screen. Python tests use real pinned protobufs with fake radio
 and sysfs controls, including real subprocess death; they never power hardware.
 `tests/Dockerfile` provides an isolated Debian 13 arm64 build/test environment.
-Run `tests/linux-package-check.sh` there with `CZ_MESH_ISOLATED_TEST=1`, read-only
-source/LVGL mounts at `/src` and `/lvgl`, and a writable build mount at `/work`.
-Mount the checksummed 0.1.8 baseline package read-only and set
-`CZ_MESH_UPGRADE_BASELINE` to its container path for the actual upgrade check. The
-firewall tests require NET_ADMIN **inside that container's network namespace**;
-do not run them against a live host ruleset.
+For the complete isolated gate, first prepare the wrapper's inputs/images:
+
+```sh
+python3 scripts/build-package.py --output build/release-work --prepare-only
+mkdir -p build/manual-package-check
+docker run --rm --platform linux/arm64 --network none --cap-add NET_ADMIN \
+  -e CZ_MESH_ISOLATED_TEST=1 \
+  -e CZ_MESH_UPGRADE_BASELINE=/baseline/mesh-0.1.8.deb \
+  -v "$PWD:/src:ro" \
+  -v "$PWD/build/release-work/cache/lvgl:/lvgl:ro" \
+  -v "$PWD/build/release-work/cache/baseline:/baseline:ro" \
+  -v "$PWD/build/release-work/prepared/runtime:/runtime:ro" \
+  -v "$PWD/build/manual-package-check:/work" \
+  cz-mesh-package-build:debian13 sh /src/tests/linux-package-check.sh
+```
+
+The `/runtime` mount is required. The gate verifies the published 0.1.8 baseline
+checksum before its upgrade test, builds/runs native regressions, installs the
+real `.deb`, exercises firewall changes, offline managed runtime and backend tests.
+NET_ADMIN belongs **only to that isolated container's network namespace**. Never
+use host networking, privileged mode or a live host ruleset for these tests.
+If your container runtime cannot provide that isolation, use the matching CI job.
+
+The wrapper's normal full online invocation additionally performs a minimal
+Debian fresh-install/offline-first-run/remove check. That image deliberately has
+no pre-existing SDK/global radio/user venv; the matching build image does contain
+build/test dependencies. Both are separate from physical fresh-image acceptance.
 
 ## Project layout
 
@@ -125,8 +155,13 @@ runner. It builds a Debian 13 container, then builds/installs/tests the package
 with networking disabled in an isolated namespace. LVGL is fetched at the fixed
 9.5.0 commit; the radio client is pinned to 2.7.11. The job validates ELF
 library dependencies, absence of app sudo grants, units, the capability-only firewall monitor and
-backend regressions. It uploads the `.deb`, `SHA256SUMS` and `SOURCE_COMMIT` as a
-workflow artifact, without publishing a binary release or starting RF.
+backend regressions. It also builds the private native radio from pinned firmware with the GPS
+correction, prepares locked wheels/licenses and tests a minimal fresh Debian
+installation followed by offline runtime/cache/removal checks. It uploads the
+`.deb`, full corresponding-source/dependency archive, runtime manifest,
+`SHA256SUMS`, `SOURCE_COMMIT`, complete install/video instructions and preflight
+JSON. See [the asset inventory](distribution.md#outputs). It does not publish a
+binary release, install on a Cardputer or start RF.
 
 These artifacts are candidates. Hardware qualification still requires the
 operator's antenna, intended peer, GPS sky view, camera target and actual power
@@ -161,11 +196,22 @@ gate invokes that test and verifies neither helper is installed. See the
 [keyboard contract](keyboard.md) for the official map, reuse and qualification
 boundaries. No keyboard test injects into live `/dev/input` or sends RF.
 
-## Fitted GPS native-service correction
+## Fitted GPS native correction
 
-The separate [native GPS support workflow](../scripts/meshtasticd-gps/README.md)
+The [native GPS support workflow](../scripts/meshtasticd-gps/README.md)
 builds exact upstream source with the ATGM identification timeout correction,
 tests the actual parser and simulated daemon, and exports the executable with
 full corresponding source and checksums. It does not deploy or publish a release.
 The [device qualification](internal-gps-validation.md) records the separate app
 cache fix, native package identity, real receiver starts and remaining limits.
+
+## Deployment boundaries
+
+The complete wrapper creates artifacts but never deploys them. Transfer and
+install the verified file using [the installation runbook](install.md). The
+inherited `deploy.sh` is a low-level cross-preset **build-and-copy helper**, not
+the bundled-runtime release builder: it needs a correctly prepared CMake/runtime
+configuration, selects a local package and copies it with scp. It does not verify
+remote installation, stop the radio or install dependencies. Do not use it as a
+replacement for the documented checked package workflow or publish its outputs
+merely because the copy succeeded.

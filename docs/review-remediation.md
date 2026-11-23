@@ -1,6 +1,6 @@
 # Independent review remediation — 2026-11-15
 
-Initial review candidate: **0.1.1**; current candidate: **0.1.13** (latest evidence below).
+Initial review candidate: **0.1.1**; current installed candidate: **0.1.19** ([current evidence](distribution-validation-20261123.md)).
 The [maintenance record](maintenance-pass.md) covers the subsequent measured cleanup.
 The [13-item report follow-up](report-followup.md) records the subsequent
 verification, corrections and qualified claims.
@@ -319,3 +319,11 @@ compatibility. The final combined outdoor watch passes 31 samples/321.5s with
 valid coordinates throughout and successive fresh fixes; dongle work remains
 separate. Do not extend these results to public-peer RF, unrelated phone-drop
 causes or untested receivers.
+
+## 0.1.19 bundled-runtime distribution
+
+The [qualified packaging record](distribution-validation-20261123.md) supersedes
+earlier external/manual dependency instructions without rewriting their history.
+The [operations runbook](install.md) covers download integrity, upgrade/backup,
+offline preparation, repair, rollback and removal. No new hardware claim follows
+from a later documentation refresh; the fresh-image hardware test is deferred.

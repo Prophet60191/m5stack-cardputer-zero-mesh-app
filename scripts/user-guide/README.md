@@ -47,3 +47,16 @@ builds cannot publish assets. It neither creates tags nor publishes releases.
 Generated PDFs belong in release assets, not Git or `docs/user-guide/`. Packaging
 includes the Markdown and screenshots but explicitly excludes PDFs. Device
 runtime code and configuration are unaffected by a documentation-only update.
+
+Release attachment names are `Cardputer-Zero-Mesh-User-Guide.pdf`,
+`Quick-Reference-Card.pdf`, `guide-manifest.json` and **`GUIDE_SHA256SUMS`**. The
+local builder still writes `SHA256SUMS`; the release job renames that manual-only
+checksum file before upload. Never clobber a release's installer/source
+`SHA256SUMS` with PDF hashes. Verify both sets independently. A draft release is
+not published and does not trigger the publication attachment job.
+
+When installation behavior changes, update the introductory/troubleshooting
+chapters and [complete operations runbook](../../docs/install.md) as well as the
+front README. Rebuild/review the manual/reference and refresh maintained current
+copies; keep old versioned editions historical. Documentation updates do not
+replace an already qualified installer or silently requalify new binaries.

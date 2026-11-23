@@ -1,5 +1,10 @@
 # Cardputer Zero Mesh
 
+Current instructions: docs/install.md (operations), docs/distribution.md (build/source
+assets), docs/README.md (index). Runtime/package qualification stays at 8ada52a;
+documentation/export-template changes do not authorize another device install.
+Older dated notes below are historical and do not override those current runbooks.
+
 Native C++/LVGL UI (`src/`) talks to a Python radio supervisor (`supervisor/`)
 over newline JSON. The UI owns no radio hardware. Read `CHANGELOG.md`,
 `docs/security.md`, and `docs/review-remediation.md` before changing lifecycle,

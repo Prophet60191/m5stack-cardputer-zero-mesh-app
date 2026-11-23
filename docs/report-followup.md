@@ -1,5 +1,11 @@
 # Review report verification — 0.1.6
 
+> Historical/versioned record. For 0.1.19 bundled-runtime installation use the
+> [current runbook](install.md); for current source/package evidence see
+> [qualification](distribution-validation-20261123.md). Earlier standalone
+> daemon/manual-venv and pending-state instructions below describe their named version.
+
+
 The supplied report described 0.1.4 source. Each claim was checked against the
 actual current code, independently of the report's conclusions. The table keeps
 the report's numbering. All fixtures are synthetic; offline checks use fake

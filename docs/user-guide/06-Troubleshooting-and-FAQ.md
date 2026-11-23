@@ -6,6 +6,22 @@ When something doesn't behave the way you expect out in the field, look up the m
 
 ---
 
+## Installation and Startup
+
+- **First launch takes longer:** the bundled Python environment is being prepared
+  offline. Later launches reuse it. Allow setup to finish; do not start manual pip.
+- **Bundled runtime files missing/corrupt/unsafe:** reinstall the verified
+  complete app package. A damaged managed cache is rebuilt from bundled wheels;
+  your chats, channel keys, profiles and old venv are separate and retained.
+  User-cache ownership/permission errors need the runbook's reviewed cache-reset
+  procedure, not a broad permission change.
+- **Package update incomplete:** finish package configuration using the
+  [recovery instructions](../install.md#recovery). Do not delete its update marker
+  or launch as root to bypass it.
+- **Need logs, backup, rollback or removal?** Use the
+  [installation runbook](../install.md). Logs/backups may contain private data;
+  share the sanitized Diagnostics export instead of raw logs or archives.
+
 ## "My Friend and I Are Right Next to Each Other, Why Can't We See Each Other's Messages?"
 
 This is the most common reason two Meshtastic radios won't talk. Walk through the **4-Item Group Sync Checklist** in the [Quick Reference](00-Quick-Reference-Card.md#group-sync-checklist-4-things-that-must-match) on both devices:
@@ -17,7 +33,7 @@ This is the most common reason two Meshtastic radios won't talk. Walk through th
 
 **Important tip about QR codes:** Scanning or pasting fills the unified setup form and keeps current tuning by default. Any tuning changes must be deliberately selected and reviewed before Save. If you scanned a friend's channel and still can't hear them, check that those three tuning settings match theirs!
 
-Also double-check that **both** devices show **`TX/RX`** (not `RX`) in the top-left bar if you are trying to send.
+For two-way messages, confirm both headers show **`TX/RX`** (send/receive).
 
 ---
 

@@ -72,7 +72,7 @@ are available for offline use and printing.
 - **Public and private channels** — clearly labeled group conversations and explicit DM channel selection; no silent channel fallback.
 
 - **Threaded messaging** — a conversation per channel and per node, with mesh versus recipient acknowledgments, unconfirmed sends and failure reasons and **resend** for the ones the mesh drops.
-- **First-run setup** — select a region and public/private primary channel; initialize receive-only, then explicitly enable TX with antenna confirmation. Requires the qualified meshtasticd 2.7.26 build and client 2.7.11.
+- **First-run setup** — select a region and public/private primary channel; initialize receive-only, then explicitly enable TX with antenna confirmation. Uses the bundled qualified meshtasticd 2.7.26 build and client 2.7.11.
 - **Durable chats** — bounded private SQLite history, identity-bound drafts, pinned chats, English case-insensitive conversation search (`/`), and local-time quiet hours. Saved history can be disabled and erased.
 - **Complete channel setup** — scan/paste/create in one form with tuning, privacy, optional named profile, grouped fields and verified Save. Prepare while Off or save a separate profile without retuning; open the resulting conversation directly.
 - **Manage channels and saved mesh setups** — create/rename/rotate/enable/disable/remove channels with actual readback; preview and apply named local profiles while Off. Profile application leaves TX, location and MQTT Off.
@@ -135,67 +135,40 @@ TX or location settings. The daemon API remains confined to loopback.
 
 ## Install & run
 
-The **0.1.19 candidate** bundles the qualified GPS-corrected `meshtasticd`,
-Python client and QR decoder wheels. No separate radio package or pip commands
-are needed. Install on the official Debian 13 arm64 image:
+**Start with the [complete installation and recovery instructions](docs/install.md).**
+They cover obtaining/verifying the candidate, transferring it, first launch,
+upgrades, private backups, rollback, troubleshooting and removal.
 
-```bash
+0.1.19 is currently a **draft**, not a public release or Store listing. The
+[qualified CI artifact](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45269883900)
+is identified by source and checksum in the installation guide. Older published
+candidates use the earlier dependency arrangement; do not mix their instructions.
+
+On the supported Debian 13 arm64 image, with the verified installer on the device:
+
+```sh
 sudo apt install ./cardputerzero-mesh_0.1.19-rev1_arm64.deb
 ```
 
-APT resolves missing standard Debian libraries automatically. The first launch
-prepares a private user runtime **offline** from checked, bundled wheels; later
-launches reuse it. Existing operator-created Python environments stay untouched.
-See [distribution and source builds](docs/distribution.md) for the one-command
-builder, checksums, corresponding source and explicit qualification limits.
+The one installer includes the GPS-corrected private native radio and 15 pinned
+Python wheels. **No separate meshtasticd installation or manual pip setup.**
+APT may download missing standard OS libraries. First launch prepares a private
+user runtime offline; later launches reuse it. Legacy environments and saved
+chats/channels/profiles/settings are preserved.
 
-The app runs as the logged-in user, using the platform's SPI/GPIO/I2C/video/input
-permissions and its capability-limited firewall service. Package installation
-stops this app's existing background service before replacing files, but does
-not start RF. Close Mesh and turn its radio Off before upgrading; relaunch it
-when installation finishes. Keep a separately installed global meshtasticd
-service stopped/masked if one already exists; this package does not manage it.
-Do not run Mesh as root or grant blanket sudo.
+For an upgrade, turn Radio Off, close Mesh and back up first. Installation stops
+this app's old supervisor before replacing files and never starts RF. A separate
+global meshtasticd, if already installed, must stay stopped/masked. Run Mesh from
+the normal launcher as your regular user, never with sudo. Attach the antenna
+before Radio On. New first-run setups begin receive-only; existing settings stay
+as saved. Choose transmission and location sharing deliberately.
 
-Camera scanning uses the image's `rpicam-still` provider (`rpicam-apps-core`).
-Pillow/zbar are declared Debian dependencies; the Python QR decoder is bundled.
-USB webcam fallback additionally needs `python3-opencv`. Pasting a share link
-works without a camera. Optional phone access needs separately administered
-Tailscale and the official Meshtastic phone app; accounts are never bundled.
-
-**2. Attach the antenna and launch Mesh from the grid.** On an empty state directory, first-run setup creates a receive-only profile. Choose your permitted region and public or newly generated private primary channel. Existing profiles are preserved. Use Settings → Transmit mode to enable TX deliberately. A private group needs its selected-channel QR shared with the intended peer.
-
-The launcher starts the
-transient user supervisor service; radio startup stays an explicit action unless you enable
-auto-start. Closing the UI leaves the supervisor running; stop the radio or the
-user service before swapping the Cap. The firewall must pass verification before power-on. Check setup with:
-
-```bash
-python3 /usr/lib/cardputerzero-mesh/firewall.py health
-systemctl is-enabled cardputerzero-mesh-firewall.service
-systemctl --user status cardputerzero-mesh-supervisor.service
-```
-
-For an upgrade, stop the radio/supervisor as the logged-in user before replacing
-its files, then launch Mesh again. The fixed lifecycle helper can also restart it
-explicitly (this stops any running radio and its child processes):
-
-```bash
-python3 /usr/lib/cardputerzero-mesh/user_service.py stop
-# Install the reviewed update, then launch Mesh, or:
-python3 /usr/lib/cardputerzero-mesh/user_service.py ensure
-# Explicit restart when needed:
-python3 /usr/lib/cardputerzero-mesh/user_service.py restart
-```
-
-Closing Mesh keeps the background supervisor available for reception. The service
-is created on demand after login; it is not enabled for boot. A cold boot starts
-without RF until Mesh is opened and its normal explicit/approved auto-start
-setting is applied. Before uninstall, stop the supervisor with the helper above.
-
-Source development should use the packaged run-supervisor helper after
-installing this package's runtime/firewall integration. The retired `radio_up.py`
-entry point cannot bypass those checks.
+Closing the UI leaves an enabled radio receiving in the background. Stop Radio
+before removing/swapping the Cap. The fitted GPS correction is bundled; USB GPS
+selection is not implemented. Camera capture uses the image's `rpicam-still`
+provider; phone access separately needs Tailscale/account setup. See the
+[optional-feature requirements](docs/install.md#optional-camera-and-phone-features)
+and [phone instructions](docs/phone-access.md).
 
 Public and private channels are both supported, including imports, messaging,
 DMs, position requests, traces and selected-channel QR sharing. New message and
@@ -222,19 +195,31 @@ incomplete/other versions fail closed. See [the security model](docs/security.md
 
 ## Build
 
-A desktop **simulator** (SDL) gives fast, flash-free UI iteration; the device build targets the CardputerZero's
-framebuffer. Build presets and requirements (desktop, device and Debian package) is in
-[docs/build.md](docs/build.md).
+For the complete Debian arm64 installer and dependency/source assets, install
+Python 3, Git and Docker with Linux arm64 support on your build computer, then:
 
-```bash
-# desktop simulator (macOS example)
-cmake --preset darwin-arm64 && cmake --build build/darwin-arm64 --config Release
-./build/darwin-arm64/Release/cardputerzero-mesh
-
-# device (native, on the CardputerZero)
-cmake --preset cp0-native -DCM0_SDK_ROOT=/ -DCM0_ALLOW_FETCH_DEPS=ON
-cmake --build build/cp0-native --config Release
+```sh
+git clone https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app.git
+cd m5stack-cardputer-zero-mesh-app
+python3 scripts/build-package.py
 ```
+
+First use downloads build tools and pinned dependencies automatically. This is a
+large developer build; ordinary users should use the prebuilt installer. The
+[distribution guide](docs/distribution.md) explains all options, output paths,
+cache/offline requirements, source-archive builds and release preparation.
+[Build and test details](docs/build.md) cover the desktop simulator, raw CMake,
+regressions and CI. Offline build mode needs prepared caches/images and skips
+the separate fresh APT dependency-download check. Build/test containers do not
+access device hardware or transmit RF.
+
+## Documentation
+
+- [Documentation index](docs/README.md) — current instructions and historical evidence.
+- [Install, upgrade, backup, recovery and uninstall](docs/install.md).
+- [User guide and quick reference](docs/user-guide/README.md).
+- [Build/dependency/source distribution](docs/distribution.md) and [development tests](docs/build.md).
+- [Current status](docs/current-status.md), [qualified package](docs/distribution-validation-20261123.md) and [Store preparation](docs/store-submission-readiness-20261123.md).
 
 ## Security
 

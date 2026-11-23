@@ -290,3 +290,15 @@ new owner's refresh. Diagnostics add `gps_refresh` with one fixed value: `off`,
 `waiting`, `current`, `timeout`, or `unavailable`. Existing position validity and
 age checks remain authoritative; refresh completion does not fabricate a fix.
 The daemon's NodeInfo/PositionLite snapshot does not carry satellite count.
+
+## Bundled runtime and launch (0.1.19)
+
+Packaging changes do not add an executable/path/pip intent or change the socket
+framing. The normal launcher ensures the fixed transient user service, whose
+wrapper prepares the checked private Python environment offline before the
+socket opens. A connecting UI may therefore wait during first preparation.
+Daemon/client versions in setup/diagnostics refer to the installed private
+bundle, not a PATH lookup or external package query. Radio start still validates
+compatibility/firewall before power. Use [operations](install.md) for startup,
+logs and incomplete-install recovery; do not expose a setup/recovery shell over
+the intent socket. The UI owns no radio or runtime-installation authority.

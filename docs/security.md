@@ -3,7 +3,7 @@
 The C++/LVGL UI is MIT; the radio supervisor and guardian/firewall helpers are
 GPL-3.0-or-later. Their full license is shipped alongside the Python sources.
 The private Meshtastic daemon/library are bundled with exact hash/source locks;
-the first-launch user runtime is prepared offline. See distribution.md.
+the first-launch user runtime is prepared offline. See [distribution](distribution.md) and [operations/recovery](install.md).
 
 ## Trust boundaries
 

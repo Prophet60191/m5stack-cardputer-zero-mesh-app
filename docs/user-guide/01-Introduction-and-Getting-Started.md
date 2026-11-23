@@ -18,7 +18,20 @@ If this is your first time using Meshtastic, three simple ideas will make every 
 
 ---
 
-Before following these guides, install the app and its radio dependencies using the [installation instructions](../../README.md#install--run).
+## Install or Update
+
+Mesh 0.1.19 uses **one installer** for the app, private radio and Python client.
+Use the [complete installation instructions](../install.md) to obtain and check
+the right candidate, install with APT, or back up/update an older version.
+Missing standard Debian libraries may download; no separate meshtasticd package
+or manual pip commands are needed. First launch prepares its private runtime
+**offline**, so give it time to finish. Existing chats and saved setups stay in
+place. The old user environment is retained for rollback.
+
+For an update, turn **Radio Off**, close Mesh and back up first. Reopen through
+the normal launcher as your regular device user, never with sudo. Installation
+does not turn Radio On or change transmission/location preferences. Camera
+capture and optional phone/VPN setup remain separate platform features.
 
 **Privacy:** Keep a private channel's QR code or share URL secret: it contains the group key. Public traffic can be read by others, and another mesh node may forward it to the Internet even when your own MQTT setting is Off. Saved chats are not encrypted on the device. The Private label describes a channel key; it does not certify the firmware's separate DM encryption.
 

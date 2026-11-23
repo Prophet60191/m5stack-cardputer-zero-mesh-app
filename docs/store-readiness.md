@@ -1,5 +1,11 @@
 # Store packaging corrections — 0.1.9 candidate
 
+> Historical/versioned record. For 0.1.19 bundled-runtime installation use the
+> [current runbook](install.md); for current source/package evidence see
+> [qualification](distribution-validation-20261123.md). Earlier standalone
+> daemon/manual-venv and pending-state instructions below describe their named version.
+
+
 The 0.1.8 package failed the official Store metadata/path checks in six places.
 This candidate addresses those issues while keeping the application name, UI,
 radio policy and user storage namespaces unchanged.

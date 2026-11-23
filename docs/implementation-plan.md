@@ -1,5 +1,11 @@
 # 0.1.2 implementation and qualification
 
+> Historical/versioned record. For 0.1.19 bundled-runtime installation use the
+> [current runbook](install.md); for current source/package evidence see
+> [qualification](distribution-validation-20261123.md). Earlier standalone
+> daemon/manual-venv and pending-state instructions below describe their named version.
+
+
 Authorized scope: the twelve-item follow-up requested on 2026-11-15. This file is
 the durable checklist; an item is complete only with implementation and evidence.
 Real hardware checks are separate from synthetic regressions. Keep device IDs,

@@ -22,6 +22,14 @@ def sha(p):
 def git(*args):
     return subprocess.check_output(['git','-c','safe.directory='+str(ROOT),'-C',str(ROOT),*args])
 
+
+def write_install_instructions(path, source, version):
+    """Keep the offline release instructions sourced from the maintained runbook."""
+    header = (f"Cardputer Zero Mesh {version}\nDocumentation snapshot: {source}\n"
+              f"Formatted runbook: https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/blob/{source}/docs/install.md\n"
+              "Qualification references identify the tested candidate; verify a newly built file against its own checksum set.\n\n")
+    path.write_text(header + (ROOT/'docs/install.md').read_text())
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--deb',type=Path,required=True);p.add_argument('--native',type=Path,required=True)
@@ -77,7 +85,7 @@ def main():
         t.add(a.runtime,arcname='dependencies/runtime',filter=normalized)
     shutil.copy2(a.runtime/'manifest.json',a.output/'RUNTIME_BUILD_INFO.json')
     (a.output/'SOURCE_COMMIT').write_text(source+'\n')
-    (a.output/'INSTALL.txt').write_text('Cardputer Zero Mesh '+version+' (Debian 13 arm64)\n\nInstall the one .deb with sudo apt install ./'+package.name+'.\nStandard Debian libraries may download automatically if absent. Radio/client wheels\nare included; first launch prepares the user runtime offline. No separate meshtasticd\nor pip commands are needed. Radio starts only through the app and existing consent.\n\nThe source/dependency archive includes the app, LVGL, native firmware/framework\nsources, original Python wheels/sources, locks and licenses. Build images/toolchains\nand base OS packages are not bundled. Read app/docs/distribution.md after extraction.\nThe existing device is not a clean-image hardware test. No account credentials,\nprivate profiles, chats or user coordinates are part of this release.\n')
+    write_install_instructions(a.output/'INSTALL.txt', source, version)
     shutil.copy2(ROOT/'docs/store-demo-checklist.md',a.output/'VIDEO-CHECKLIST.md')
     names=[package.name,archive.name,'RUNTIME_BUILD_INFO.json','SOURCE_COMMIT','INSTALL.txt','VIDEO-CHECKLIST.md']
     (a.output/'SHA256SUMS').write_text(''.join(sha(a.output/n)+'  '+n+'\n' for n in names))

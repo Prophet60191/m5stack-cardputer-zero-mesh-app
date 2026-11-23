@@ -26,7 +26,7 @@ those interfaces, not a claim that this repository is already a general SDK.
 | Supervisor and application services | Radio/configuration authority, validated operations, delivery/history state and client synchronization | Bounded newline JSON over an owner-only Unix socket |
 | Guardian and user-service lifecycle | Child daemon containment, ownership leases, safe stop/reap/restore and background lifetime | Fixed process/service operations; no client-supplied executable or command |
 | Firewall monitor | Narrow networking enforcement and a fresh health verdict | Separate capability-limited service; UI and supervisor remain normal-user processes |
-| External Meshtastic stack | Firmware-facing API and radio transport | Pinned, separately installed daemon/client dependencies with compatibility checks |
+| Package-private Meshtastic stack | Firmware-facing API and radio transport | Bundled qualified native executable and locked client wheels; root-owned integrity checks and offline user-cache preparation |
 
 The UI has cached presentation state, not authority to operate the radio directly.
 The [protocol](supervisor-protocol.md) defines requests, broadcasts, correlation,
@@ -113,3 +113,20 @@ creating another hardware owner. It also adds maintenance obligations: protocol
 version checks, field minimization, bounded sessions/queues, reconnect behavior
 and independent transport/UI/RF evidence. This remains a Mesh design choice, not
 an additional framework or a requirement for unrelated Cardputer apps.
+
+## Packaging the modules together (0.1.19)
+
+Modularity does not require separate manual installation. One `.deb` installs
+the UI, supervisor/guardian, private native radio, original Python wheels and
+licenses. `run-supervisor` first calls `runtime_prepare.py` as the logged-in user;
+`bundled_runtime.py` validates the fixed package-owned bundle. Preparation is
+offline and cached independently of native/UI changes. The service then executes
+the supervisor with that managed Python, retaining its existing process/cgroup
+and radio ownership. No shell command or executable path comes from an intent.
+
+The package manager alone runs root install hooks; they stop the old user owner
+before replacement and configure the limited firewall monitor. The UI/supervisor
+remain unprivileged. System libraries stay with Debian, optional capture/VPN
+facilities stay with the image/operator, and no owner state is redistributed.
+See [installation](install.md) for operations and [distribution](distribution.md)
+for the bundle, cache, source/license and release boundaries.
