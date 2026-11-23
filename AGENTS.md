@@ -82,3 +82,9 @@ deletion, stable action targets, grouped form, truthful delivery/mode wording,
 readable values and explicit profile application consequences. Do not infer new
 radio/privacy defaults from presentation changes. Keep ADB enabled. Device
 installation/qualification belongs in that record, separate from offline tests.
+
+The exact 0.1.15 CI artifact is now installed; file hashes/modes/ownership,
+ordinary-user synthetic replay and owner physical navigation/deletion-cancel
+checks passed. Current qualification/source links are in the refinement record.
+The startup CLI does not implement `--version`; use About or package metadata
+for version checks rather than inadvertently starting another framebuffer UI.

@@ -24,7 +24,7 @@ The Map is a glance-and-go live display—dots cannot be selected individually h
 
 ## How to Read the Radar Map
 
-Because the CardputerZero works completely off-grid without internet map tiles, the Map plots everyone cleanly on two concentric rings and updates automatically whenever new locations arrive. Freshness colors also age while the screen stays open, without waiting for another packet:
+The Map works offline, using two distance rings instead of street-map tiles. Positions update as they arrive; freshness markers age even without new packets.
 
 ### 1. You Are Always at the Center
 
@@ -45,7 +45,6 @@ The map stays north-up; it does not rotate with the direction you are holding th
 - The outer ring automatically adjusts so the **farthest positioned node** sits right on the outer ring (or defaults to `1.0 km` if no other nodes are farther away).
 - Read the top-left label to check the outer ring's scale—for example:
   - **`Filled=fresh / ring: 2.1 km`** means the outer ring is 2.1 km from you, and the inner ring is roughly 1.05 km from you.
-  - **`Filled=fresh / ring: 450 m`** means all positioned nodes are within 450 meters.
 
 ### 4. Node Labels & Freshness Colors
 
@@ -71,9 +70,9 @@ Each positioned peer appears as a dot labeled with its short callsign (such as `
 
 1. Take your CardputerZero outside and open **Map** from the Home Carousel.
 2. Once your GPS locks on, your center dot displays **`you`**.
-3. You see a bright green dot labeled **`BASE`** toward the **top-right**, a green dot **`RDG`** toward the **bottom-left**, and a hollow dot **`SCT`** on the lower-right edge (`Filled=fresh / ring: 2.1 km`).
-4. That tells you **Basecamp** (`BASE`) and **Ridge Relay** (`RDG`) updated within the last 2 minutes, while **Scout** (`SCT`) is roughly 2.1 km to your southeast using an older last-known fix.
-5. To view exact numbers like `Distance` or `Fix age`, press **ESC**, open [Nodes](03-Nodes-Menu.md), highlight a radio, and press **Enter**.
+3. You see filled **`BASE`** toward the top-right and hollow **`SCT`** below-right. The ring label reads **`Filled=fresh / ring: 2.1 km`**.
+4. **BASE** is northeast with a fresh position; **SCT** shows an older reported location. Directions are north-up, regardless of how you hold the device.
+5. For coordinates, distance or fix age, press **ESC**, open **Nodes**, and press **Enter** on a node.
 
 ---
 

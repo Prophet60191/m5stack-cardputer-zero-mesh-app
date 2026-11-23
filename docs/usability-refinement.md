@@ -63,3 +63,41 @@ one-page quick reference are regenerated; final visual review and actual-device
 installation results are recorded separately below. Synthetic checks cannot establish outdoor GPS, public-peer RF,
 physical keyboard, sunlight readability or current device stability. Do not
 replace those outstanding checks with old observations.
+
+## Installed candidate and closeout
+
+Runtime/package source: `5f0bc3ee80ff3b8bd1cfa6e496999dac6e8edc29`.
+[Native and Debian arm64 CI](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45092949339)
+and the [illustrated-guide build](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45092949349)
+passed. Later wording/layout and closeout changes are documentation only.
+
+Installed the exact CI artifact `cardputerzero-mesh_0.1.15-rev1_arm64.deb`, SHA-256
+`33d6d36f3d25e35cc37918dba4841947001914c3491294d18074d6d9ba4ce116`.
+All 109 regular files match archive hash, mode and root ownership; dpkg verify
+is clean. The Store preflight has zero errors and the existing optional
+localization advisory. No Store submission or binary release is implied.
+
+The previous supervisor process predated installation and still reported 0.1.14.
+It was replaced through the existing unprivileged service restart; the current
+service reports 0.1.15, Radio Off, and NoNewPrivileges. Before the owner's manual
+check, saved channel/key/tuning/privacy/identity/profile and INI hashes matched
+the private backup, and all conversation/draft/preference rows matched exactly.
+Only normal daemon transmit-history bookkeeping differed. Backups stay outside
+the public repository. No peer was reconfigured and no RF test was requested.
+
+The exact CI channel-form replay passed on the device as UID1000 with
+NoNewPrivileges and installed Noto fonts, in both themes. It uses fake commands
+and synthetic data, not the live radio, camera or framebuffer. The owner then
+confirmed that the installed app's message presentation, Saved mesh setups,
+grouped Add channel form and return navigation look right, and that Cancel in
+message deletion preserves the message. The live UI runs as the ordinary user.
+ADB and its reconnect helper remain active; temporary installation/replay files
+were removed. The radio was Off before device work and no saved TX/privacy
+preference was changed by the update.
+
+Updated Markdown/synthetic illustrations and rebuilt the 40-page user manual,
+one-page quick reference and companion app-development reading edition. Visual
+layout and local source/link checks pass. Existing Drive manuals were refreshed
+in place, preserving their links and folder placement. Full outdoor GPS, public
+peer, physical keyboard sweep and extended Online radio qualification remain
+separate from this refinement; no new results are claimed for them.

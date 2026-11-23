@@ -400,3 +400,15 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Update illustrated user guides, synthetic screenshots, quick reference and
   reusable app-guide interaction lessons. See docs/usability-refinement.md for
   exact validation scope and device qualification status.
+
+## 2026-11-22 — 0.1.15 installed refinement closeout
+
+- Install the exact green-CI artifact from runtime source 5f0bc3e; verify all
+  109 regular files against the archive and preserve settings and saved data.
+- Replace the pre-upgrade running supervisor through its ordinary-user lifecycle;
+  confirm 0.1.15/Radio Off, retain TX/privacy settings and leave ADB enabled.
+- Pass the synthetic channel-form replay on device in both themes; owner confirms
+  message presentation, saved setup/form navigation and Cancel preserving a message.
+- Refresh the existing Drive PDFs in place, regenerate the quick reference and
+  polish manual wording/layout. Record exact evidence and remaining hardware
+  limits in docs/usability-refinement.md. Later edits are documentation only.

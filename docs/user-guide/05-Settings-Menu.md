@@ -64,7 +64,7 @@ Save up to **16** named snapshots of your region, tuning, and channels on the de
 
 1. Open **Saved mesh setups** and choose **`+ Save current as profile`**, then enter a name (up to 48 UTF-8 bytes). *(Works with the radio On or Off.)*
 2. To switch profiles, first make sure **Radio** is **Off**. Open **Saved mesh setups** and pick a saved profile to preview its region, preset, frequency slot, and channels:
-   - **Apply: radio Off, TX/location/MQTT Off:** Switches to that setup safely in receive-only mode with location sharing and MQTT turned off until you enable them.
+   - **Apply: radio & sharing stay Off:** Switches to that setup safely in receive-only mode with location sharing and MQTT turned off until you enable them.
    - **Delete saved profile:** Opens a Cancel-first confirmation before permanently deleting that saved profile *(works anytime)*. Your active setup is unchanged.
 
 ![Saved setup preview](images/settings-saved-setup-preview.png)
@@ -155,7 +155,7 @@ first or **Discard and close**. Discard before Save changes nothing. Validation
 errors retain the form. If configuration changes elsewhere, reload the current
 radio settings before saving again. A failed active save stops the radio and tries
 to restore the previous settings; failed recovery or an uncertain result is
-reported explicitly. Inspect Channels/Diagnostics before retrying an uncertain save.
+reported explicitly. Inspect View channels/Diagnostics before retrying an uncertain save.
 
 ### View Channels (Quick View)
 
