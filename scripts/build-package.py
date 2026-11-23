@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 """One-command Debian arm64 build, with verified dependencies and an offline mode."""
 import argparse
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -49,6 +50,9 @@ def main():
     p.add_argument('--offline',action='store_true',help='Use preloaded images and verified cached artifacts only')
     p.add_argument('--prepare-only',action='store_true')
     a=p.parse_args();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True);cache=out/'cache';cache.mkdir(exist_ok=True)
+    build_lock=(out/'build.lock').open('a')
+    try:fcntl.flock(build_lock.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError:raise SystemExit('Another build is using this output directory; choose a different --output')
     if a.offline:
         for image in (NATIVE_IMAGE,APP_IMAGE):run(['docker','image','inspect',image],stdout=subprocess.DEVNULL)
     else:
@@ -65,9 +69,6 @@ def main():
             pio=cache/'pio';pio.mkdir(exist_ok=True)
             docker(NATIVE_IMAGE,['sh','-c','git config --global --add safe.directory /work; sh /support/build.sh'],
                    [(source,'/work',False),(pio,'/root/.platformio',False),(native,'/out',False),(ROOT/'scripts/meshtasticd-gps','/support',True)])
-    # Both checks run without access to network or hardware.
-    docker(NATIVE_IMAGE,['python3','/support/test_daemon.py','/out/meshtasticd'],
-           [(native,'/out',True),(ROOT/'scripts/meshtasticd-gps','/support',True)],True,('-e','CZ_MESH_ISOLATED_TEST=1'))
     lvgl=cache/'lvgl'
     fetch('https://github.com/lvgl/lvgl.git',LVGL,lvgl,a.offline)
     baseline=cache/'baseline';baseline.mkdir(exist_ok=True);old=baseline/'mesh-0.1.8.deb'
@@ -83,6 +84,9 @@ def main():
         stage=Path(temp)
         docker(APP_IMAGE,['python3','/src/scripts/runtime/prepare.py','--native','/native','--cache','/cache','--output','/out/runtime',*(['--offline'] if a.offline else [])],
                [(ROOT,'/src',True),(native,'/native',True),(cache/'python','/cache',False),(stage,'/out',False)],a.offline)
+        # Assembly verifies provenance and hashes before executing any cached binary.
+        docker(NATIVE_IMAGE,['python3','/support/test_daemon.py','/out/meshtasticd'],
+               [(native,'/out',True),(ROOT/'scripts/meshtasticd-gps','/support',True)],True,('-e','CZ_MESH_ISOLATED_TEST=1'))
         if a.prepare_only:
             target=out/'prepared'
             if target.exists():
