@@ -184,3 +184,23 @@ yet replaced the on-device daemon. Current user settings are preserved, GPS
 enabled, RF send/receive, sharing Off, ADB On. Next: exact CI native artifact,
 qualified dependency package install with rollback, repeated physical GPS starts
 and compatibility checks. Do not flash the receiver or silently change settings.
+
+
+## GPS native startup correction installed — 2026-11-23
+
+Current status supersedes the intermediate pending notes above. Owner confirmed
+Map marker after the successful 321.3s outdoor app watch. Exact CI native binary
+from support source 759dcbe is now installed as
+`2.7.26.61~obs54e0d8d~beta+czgps1`, alongside app 0.1.17. Eight real normal radio
+starts pass ATGM detection; private recipient ACK and real phone-gateway SDK
+handshake/encrypted recipient ACK pass. All 332 native installed files and original
+messages/settings/profiles verify; standalone daemon remains masked/inactive,
+one physical API connection, sharing/MQTT Off, Radio send/receive, Phone access
+On/ready and ADB On. Full hashes/rollback/source/CI evidence are in
+`docs/internal-gps-validation.md`. No receiver flash, new privilege or upstream
+submission. Do not identify the patch by its unchanged compiled version banner.
+Final combined outdoor fix/freshness is requested; wait for placement confirmation
+before starting the five-minute watch. Keep helpers for that check, then clean
+only exact task-created temporary paths. USB GPS remains deferred. The remaining
+nonfatal receiver config ACK warning and earlier unrelated phone-drop report
+are not claimed fixed. Retain backups privately outside Git.

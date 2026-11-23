@@ -307,3 +307,14 @@ state is preserved and no new RF send is claimed. A pre-install .13 firewall
 check failure recovered two seconds later; its cause is unknown. Fixed safe
 failure labels improve diagnosis without changing fail-closed behavior. The
 bounded final ten-minute RX run does not establish a root-cause fix.
+
+
+## 0.1.17 fitted GPS qualification
+
+The [GPS record](internal-gps-validation.md) supersedes earlier GPS deferrals:
+raw receiver fixes, an app-cache correction, a successful outdoor freshness watch
+and owner-confirmed Map marker are observed. A separate native identification
+window correction passes eight physical radio starts and private RF/phone-gateway
+compatibility. A final combined outdoor retest is requested; dongle work remains
+separate. Do not extend these results to public-peer RF, unrelated phone-drop
+causes or untested receivers.

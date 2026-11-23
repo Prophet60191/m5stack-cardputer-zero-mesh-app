@@ -168,3 +168,12 @@ reader, synthetic pipe records and a focused LVGL textarea. The device package
 gate invokes that test and verifies neither helper is installed. See the
 [keyboard contract](keyboard.md) for the official map, reuse and qualification
 boundaries. No keyboard test injects into live `/dev/input` or sends RF.
+
+## Fitted GPS native-service correction
+
+The separate [native GPS support workflow](../scripts/meshtasticd-gps/README.md)
+builds exact upstream source with the ATGM identification timeout correction,
+tests the actual parser and simulated daemon, and exports the executable with
+full corresponding source and checksums. It does not deploy or publish a release.
+The [device qualification](internal-gps-validation.md) records the separate app
+cache fix, native package identity, real receiver starts and remaining limits.

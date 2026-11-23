@@ -58,7 +58,7 @@ Also double-check that **both** devices show **`TX/RX`** (not `RX`) in the top-l
 ## GPS & Map Questions
 
 - **`No position fix yet. Go outside with a sky view and give the GPS a minute.`:** Enable **GPS receiver** in **Settings → Location & Internet**. Automatic location sharing remains a separate choice.
-  - Move outdoors with clear sky. In **Diagnostics**, check position and age; satellite count can stay unknown. If a fix never appears, try Radio Off/On once—intermittent startup detection is under investigation.
+  - Move outdoors with clear sky. **Diagnostics** shows position and age; satellites may stay unknown. If no fix appears, try Radio Off/On. The separate `+czgps1` radio-service update fixes an identification timeout; updating Mesh alone does not install it.
 - **`GPS fix is stale or its age is unknown; wait for a fresh fix before sending`:**
   **Send my location** in Messages only sends coordinates when your device has a fresh GPS fix (within the last 2 minutes). Step outside with a clear sky view until **Map** shows a green **`you`** dot (or **Diagnostics** shows `Position: fresh`), then try again.
 - **Why does `Fix age` say `(stale)` or a dot look hollow on the Map?**

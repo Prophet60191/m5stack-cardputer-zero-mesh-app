@@ -565,3 +565,18 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   package and pass candidate package comparison/upgrade/mask checks. Physical
   patched-daemon startup and compatibility checks remain pending; the installed
   daemon has not yet been replaced. Keep settings/sharing/ADB unchanged.
+
+
+## 2026-11-23 — Native GPS startup correction installed and exercised
+
+- Install exact successful CI native executable as separate `+czgps1` Debian
+  package, retaining pristine rollback/private state backups. Verify 332 files,
+  standalone service mask/inactivity and one physical radio connection.
+- Eight real radio stop/start cycles detect the receiver successfully without
+  probe give-up. Private message delivery and real phone-gateway SDK handshake/
+  encrypted recipient ACK pass; all original chats/settings/profiles remain.
+- Radio stays send/receive, GPS enabled, location/MQTT Off, Phone access On and
+  ADB On. Existing nonfatal receiver config warning remains. Final combined
+  outdoor acquisition/freshness is requested before starting USB GPS work.
+- Refresh README/build/qualification records and FAQ/PDF to distinguish app cache
+  correction from separate native service. No upstream submission or release.

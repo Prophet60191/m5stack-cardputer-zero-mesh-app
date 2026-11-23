@@ -1,11 +1,11 @@
 # Built-in Cap GPS qualification
 
-Status: real outdoor receiver operation confirmed; an app cache defect was
-found. The exact 0.1.17 correction is installed. Live fresh coordinates have
-now reached the app; a clean outdoor interval and physical map confirmation are
-in progress. An intermittent daemon GPS-probe failure remains open. The owner wants
-the GPS already fitted to the LoRa Cap tested first, with USB GPS dongle work
-explicitly deferred until this path works. The dongle is outside this change.
+Status: fitted receiver and app Map confirmed outdoors; both identified defects
+have corrections installed. App 0.1.17 refreshes local fixes without broadcasting.
+The separate native `+czgps1` package passes eight physical receiver starts and
+private RF/phone-gateway checks. A final outdoor acquisition with both installed
+together is requested; indoor no-fix readings do not qualify that last step.
+USB GPS dongle work remains deferred until it completes.
 
 ## Starting state — 2026-11-23
 
@@ -212,3 +212,63 @@ Its fresh/upgrade container checks retain the administrator service mask and do
 not run a daemon. Native dependency CI/build/source instructions are prepared;
 no patched native service has yet been installed. Existing app 0.1.17 remains
 installed. Repeated physical starts and RF/phone compatibility remain required.
+
+## Exact native installation and bounded qualification — 2026-11-23
+
+The [native CI run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45246363258)
+passed at support source `759dcbe0322ab6dd67ee7cf40044315d9a164d54`.
+The [main regression run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45246363243)
+at that source also passes all 167 backend tests and native/arm64 package gates.
+The native artifact includes full corresponding source, build metadata and hashes.
+Its exact CI executable SHA-256 is
+`9accde6d5111625d453d7491eaf09c68ee7f5ed774eed6d8173838a22d734913`.
+The timeout patch SHA-256 is
+`33620bd494e4de69eff9944a9ae3d98418dada08f008355ee78947c215e64036`.
+
+Package `meshtasticd_2.7.26.61+czgps1_arm64.deb` is constructed from that CI
+executable and the verified pristine baseline payload. SHA-256:
+`59460d73248e8bd93be112a43e6923727902c681662566122ce187e3f6032101`.
+It installs Debian version `2.7.26.61~obs54e0d8d~beta+czgps1`; the compiled banner
+still reads upstream `2.7.26.54e0d8d`. Identify the correction by package version
+and executable hash, not the banner. Original rollback package and consistent
+private app/radio backups are retained outside Git. No release was published
+and no upstream submission was made.
+
+After ordinary Radio Off, install the exact package and return through the
+ordinary unprivileged supervisor. The standalone system daemon stays masked and
+inactive; no extra hardware owner, app privilege or configuration file is added.
+All **332 regular installed files** match expected hashes, modes and ownership,
+including the vendor maintainer script's existing config/web ownership.
+
+Eight consecutive normal Radio Off/On cycles each detect ATGM336H, with no
+probe give-up. Detection plus a three-second receiver-setup allowance completes
+9.7–11.7 seconds after Radio becomes Online. Every sample stays send/receive,
+GPS ENABLED, location/MQTT Off, firewall healthy. Saved radio/module/channel and
+profile hashes remain unchanged. These are eight bounded real hardware starts,
+not a claim of universal startup reliability or full-system cold-power coverage.
+
+One normal private message gets a persisted delivered/Recipient ACK. A separate
+unmodified SDK protocol fixture through the real phone gateway completes its
+handshake and encrypted private send with a recipient ACK (`NONE` routing error).
+The fixture first checks that no actual handset is connected and leaves it
+undisturbed if one is. This is protocol/RF compatibility, not a repeated physical
+iPhone user-flow test. At completion one physical daemon TCP connection remains;
+Phone access is On/ready, Radio Online/send-receive and ADB stays active.
+All 24 original messages, three threads and three preferences remain; only the
+two deliberate test messages are added. App settings/profiles/identity/privacy
+files match the original backup.
+
+The last indoor start has no valid fix, as expected without an adequate sky view.
+The existing nonfatal ATGM configuration ACK warning remains; it also occurred
+in the earlier working outdoor run and is not concealed by the identification
+fix. No enable-NMEA/update-frequency failure or probe give-up is logged. Final
+combined outdoor acquisition/freshness is requested before dongle work. Keep
+that separate from the earlier successful 321.3-second outdoor watch and the
+owner's confirmed Map marker.
+
+The FAQ now distinguishes the separate radio-service correction from the app
+update. The refreshed manual stays 42 pages, 416535 bytes, SHA-256
+`0bd9fd2fc42272233f8289e548a279dad6aed96bbae446451041e4dbcd8874c3`.
+Changed FAQ/adjacent-page layout and source/link/version checks pass. The same
+Drive file is replaced in place; readback verifies its ID, folder and size. The one-page quick
+reference is unchanged.

@@ -34,11 +34,13 @@ out there, and share a channel by QR — with an interface designed for the tiny
 The current source is **0.1.17, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. See the [current refinement record](docs/usability-refinement.md)
-for this candidate's verification and limits. Private-peer delivery, camera QR
-and physical cold-power results belong to earlier qualified candidates; this
-update does not repeat those claims. Outdoor GPS, live public-mesh delivery and
-other remaining device checks are documented in the
-[verification record](docs/review-remediation.md).
+for this candidate's verification and limits. Camera QR and physical cold-power
+results belong to earlier qualified candidates; this update does not repeat
+those claims. The fitted GPS receiver, fresh local fixes
+and owner-confirmed Map marker are covered in the
+[GPS qualification record](docs/internal-gps-validation.md), including its separate
+native-service startup correction. Live public-mesh delivery and other remaining
+device checks are documented in the [verification record](docs/review-remediation.md).
 
 > **Meshtastic&reg; is a registered trademark of Meshtastic LLC.** This is an independent, community project and
 > is not affiliated with or endorsed by Meshtastic LLC or M5Stack.
@@ -152,6 +154,13 @@ If that exact daemon build is unavailable from the configured repositories, obta
 the corresponding verified upstream package rather than substituting a newer
 firmware/client combination. Runtime compatibility checks fail closed before
 power-on; this installer does not add repositories or install the radio stack.
+
+For the fitted Cap GPS, app 0.1.17 fixes local-position refresh but the baseline
+native service can still miss receiver identification. The separate `+czgps1`
+service patch/build and rollback instructions are in
+[scripts/meshtasticd-gps](scripts/meshtasticd-gps/README.md); qualification and exact
+artifact hashes are in the [GPS record](docs/internal-gps-validation.md). This is
+a separate Linux package, not receiver firmware, and is not installed by the app.
 
 **2. Install the pinned radio client in your own venv:**
 
