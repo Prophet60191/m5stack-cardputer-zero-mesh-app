@@ -449,3 +449,19 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   private T-Deck recipient ACK and eight actual-daemon heartbeats pass on the
   final gateway. Radio remains Online/send-receive, selected-phone access On,
   ADB On. Updated guide and existing Drive PDF; actual iPhone checks pending.
+
+## 2026-11-23 — Actual iPhone acceptance follow-up
+
+- Owner confirms official App Store Meshtastic connection, loaded nodes/channels
+  and successful sending/receiving. Installed-source and documentation-closeout
+  CI runs both completed successfully. Extended background/reconnection/lifecycle
+  checks are in progress over Wi-Fi; cellular roaming remains unqualified.
+- No SIM is required in Lockon for Wi-Fi/Tailscale phone access. Keep the existing
+  private setup, send/receive mode and ADB enabled during qualification.
+
+- Extended handset checks: owner confirms foreground recovery after phone lock
+  and reconnect/message delivery after a Wi-Fi interruption. Access Off/On
+  preserves RF and restores the listener; owner needed a manual reconnect, then
+  messaging worked. Device radio stop/start preserves saved configuration and
+  profiles; actual handset recovery and longer foreground idle remain pending.
+  No production code/configuration changes; leave ADB and send/receive enabled.

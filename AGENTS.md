@@ -98,13 +98,22 @@ or allow phone admin/location/MQTT writes. Preserve single radio ownership,
 TX/privacy/channel identity checks and actual-daemon heartbeat behavior.
 VPN account/Serve setup is a separate administrator action, not an app privilege
 grant. Keep real peer IDs, addresses/auth links and qualification backups private.
-Offline checks are not yet the owner's actual-iPhone acceptance; record those
-results separately. Preserve settings/chats and leave ADB enabled.
+Keep offline checks separate from the actual-iPhone results recorded below. Preserve settings/chats and leave ADB enabled.
 
 Phone candidate installed from functional source `8cfa3b6`; all 158 backend tests,
 Debian arm64 package gates and exact 114-file installed verification pass. Native
 sanitisers pass locally. Private T-Deck recipient ACK and real-daemon heartbeat
-checks passed on installed code through protocol fixtures. Actual App Store
-iPhone acceptance is still pending; do not conflate those results. The current
+checks passed on installed code through protocol fixtures. The owner now confirms actual App Store iPhone connection, node/channel
+loading and two-way messaging. Extended lifecycle/roaming acceptance remains
+pending; do not conflate protocol fixtures with handset observations. The current
 setup is Online/send-receive, Phone access On, and ADB On. Read the qualification
 record for remaining checks and source-correlated CI status.
+
+Extended handset qualification (2026-11-23): owner confirms recovery after an
+approximately two-minute lock/background interval and successful reconnect/send
+after toggling iPhone Wi-Fi. Phone access Off/On preserves the live radio; the
+owner needed a manual reconnect afterward, then messaging worked. Normal radio
+stop/start also passed on device with saved configuration/profile hashes unchanged;
+its handset recovery and the foreground idle check are still pending. Current
+checks are logged in docs/phone-access-validation.md; do not infer cellular
+handover from the Wi-Fi interruption. Lockon itself does not need a SIM.
