@@ -154,3 +154,22 @@ build/internal-gps-qualification. Never commit raw coordinates, device IDs or
 private endpoints. Preserve chats/profiles/phone access/other apps; leave ADB On.
 User may bring device indoors while the correction is built. Do not begin the
 USB GPS work until this existing receiver/app path is qualified.
+
+Outdoor retest update: first corrected interval encountered native GPS probe
+give-up (no detected model, no stream), and was interrupted for diagnosis. A
+read-only identity query matches native ATGM336H detection at 115200; periodic
+NMEA was absent, consistent with native probe disabling output before failing.
+A normal restart recovered and the installed app now reports valid/fresh coords
+(age ~19s), proving the cache correction live. A clean watch is running in
+outdoor-confirmed-watch.jsonl; do not confuse it with the interrupted
+outdoor-corrected-watch.jsonl. Intermittent startup detection remains unresolved.
+No receiver firmware/permanent setup change or dongle work.
+
+Clean recovered-state run now passed: 31 samples/321.3s, all valid coords and
+radio/firewall/privacy healthy; 21 fresh/10 correctly stale samples and six
+freshness transitions as successive source fixes arrive. Physical Map-marker
+question is pending. Keep startup reliability unresolved; next investigate
+native ATGM336H probe intermittently failing despite a valid direct identity
+reply at 115200 (no periodic output after failed probe). Do not change shared
+dependencies or permanent GNSS settings speculatively. Wait for Map confirmation
+before any further radio interruption, so that check is not invalidated.

@@ -545,3 +545,12 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   settings/profiles are preserved. Restarted owner reports 0.1.17 and GPS refresh
   current, one daemon connection, healthy firewall, Online/send-receive, GPS
   enabled and location/MQTT Off. ADB stays On. Await owner outdoor Map retest.
+
+- Corrected outdoor retest found a separate intermittent native GPS startup
+  probe failure; direct identity query matches ATGM336H at 115200 but periodic
+  output was absent. A normal restart restored detection. Keep this unresolved.
+- Clean recovered-state run: all 31 samples over 321.3s have valid coordinates
+  and healthy Online radio/privacy; new fixes arrive, with truthful fresh/stale
+  transitions. Backend GPS data-path correction is verified; physical Map-marker
+  confirmation and startup reliability remain open. Document unknown satellites
+  and the startup limitation in the FAQ; do not begin dongle work yet.

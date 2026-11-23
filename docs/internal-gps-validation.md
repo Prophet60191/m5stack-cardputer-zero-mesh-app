@@ -1,8 +1,9 @@
 # Built-in Cap GPS qualification
 
 Status: real outdoor receiver operation confirmed; an app cache defect was
-found. Candidate 0.1.17 implements a correction; installation and app/map retest
-are pending. The owner wants
+found. The exact 0.1.17 correction is installed. Live fresh coordinates have
+now reached the app; a clean outdoor interval and physical map confirmation are
+in progress. An intermittent daemon GPS-probe failure remains open. The owner wants
 the GPS already fitted to the LoRa Cap tested first, with USB GPS dongle work
 explicitly deferred until this path works. The dongle is outside this change.
 
@@ -126,3 +127,60 @@ yet show a valid position and are not counted as an outdoor failure. The owner
 is asked to open Map and position the device outside again before starting the
 corrected five-minute interval. The installed correction's outdoor/map/freshness
 acceptance remains pending; no dongle work has begun.
+
+## Retest and additional startup issue
+
+The owner positioned the device outside again with Map open. The first corrected
+watch showed node-only refresh completion but no coordinates. Private-log
+summaries showed the native receiver probe had given up on this startup, leaving
+no detected ATGM336H. This is a separate initialization failure, not proof that
+the node refresh itself creates a fix. That interval was interrupted for an
+exclusive diagnostic and is not counted as a successful five-minute run.
+
+The bounded identity-only diagnostic received no valid sentences at 9600. At
+115200 the receiver answered the same read-only PCAS06 identity query used by
+native probing, with GP talker/model label ATGM336H matching the expected native
+substring. It emitted no periodic GGA/RMC during that test. Native probe source
+turns NMEA output off before identification; failure can leave it off. Identity
+response is therefore possible even when there is no position stream. No
+permanent receiver configuration or firmware was changed by the diagnostic.
+
+Normal radio restart restored detection and the corrected app subsequently
+reported valid/fresh coordinates with source age about 19 seconds. This verifies
+the cache correction on device, but does not repair or erase the failed native
+probe. A clean five-minute watch is running from this recovered state. Startup
+robustness still needs investigation; dongle work remains deferred.
+
+## Clean recovered-state outdoor run
+
+After normal receiver detection recovered, collect 31 samples over 321.3 seconds.
+All samples have valid coordinates for this node, Radio Online/send-receive,
+healthy firewall, automatic sharing Off and MQTT Off. Twenty-one samples are
+fresh; ten honestly exceed the 120-second freshness threshold between receiver
+updates. Six fresh/stale transitions and new source timestamps demonstrate that
+the app receives successive fixes rather than refreshing an old timestamp. Final
+source age is 33 seconds. This passes the bounded recovered-state data-path and
+freshness check. Physical Map-marker confirmation is requested and pending.
+
+This does **not** qualify reliable receiver startup: one 0.1.17 startup failed
+model detection and left periodic NMEA output suppressed; a later startup
+succeeded. The identical read-only identity query succeeds at 115200 in an
+exclusive diagnostic. Further work must explain this difference before claiming
+startup reliability or moving to USB GPS. Do not silently flash the receiver,
+change its persistent baud/constellation settings, open competing readers, or
+replace shared radio dependencies as a speculative fix.
+
+Reusable lesson: receiver enablement, raw fix acquisition, daemon NodeDB state,
+client-cache freshness and actual screen presentation are separate observations.
+Test with RF location sharing Off; never require broadcasting to make a local
+map work. Preserve acquisition timestamps and unknown fields such as satellite
+count rather than inventing telemetry for a cleaner-looking display.
+
+Guide follow-up: correct the FAQ's suggestion that satellite count is always
+available, document the unresolved startup problem and keep its question with
+the first explanation across the page break. The final 0.1.17 manual is now
+42 pages after that readable reflow; the separate reference remains one page.
+Map/FAQ/final reference layouts were visually checked. Replace the existing
+Drive PDF in place (same ID/folder), with metadata readback confirming 416523
+bytes. Source/link/version checks pass. Earlier 41-page counts describe the
+pre-FAQ-reflow intermediate PDF, not this final guide.

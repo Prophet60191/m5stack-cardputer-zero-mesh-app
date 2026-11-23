@@ -57,9 +57,8 @@ Also double-check that **both** devices show **`TX/RX`** (not `RX`) in the top-l
 
 ## GPS & Map Questions
 
-- **`No position fix yet. Go outside with a sky view and give the GPS a minute.`:**
-  - Make sure **Settings → GPS receiver** is set to **ENABLED** (note: turning the GPS receiver on only calculates *your* position; it does not share it unless you enable **Share position**).
-  - Indoor roofs, thick tree cover, and metal buildings block GPS satellites. Step outdoors with a clear sky view and check **Settings → Diagnostics** to see how many `GPS satellites` your device has locked onto.
+- **`No position fix yet. Go outside with a sky view and give the GPS a minute.`:** Enable **GPS receiver** in **Settings → Location & Internet**. Automatic location sharing remains a separate choice.
+  - Move outdoors with clear sky. In **Diagnostics**, check position and age; satellite count can stay unknown. If a fix never appears, try Radio Off/On once—intermittent startup detection is under investigation.
 - **`GPS fix is stale or its age is unknown; wait for a fresh fix before sending`:**
   **Send my location** in Messages only sends coordinates when your device has a fresh GPS fix (within the last 2 minutes). Step outside with a clear sky view until **Map** shows a green **`you`** dot (or **Diagnostics** shows `Position: fresh`), then try again.
 - **Why does `Fix age` say `(stale)` or a dot look hollow on the Map?**
