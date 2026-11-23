@@ -37,7 +37,7 @@ See the [verification record](../review-remediation.md).
 
 All 31 screenshots use synthetic names, node IDs, messages and positions. The QR
 picture is demonstration data, not a channel to join. The screenshots were
-rendered with 0.1.6, 0.1.13, 0.1.14, 0.1.15 and 0.1.16; newer controls are documented for 0.1.18; older illustrations are identified here. Older illustrations can show navigation reminders that 0.1.14 moves to HELP. Diagnostics on your
+rendered with 0.1.6, 0.1.13, 0.1.14, 0.1.15, 0.1.16 and 0.1.18; newer controls are documented for 0.1.18; older illustrations are identified here. Older illustrations can show navigation reminders that 0.1.14 moves to HELP. Diagnostics on your
 device shows your installed version. Colors can differ with your selected theme. Older illustrations may show a battery icon; 0.1.18 keeps only the numeric percentage.
 
 Public messages, identity and telemetry can be visible to other people. Other
