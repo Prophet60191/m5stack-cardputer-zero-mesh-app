@@ -704,3 +704,17 @@ with independent hardware notes/private backups preserved.
   examples and full offline instruction generation; reviewed all manual pages
   and changed guide sections. Guide's 22 checks pass. No runtime/device test is
   newly claimed for this documentation-only refresh.
+
+
+## 2026-11-23 — Wrap: everyday-use observation
+
+- Close the implementation/documentation cycle at installed Mesh 0.1.19;
+  exact qualified runtime/package source remains 8ada52a. Current operational
+  instructions and qualification limits are in docs/current-status.md.
+- Owner will use the app before further changes. Resume only on a new request
+  or concrete issue, starting from reproducible steps and observed behavior.
+- Keep fresh-image hardware (no spare card), USB GPS and SIM work deferred;
+  video/publication/submission remain separate pending steps. Earlier phone-drop
+  and other documented qualification limits remain unresolved, not silently passed.
+- Session wrap changes only project records and maintained host copies; no
+  device operation, package rebuild, settings change or public release.

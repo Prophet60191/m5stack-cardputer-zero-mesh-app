@@ -11,6 +11,14 @@ offline. No separate radio package or pip commands are needed; APT resolves
 standard OS libraries. Existing user environments and the masked global daemon
 are preserved. See [installation/build/distribution](distribution.md).
 
+## Everyday-use observation — 2026-11-23
+
+The owner has closed the current change cycle and will use the app for a while.
+No further feature, cleanup, optimization or deployment work is planned without
+a new request or concrete issue. If something recurs, record the screen/action,
+expected behavior and actual result before deciding on a fix. This stopping point
+does not turn deferred checks into passed checks or authorize publication.
+
 ## Qualified behavior
 
 - All 175 backend tests, native sanitizer/regression gates, Debian arm64 package,

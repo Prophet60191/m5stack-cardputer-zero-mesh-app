@@ -5,6 +5,14 @@ assets), docs/README.md (index). Runtime/package qualification stays at 8ada52a;
 documentation/export-template changes do not authorize another device install.
 Older dated notes below are historical and do not override those current runbooks.
 
+## Current focus — everyday use (2026-11-23)
+
+Owner has closed the change cycle: use installed Mesh 0.1.19 and observe real
+behavior before further work. Resume implementation or deployment only on an
+explicit request or a concrete reported issue; capture the steps, expected result
+and actual result first. See docs/current-status.md for qualification and deferred
+work. Keep ADB enabled and preserve all existing radio/privacy/phone settings.
+
 Native C++/LVGL UI (`src/`) talks to a Python radio supervisor (`supervisor/`)
 over newline JSON. The UI owns no radio hardware. Read `CHANGELOG.md`,
 `docs/security.md`, and `docs/review-remediation.md` before changing lifecycle,
