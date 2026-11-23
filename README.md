@@ -31,7 +31,7 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.15, a release candidate** with public/private channel
+The current source is **0.1.16, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. See the [current refinement record](docs/usability-refinement.md)
 for this candidate's verification and limits. Private-peer delivery, camera QR
@@ -112,6 +112,14 @@ separate supervisor is a Mesh choice rather than a requirement for every app.
   through a guardian, with TCP **firewall-confined to loopback**, and translates intents into radio actions. The full contract is in
   [docs/supervisor-protocol.md](docs/supervisor-protocol.md).
 
+## Connect the official Meshtastic phone app
+
+Optional **[Phone access](docs/phone-access.md)** lets the selected phone view
+mesh information and send messages alongside the Cardputer UI over Tailscale.
+It requires a separately installed/signed-in VPN and private Serve forwarder;
+radio/channel changes stay on the Cardputer. Access defaults Off and never changes
+TX or location settings. The daemon API remains confined to loopback.
+
 ## Hardware you need
 
 - An **M5Stack CardputerZero** running its Debian image.
@@ -129,7 +137,7 @@ separate supervisor is a Mesh choice rather than a requirement for every app.
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.15-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.16-rev1_arm64.deb
 # The qualified Debian build used for this candidate:
 sudo apt install 'meshtasticd=2.7.26.61~obs54e0d8d~beta'
 ```

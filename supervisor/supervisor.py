@@ -57,6 +57,8 @@ from radio_settings import RadioSettings, atomic_write
 from application_services import ApplicationServices
 from channel_import import ChannelImport
 from channel_setup import ChannelSetup
+from phone_services import PhoneServices
+from phone_gateway import observing_interface
 
 
 HERE = Path(__file__).resolve().parent
@@ -195,7 +197,7 @@ class Client:
             pass
 
 
-class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
+class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices):
     def __init__(self) -> None:
         self._lock = threading.RLock()          # guards clients, state, messages, iface
         self._life_lock = threading.RLock()      # serializes radio start/stop as a whole
@@ -241,6 +243,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
         self._attempts = {}
         self._config_confirmed = False
         self._init_imports()
+        self._init_phone()
         self._worker = threading.Thread(target=self._work_loop, daemon=True)
         self._worker.start()
 
@@ -558,6 +561,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
                 self._teardown()
                 return
             self._set_radio("online")
+            self._phone_resume()
             has_public = any(not self._private_channel(ch) for ch in self._iface.localNode.channels if ch.role)
             threading.Thread(target=self._watch_daemon, args=(self._daemon,), daemon=True).start()
         self._broadcast(self._nodes())
@@ -574,6 +578,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
 
     def _teardown(self) -> None:
         """Release iface, daemon and Cap. Caller holds _life_lock."""
+        if getattr(self, "_phone", None): self._phone.stop()
         with self._lock:
             iface, daemon, log = self._iface, self._daemon, self._log
             self._iface = self._daemon = self._log = None
@@ -688,9 +693,8 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
         raise TimeoutError("radio did not initialize in time")
 
     def _connect_mesh(self) -> None:
-        from meshtastic.tcp_interface import TCPInterface
         from pubsub import pub
-        self._iface = TCPInterface(hostname="127.0.0.1", portNumber=self._port, timeout=8)
+        self._iface = observing_interface(self._phone_frame, hostname="127.0.0.1", portNumber=self._port, timeout=8)
         pub.subscribe(self._on_receive_text, "meshtastic.receive.text")
         pub.subscribe(self._on_receive_packet, "meshtastic.receive")
         pub.subscribe(self._on_receive_position, "meshtastic.receive.position")
@@ -833,6 +837,12 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
                 # Serialized barrier: all preceding intents from this stream,
                 # including committed draft writes, have completed.
                 reply({"event": "state.synced"})
+            elif intent == "phone.get":
+                reply(self._phone_payload())
+            elif intent == "phone.set":
+                reply(self._phone_set(req))
+            elif intent == "phone.select":
+                reply(self._phone_select(req))
             elif intent == "setup.status":
                 reply(self._setup_payload())
             elif intent == "setup.initialize":
@@ -926,62 +936,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
             elif intent == "message.list":
                 self._publish_history(client, rid, req.get("channel"))
             elif intent == "message.send":
-                self._require_online()
-                ch = req["channel"]
-                text = req["text"]
-                if not isinstance(text, str) or not text or len(text.encode("utf-8")) > 200:
-                    raise ValueError("message must contain 1..200 UTF-8 bytes")
-                dest = req.get("dest")
-                cid = req.get("cid")
-                if not cid:
-                    raise ValueError("message requires a unique cid")
-                attempt = (uuid.uuid4().hex, time.monotonic())
-                want_ack = req.get("wantAck", True)
-                if type(want_ack) is not bool:
-                    raise ValueError("wantAck must be boolean")
-                self._validate_target(req, dest)
-
-                msg = {"from": "self", "fromName": "me", "to": dest or "broadcast",
-                       "channel": ch, "text": text, "time": int(time.time()),
-                       "outgoing": True, "id": cid, "status": "sending" if want_ack else ""}
-                msg["channel_id"] = self._channel_identity(ch)
-                msg["channel_name"] = self._iface.localNode.channels[ch].settings.name
-                msg["channel_private"] = self._private_channel(self._iface.localNode.channels[ch])
-                self._record(msg, attempt)
-                # Publish the initial state BEFORE the library can invoke an
-                # ACK callback. Otherwise a delayed initial echo can overwrite
-                # an already delivered bubble at a connected client.
-                self._broadcast({"event": "message", "message": dict(msg)})
-
-                def onAckNak(resp):
-                    routing = resp.get("decoded", {}).get("routing")
-                    if not isinstance(routing, dict) or "errorReason" not in routing:
-                        return  # unrelated/malformed response is never success
-                    err = routing["errorReason"]
-                    hs, hl = resp.get("hopStart"), resp.get("hopLimit")
-                    hops = hs - hl if isinstance(hs, int) and isinstance(hl, int) else None
-                    ok = err in ("NONE", 0)
-                    from meshtastic.protobuf import mesh_pb2
-                    try: code = mesh_pb2.Routing.Error.Name(err) if type(err) is int else str(err)
-                    except ValueError: code = str(err)
-                    reasons = {"NO_ROUTE": "No route to destination", "GOT_NAK": "Negative acknowledgment",
-                               "TIMEOUT": "Routing acknowledgment timed out", "NO_INTERFACE": "Radio interface unavailable",
-                               "MAX_RETRANSMIT": "Retries exhausted", "NO_CHANNEL": "Channel unavailable",
-                               "TOO_LARGE": "Message too large", "NO_RESPONSE": "Destination did not respond",
-                               "DUTY_CYCLE_LIMIT": "Regional duty-cycle limit reached", "NOT_AUTHORIZED": "Not authorized",
-                               "PKI_FAILED": "Direct-message key verification failed", "PKI_UNKNOWN_PUBKEY": "Peer public key unknown",
-                               "RATE_LIMIT_EXCEEDED": "Radio rate limit reached", "PKI_SEND_FAIL_PUBLIC_KEY": "Peer public key unavailable"}
-                    recipient = dest and resp.get("from") == int(dest[1:], 16)
-                    reason = ("Recipient not confirmed" if ok and dest and not recipient else "") if ok else reasons.get(code, "Routing failure: " + code[:64])
-                    self._delivery(cid, attempt, ("delivered" if recipient else "mesh") if ok else "failed", hops, reason)
-                try:
-                    self._iface.sendText(text, destinationId=(dest or "^all"), wantAck=want_ack,
-                                         channelIndex=ch, onResponse=(onAckNak if want_ack else None))
-                except Exception:
-                    self._delivery(cid, attempt, "failed", reason="Radio API rejected the send")
-                    raise
-                if not want_ack:
-                    self._delivery(cid, attempt, "sent", reason="Sent without requesting acknowledgment")
+                self._send_text(req)
                 reply({"event": "notice", "text": "sent"})
             elif intent == "message.clear":
                 key = str(req["thread"])
@@ -1123,6 +1078,71 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup):
                         self._teardown()
                         self._set_radio("error", "privacy setting was not confirmed; radio stopped")
             reply({"event": "error", "text": str(exc)[:256], "intent": intent, "cid": req.get("cid")})
+
+    def _send_text(self, req, phone_packet=None):
+        self._require_online()
+        ch = req["channel"]
+        text = req["text"]
+        if not isinstance(text, str) or not text or len(text.encode("utf-8")) > 200:
+            raise ValueError("message must contain 1..200 UTF-8 bytes")
+        dest = req.get("dest")
+        cid = req.get("cid")
+        if not cid:
+            raise ValueError("message requires a unique cid")
+        attempt = (uuid.uuid4().hex, time.monotonic())
+        want_ack = req.get("wantAck", True)
+        if type(want_ack) is not bool:
+            raise ValueError("wantAck must be boolean")
+        self._validate_target(req, dest)
+
+        msg = {"from": "self", "fromName": "me", "to": dest or "broadcast",
+               "channel": ch, "text": text, "time": int(time.time()),
+               "outgoing": True, "id": cid, "status": "sending" if want_ack else ""}
+        msg["channel_id"] = self._channel_identity(ch)
+        msg["channel_name"] = self._iface.localNode.channels[ch].settings.name
+        msg["channel_private"] = self._private_channel(self._iface.localNode.channels[ch])
+        self._record(msg, attempt)
+        # Publish the initial state BEFORE the library can invoke an
+        # ACK callback. Otherwise a delayed initial echo can overwrite
+        # an already delivered bubble at a connected client.
+        self._broadcast({"event": "message", "message": dict(msg)})
+
+        def onAckNak(resp):
+            routing = resp.get("decoded", {}).get("routing")
+            if not isinstance(routing, dict) or "errorReason" not in routing:
+                return  # unrelated/malformed response is never success
+            err = routing["errorReason"]
+            hs, hl = resp.get("hopStart"), resp.get("hopLimit")
+            hops = hs - hl if isinstance(hs, int) and isinstance(hl, int) else None
+            ok = err in ("NONE", 0)
+            from meshtastic.protobuf import mesh_pb2
+            try: code = mesh_pb2.Routing.Error.Name(err) if type(err) is int else str(err)
+            except ValueError: code = str(err)
+            reasons = {"NO_ROUTE": "No route to destination", "GOT_NAK": "Negative acknowledgment",
+                       "TIMEOUT": "Routing acknowledgment timed out", "NO_INTERFACE": "Radio interface unavailable",
+                       "MAX_RETRANSMIT": "Retries exhausted", "NO_CHANNEL": "Channel unavailable",
+                       "TOO_LARGE": "Message too large", "NO_RESPONSE": "Destination did not respond",
+                       "DUTY_CYCLE_LIMIT": "Regional duty-cycle limit reached", "NOT_AUTHORIZED": "Not authorized",
+                       "PKI_FAILED": "Direct-message key verification failed", "PKI_UNKNOWN_PUBKEY": "Peer public key unknown",
+                       "RATE_LIMIT_EXCEEDED": "Radio rate limit reached", "PKI_SEND_FAIL_PUBLIC_KEY": "Peer public key unavailable"}
+            recipient = dest and resp.get("from") == int(dest[1:], 16)
+            reason = ("Recipient not confirmed" if ok and dest and not recipient else "") if ok else reasons.get(code, "Routing failure: " + code[:64])
+            self._delivery(cid, attempt, ("delivered" if recipient else "mesh") if ok else "failed", hops, reason)
+        try:
+            if phone_packet is None:
+                packet = self._iface.sendText(text, destinationId=(dest or "^all"), wantAck=want_ack,
+                                             channelIndex=ch, onResponse=(onAckNak if want_ack else None))
+            else:
+                if want_ack: self._iface._addResponseHandler(phone_packet.id, onAckNak, ackPermitted=True)
+                packet = self._iface._sendPacket(phone_packet, destinationId=(dest or "^all"), wantAck=want_ack,
+                                                pkiEncrypted=phone_packet.pki_encrypted,
+                                                publicKey=phone_packet.public_key or None)
+            if getattr(self, "_phone", None): self._phone_echo(packet)
+        except Exception:
+            self._delivery(cid, attempt, "failed", reason="Radio API rejected the send")
+            raise
+        if not want_ack:
+            self._delivery(cid, attempt, "sent", reason="Sent without requesting acknowledgment")
 
     def _require_online(self) -> None:
         if self._iface is None or self._radio != "online":

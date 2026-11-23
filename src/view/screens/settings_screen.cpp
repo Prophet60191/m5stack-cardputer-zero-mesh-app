@@ -21,7 +21,7 @@ namespace {
 
 // Stable action keys are independent of the visible menu order.
 enum SettingKey {
-    S_Radio, S_Region, S_ModemPreset, S_HopLimit, S_AddChannel, S_NodeName, S_SharePosition, S_Mqtt, S_AutoStart, S_Theme, S_Channels, S_About, S_QuickMessages, S_ShowSignal, S_Retention, S_MuteAll, S_MessageAcks, S_FrequencySlot, S_FirstRun, S_TransmitMode, S_ChannelManager, S_MeshProfiles, S_Diagnostics, S_SaveConversations, S_QuietHours, S_GpsReceiver
+    S_Radio, S_Region, S_ModemPreset, S_HopLimit, S_AddChannel, S_NodeName, S_SharePosition, S_Mqtt, S_AutoStart, S_Theme, S_Channels, S_About, S_QuickMessages, S_ShowSignal, S_Retention, S_MuteAll, S_MessageAcks, S_FrequencySlot, S_FirstRun, S_TransmitMode, S_ChannelManager, S_MeshProfiles, S_Diagnostics, S_SaveConversations, S_QuietHours, S_GpsReceiver, S_PhoneAccess
 };
 struct SettingRow { SettingKey key; const char* label; const char* section; };
 constexpr SettingRow kRows[] = {
@@ -40,6 +40,7 @@ constexpr SettingRow kRows[] = {
     {S_GpsReceiver, "GPS receiver", "Location & Internet"},
     {S_SharePosition, "Share position", ""},
     {S_Mqtt, "Internet forwarding", ""},
+    {S_PhoneAccess, "Phone access", ""},
     {S_QuickMessages, "Quick messages", "Messages"},
     {S_MessageAcks, "Delivery confirmations", ""},
     {S_ShowSignal, "Signal on messages", ""},
@@ -241,6 +242,7 @@ void SettingsScreen::refresh_values() {
 }
 
 void SettingsScreen::row_action(int row) {
+    if (row == S_PhoneAccess) { request_service("phone", "phone.get"); return; }
     if (row == S_GpsReceiver) { open_picker("GPS receiver; sharing is a separate setting", {"Cancel", "Enable GPS receiver", "Disable GPS receiver"}, "gps", 0); return; }
     if (row == S_FirstRun) { request_service("setup", "setup.status"); return; }
     if (row == S_TransmitMode) { open_picker("Antenna attached? Region: " + (view_model().radio_mode() == "off" ? view_model().setup().str_at("region", "Unknown") : s_of(view_model().region_subject())), {"Cancel", "Enable transmission", "Receive only"}, "tx", 0); return; }
@@ -807,6 +809,19 @@ void SettingsScreen::service_result() {
         std::vector<std::string> rows = {"Cancel", "Apply: radio & sharing stay Off", "Delete saved profile"};
         if (const auto* a = event.find("channels")) for (const auto& c : a->arr) rows.push_back(std::to_string(c.int_at("index")) + ": " + c.str_at("name") + (flag(c,"private") ? " [Private]" : " [Public]"));
         open_picker(title + "\nApply leaves Radio and sharing Off.", rows, "profile-action", 0);
+    } else if (route == "phone" || route == "phone-select") {
+        phone_status_ = event;
+        std::vector<std::string> rows = {
+            std::string("Access: ") + (flag(event,"enabled") ? "On" : "Off"),
+            "Select phone", "Connection details", "Refresh status"};
+        open_picker("Phone access / " + event.str_at("detail") + "\nShares keys, messages and positions.", rows, "phone", 0);
+    } else if (route == "phone-peers") {
+        service_items_.clear(); std::vector<std::string> rows = {"Cancel"};
+        if (const auto* peers = event.find("peers")) for (const auto& peer : peers->arr) {
+            service_items_.push_back(peer);
+            rows.push_back(peer.str_at("name") + (flag(peer,"online") ? " (online)" : " (offline)"));
+        }
+        open_picker("Select your Tailscale phone", rows, "phone-peers", 0);
     } else if (route == "diagnostics") {
         std::vector<std::string> rows = {"App: " + event.str_at("app"), "Daemon: " + event.str_at("daemon"), "Client: " + event.str_at("client"), "Radio: " + event.str_at("radio", "Unknown") + " / " + event.str_at("mode", "Unknown"),
             "API: " + std::string(flag(event,"api_connected") ? "connected" : "disconnected"), "Camera: " + std::string(flag(event,"camera_available") ? "available" : "unavailable"),
@@ -822,6 +837,24 @@ void SettingsScreen::service_result() {
 }
 bool SettingsScreen::extended_picker(const std::string& input, int choice) {
     const std::string pending = input;
+    if (pending == "phone") {
+        if (choice == 0) request_service("phone", "phone.set", ",\"enabled\":" + std::string(flag(phone_status_,"enabled") ? "false" : "true"));
+        else if (choice == 1) request_service("phone-peers", "phone.get");
+        else if (choice == 2) open_info("Connect Meshtastic on iPhone", {
+            phone_status_.str_at("detail"), "TCP: " + phone_status_.str_at("endpoint", "Not available"),
+            "Use the official Meshtastic app with Tailscale On.",
+            "Select your phone, then set Access On. Radio must be Online.",
+            "Messages and viewing supported. Change radio/channel settings on Cardputer.",
+            "One-time VPN setup: see user guide / Phone access."});
+        else request_service("phone", "phone.get");
+        return true;
+    }
+    if (pending == "phone-peers") {
+        if (choice > 0 && choice <= static_cast<int>(service_items_.size()))
+            request_service("phone-select", "phone.select", ",\"peer\":" + qstr(service_items_[choice-1].str_at("id")));
+        else close_overlay();
+        return true;
+    }
     if (channel_setup_choice(pending, choice))
         return true;
     if (pending == "gps") {

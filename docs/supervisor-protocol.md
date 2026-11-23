@@ -266,3 +266,15 @@ requires specific consent. Commit flags represent the actual accepted choices.
 Owner-side validation, connection binding, expiry, stale-state checks and
 recovery remain mandatory; removing a UI page does not remove them. A numeric
 shortcut stays text while composing and cannot replay a busy write.
+
+## Optional phone access
+
+`phone.get` returns `event:phone` with `enabled`, `connected`, `ready`, `peer`,
+`peers`, `endpoint` and a human-readable `detail`. `peer` is the selected stable
+Tailscale node ID; each peer contains `id`, display `name`, `online` and VPN
+`addresses`. These are private runtime data, not sanitized diagnostics.
+`phone.select` requires `peer` from the current VPN peer list and disables access.
+`phone.set` requires a boolean `enabled`; enabling requires a valid selected peer
+and private Serve PROXY-v2 setup. Both reply with the current phone payload and
+normal request correlation. Neither starts RF nor changes TX/privacy/configuration.
+See [Phone access](phone-access.md) for the separate standard protobuf endpoint.

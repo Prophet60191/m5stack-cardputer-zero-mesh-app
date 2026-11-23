@@ -88,3 +88,15 @@ ordinary-user synthetic replay and owner physical navigation/deletion-cancel
 checks passed. Current qualification/source links are in the refinement record.
 The startup CLI does not implement `--version`; use About or package metadata
 for version checks rather than inadvertently starting another framebuffer UI.
+
+## Phone access candidate — 2026-11-23
+
+0.1.16 adds an opt-in, selected-device PhoneAPI gateway behind private Tailscale
+Serve. Read docs/phone-access.md and docs/phone-access-validation.md. Keep the
+raw daemon port 47400 loopback-confined; never forward the Unix control socket
+or allow phone admin/location/MQTT writes. Preserve single radio ownership,
+TX/privacy/channel identity checks and actual-daemon heartbeat behavior.
+VPN account/Serve setup is a separate administrator action, not an app privilege
+grant. Keep real peer IDs, addresses/auth links and qualification backups private.
+Offline checks are not yet the owner's actual-iPhone acceptance; record those
+results separately. Preserve settings/chats and leave ADB enabled.

@@ -1,6 +1,6 @@
 # Map Menu
 
-> For Mesh **0.1.15 (release candidate)** · Updated **2026-11-22** · [Guide index](README.md)
+> For Mesh **0.1.16 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
 
 The **Map** screen is an offline, north-up radar centered on **you**, showing the direction and relative distance of every node that has shared a GPS position.
 

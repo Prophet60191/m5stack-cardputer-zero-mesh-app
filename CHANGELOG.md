@@ -412,3 +412,23 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Refresh the existing Drive PDFs in place, regenerate the quick reference and
   polish manual wording/layout. Record exact evidence and remaining hardware
   limits in docs/usability-refinement.md. Later edits are documentation only.
+
+## 0.1.16 candidate — 2026-11-23 — Private phone messaging access
+
+- Add an optional protocol-aware gateway for the official Meshtastic phone app,
+  behind separately configured Tailscale Serve with PROXY-v2 selected-device
+  identity. Preserve the sole meshtasticd connection and its loopback firewall.
+- Add Settings → Phone access for selecting a VPN device, toggling access and
+  viewing the connection endpoint. Keep radio/channel/privacy changes local;
+  no automatic RF startup, transmission or location/MQTT enablement.
+- Share message recording/delivery validation between local and phone sends,
+  preserve native packet IDs and block duplicate/stale/unauthorized operations.
+- Support Apple two-phase snapshots and actual-daemon heartbeats, buffer live
+  packets during handshakes, redact host secrets and isolate bounded slow/bad
+  clients from radio lifecycle failures. Update user/security/protocol guides.
+- Qualification is in progress; see docs/phone-access-validation.md. Device,
+  iPhone and RF results remain separate from offline checks.
+- Offline checkpoint: all 151 backend tests pass, plus native sanitizer/UI
+  assertions and the full synthetic screenshot run. Restore the surviving screen
+  after a temporary theme capture in the test fixture. Debian arm64 package,
+  install/upgrade and firewall gates passed before final CI qualification.

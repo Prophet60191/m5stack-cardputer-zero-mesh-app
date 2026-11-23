@@ -75,8 +75,17 @@ def check_sources():
             raise ValueError(f'Missing reviewed-version stamp in {path.name}')
         if meta['updated'] not in source:
             raise ValueError(f'Missing review date in {path.name}')
-        if re.search(r'/Users/|file://|tailscale|ssh-rsa|BEGIN .*PRIVATE KEY', source, re.I):
+        if re.search(r'/Users/|file://|[\w.-]+\.ts\.net|tskey-[a-z]+-|login\.tailscale\.com/a/|ssh-rsa|BEGIN .*PRIVATE KEY', source, re.I):
             raise ValueError(f'Unexpected private/local reference in {path.name}')
+        # The public VPN product name is legitimate documentation. Real tailnet
+        # endpoints and authorization links are private; examples use only these
+        # explicit synthetic CGNAT addresses.
+        import ipaddress
+        for address in re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', source):
+            try: ip = ipaddress.ip_address(address)
+            except ValueError: continue
+            if ip in ipaddress.ip_network('100.64.0.0/10') and address not in ('100.100.0.1','100.100.0.2'):
+                raise ValueError(f'Unexpected private VPN address in {path.name}')
         for t in MD.parse(source):
             for child in t.children or []:
                 target = child.attrGet('src') if child.type == 'image' else child.attrGet('href')

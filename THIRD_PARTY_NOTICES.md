@@ -41,3 +41,11 @@ MIT. External meshtasticd and meshtastic==2.7.11 are installed separately,
 not redistributed in the package. See NOTICE for project attribution and
 trademarks. Not bundling these dependencies is a project distribution choice,
 not a claim that GPL prohibits redistribution under its terms.
+
+## Optional phone transport
+
+Tailscale is installed and administered separately; no Tailscale binary or source
+is bundled in this package. Phone access uses its documented private Serve/PROXY
+protocol interface. The official Meshtastic phone application is also separate.
+Consult their own licenses and terms; the existing UI/supervisor license split
+is unchanged.

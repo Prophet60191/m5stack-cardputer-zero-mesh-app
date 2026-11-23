@@ -1,6 +1,6 @@
 # Settings Menu
 
-> For Mesh **0.1.15 (release candidate)** · Updated **2026-11-22** · [Guide index](README.md)
+> For Mesh **0.1.16 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
 
 The **Settings** screen is where you turn the radio on and off, set your region and channels, manage privacy and notifications, save mesh profiles, and check system health.
 
@@ -249,3 +249,31 @@ Set the display name other radios see for you. Your 4-character short name is au
 ---
 
 [← Map Menu](04-Map-Menu.md) | [Quick Reference](00-Quick-Reference-Card.md) | [Next: Troubleshooting & FAQ →](06-Troubleshooting-and-FAQ.md)
+
+## Phone access
+
+![Phone access and its sharing scope](images/settings-phone-access.png)
+
+Use the **official Meshtastic app** on your phone alongside the Cardputer.
+Tailscale must first be installed and signed into the same account on both,
+with the Cardputer's private forwarding configured. See the repository's
+[Phone access setup](../phone-access.md) for this one-time platform step.
+
+1. Open **Settings → Phone access → Select phone** and choose your phone.
+2. Set **Access: On**. Keep the LoRa antenna attached and turn Radio on separately.
+   Access does not change channels, transmission mode or location sharing.
+3. Open **Connection details**. In the iPhone Meshtastic app, add a manual **TCP**
+   connection with that address and port **4403**. Keep Tailscale on.
+4. Return to Phone access and use **Refresh status** to check the connection.
+   Set Access Off to disconnect the phone. A new phone selection also turns it Off.
+
+The phone supports messages and viewing live mesh information. Make radio,
+channel and sharing changes on the Cardputer. Text is limited to 200 UTF-8 bytes.
+Receive-only mode still blocks sending. A changed setup may require reconnecting.
+Messages sent while connected appear on both screens; the phone keeps its own
+history, and existing saved Cardputer conversations/drafts are not imported.
+
+Only the selected VPN device is admitted. Treat the phone as another copy of
+sensitive channel keys/messages/positions. Never expose the raw radio TCP port
+or configure public Internet forwarding. If delivery is uncertain, check the
+Cardputer before resending; reconnecting does not automatically resend messages.

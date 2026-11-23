@@ -34,6 +34,18 @@ inactive. Mask it **before** dependency installation so its package cannot start
 an unrelated API listener (normally TCP 4403) outside this app's firewall and
 lifecycle. Radio startup checks for this conflict before powering the Cap.
 
+## Optional phone gateway
+
+The [phone gateway](phone-access.md) is a separate loopback-only protobuf endpoint,
+not a raw daemon/control-socket forwarder. It requires Tailscale Serve PROXY v2
+identity and the explicitly selected VPN device. It allows messaging/viewing,
+rejects radio/admin/location/MQTT writes and retains the single radio owner.
+Private signing/admin keys and host Wi-Fi/MQTT credentials are redacted. Channel
+keys, messages and node positions are intentionally disclosed to the approved
+phone; protect the phone and VPN account. Local users/root are outside this
+single-owner design's isolation boundary. See its limits and separate
+[qualification record](phone-access-validation.md).
+
 ## Radio and privacy policy
 
 Public and private channels are both supported. Every RF action requires an

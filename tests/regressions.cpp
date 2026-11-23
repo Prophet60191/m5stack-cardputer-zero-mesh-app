@@ -101,7 +101,7 @@ static std::string selected_setting(lv_obj_t* root) {
 }
 static void select_setting(screen::SettingsScreen& screen, const std::string& name) {
     for (int i = 0; i < 30; ++i) screen.on_up();
-    for (int i = 0; i < 26; ++i) {
+    for (int i = 0; i < 64; ++i) {
         if (selected_setting(screen.root()) == name) return;
         screen.on_down();
     }
@@ -317,7 +317,7 @@ static void compact_layout_regression(const char* screenshot_path) {
     app::AssetManager assets;
     screen::SettingsScreen settings(vm,assets); lv_screen_load(settings.root());
     const char* order[] = {"Radio", "Transmit mode", "Auto-start radio", "Region", "Modem preset", "Frequency slot", "Hop limit",
-        "Saved mesh setups", "Manage channels", "Add a channel", "View channels", "Node name", "GPS receiver", "Share position", "Internet forwarding",
+        "Saved mesh setups", "Manage channels", "Add a channel", "View channels", "Node name", "GPS receiver", "Share position", "Internet forwarding", "Phone access",
         "Quick messages", "Delivery confirmations", "Signal on messages", "Save conversations", "Keep per chat", "Mute all", "Quiet hours",
         "Appearance", "First-run setup", "Diagnostics", "About"};
     for (const auto* name : order) { CHECK(selected_setting(settings.root()) == name); settings.on_down(); }
@@ -363,6 +363,7 @@ static void compact_layout_regression(const char* screenshot_path) {
             dark_messages.on_enter(); dark_messages.on_up();
             save_png((dir/"message-selected-dark.png").c_str(),dark_messages.root());
         }
+        lv_screen_load(messages.root()); // restore the surviving screen after the temporary dark screen
         vm.set_dark_mode(false);
     }
     lv_area_t context_after;lv_obj_get_coords(context,&context_after);CHECK(context_after.y1==context_before.y1);
@@ -770,6 +771,34 @@ static void setup_clarity_regression(const char* screenshot_path) {
     CHECK(labels(settings.root()).find("-1")==std::string::npos);capture("diagnostics-unknown.png");
 }
 
+static void phone_access_regression(const char* screenshot_path) {
+    viewmodel::BaseViewModel vm; json::Value sent;
+    vm.set_command_sink([&](const std::string& text){ CHECK(json::parse(text,sent)); return true; });
+    vm.set_connected(true); app::AssetManager assets;
+    screen::SettingsScreen settings(vm,assets); lv_screen_load(settings.root());
+    const auto reply = [&](const std::string& body) {
+        json::Value event; CHECK(json::parse("{\"id\":\""+sent.str_at("id")+"\","+body+"}",event)); vm.apply_service(event);
+    };
+    select_setting(settings,"Phone access"); settings.on_enter();
+    CHECK(sent.str_at("intent")=="phone.get");
+    reply(R"("event":"phone","enabled":false,"detail":"Access Off","endpoint":"100.100.0.1:4403")");
+    CHECK(labels(settings.root()).find("Access: Off")!=std::string::npos);
+    CHECK(labels(settings.root()).find("Shares keys, messages and positions")!=std::string::npos);
+    if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/"settings-phone-access.png").c_str(),settings.root());
+    settings.on_enter(); CHECK(sent.str_at("intent")=="phone.set"); CHECK(sent.find("enabled")->as_bool());
+    reply(R"("event":"phone","enabled":true,"detail":"Ready for phone","endpoint":"100.100.0.1:4403")");
+    settings.on_down(); settings.on_enter(); CHECK(sent.str_at("intent")=="phone.get");
+    reply(R"("event":"phone","peers":[{"id":"nSynthetic","name":"Test phone","online":true}])");
+    CHECK(labels(settings.root()).find("Test phone")!=std::string::npos);
+    settings.on_down(); settings.on_enter(); CHECK(sent.str_at("intent")=="phone.select"); CHECK(sent.str_at("peer")=="nSynthetic");
+    reply(R"("event":"phone","enabled":false,"detail":"Access Off","endpoint":"100.100.0.1:4403")");
+    settings.on_down(); settings.on_down(); settings.on_enter();
+    CHECK(labels(settings.root()).find("100.100.0.1:4403")!=std::string::npos);
+    CHECK(labels(settings.root()).find("Change radio/channel settings on Cardputer")!=std::string::npos);
+    if (screenshot_path) save_png((std::filesystem::path(screenshot_path).parent_path()/"phone-connection-details.png").c_str(),settings.root());
+    CHECK(settings.on_back());
+}
+
 int main(int argc, char** argv) {
     settings_file_regression();
     json::Value v;
@@ -783,6 +812,7 @@ int main(int argc, char** argv) {
     platform::SupervisorClientTest::queue_bounds();
     platform::SupervisorClientTest::partial_frame();
     lv_init(); auto* display = lv_display_create(320, 170); CHECK(display);
+    if (argc > 2 && std::string(argv[2]) == "phone") { phone_access_regression(argv[1]); return 0; }
     usability_regression(argc > 1 ? argv[1] : nullptr);
     setup_clarity_regression(argc > 1 ? argv[1] : nullptr);
     guide_picker_capture(argc > 1 ? argv[1] : nullptr);
@@ -794,6 +824,7 @@ int main(int argc, char** argv) {
     identity_confirmation_regression();
     draft_only_conversation_regression();
     compact_layout_regression(argc > 1 ? argv[1] : nullptr);
+    phone_access_regression(argc > 1 ? argv[1] : nullptr);
     {
         viewmodel::BaseViewModel vm;
         std::string sent;

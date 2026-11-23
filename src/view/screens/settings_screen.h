@@ -64,6 +64,7 @@ class SettingsScreen : public BaseScreen {
     int managed_channel_ = -1;
     bool offered_setup_ = false;
     std::vector<json::Value> service_items_;
+    json::Value phone_status_;
     enum class Overlay { None, Picker, Text, Info, Canned, Busy };
 
     void build_content(lv_obj_t *content) override;
