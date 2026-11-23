@@ -103,8 +103,10 @@ saved value may remain. Retry the change before relying on its reboot behavior.
   a local invented heartbeat response cannot conceal a failed radio API.
 
 If a send is rejected or its result is unknown, inspect its status on the
-Cardputer before resending. Duplicate phone IDs are rejected rather than sent
-again. The recent-ID window is bounded to 15 minutes in RAM; retained outgoing
+Cardputer before resending. Repeated pending/completed phone IDs are not sent again. The iPhone app's explicit
+Retry reuses its ID; a matching failed message may be retried after five seconds
+with the same text/recipient/channel identity. Changing the payload or setup
+requires a new message. The recent-ID window is bounded to 15 minutes in RAM; retained outgoing
 history also protects those IDs after reconnect/restart. Opting out of history,
 clearing it or expiring the RAM window limits that protection. This is not an
 exactly-once guarantee across arbitrary failures.

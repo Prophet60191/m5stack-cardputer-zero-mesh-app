@@ -2,6 +2,7 @@
 """Phone messaging/viewing via the official Meshtastic protocol and private VPN."""
 from __future__ import annotations
 import ipaddress
+import hashlib
 import json
 import subprocess
 import time
@@ -241,10 +242,11 @@ class PhoneServices:
             session.reject(message, mesh_pb2.Routing.BAD_REQUEST); return
         # Copy only fields whose purpose has been checked. Never forward admin,
         # phone-position, MQTT, OTA, raw encrypted or arbitrary ToRadio records.
-        safe = mesh_pb2.MeshPacket(id=p.id, channel=p.channel)
+        safe = mesh_pb2.MeshPacket(id=p.id, channel=p.channel, to=p.to, want_ack=p.want_ack)
         safe.decoded.portnum = portnums_pb2.TEXT_MESSAGE_APP
         safe.decoded.payload = p.decoded.payload
         safe.decoded.reply_id = p.decoded.reply_id
+        safe.decoded.emoji = int(bool(p.decoded.emoji))
         safe.priority = mesh_pb2.MeshPacket.RELIABLE
         dest = None if p.to == 0xffffffff else f'!{p.to:08x}'
         if p.pki_encrypted or p.public_key:
@@ -254,15 +256,21 @@ class PhoneServices:
             safe.public_key = p.public_key
         cid = f'phone:{p.id:08x}'
         identity = self._channel_identity(p.channel)
+        payload_hash = hashlib.sha256(safe.SerializeToString(deterministic=True)).hexdigest()
         now = time.monotonic()
         self._phone_seen = {k: t for k, t in self._phone_seen.items() if now - t < 900}
         previous = cid in self._phone_seen
         with self._lock:
             old = next((m for m in self._messages if m.get('id') == cid and m.get('outgoing')), None)
         if previous or old:
-            # Retried frames must not become duplicate RF sends, including after
-            # reconnect/restart. No synthetic success receipt for an unknown send.
-            session.reject(message, mesh_pb2.Routing.BAD_REQUEST); return
+            # Apple's explicit Retry reuses its packet ID. Permit a matching
+            # failed message after a short cooldown, never a pending/completed
+            # duplicate or an ID reused for different text/channel/recipient.
+            if not (old and old.get('status') == 'failed' and old.get('channel_id') == identity
+                    and old.get('phone_payload_hash') == payload_hash):
+                session.reject(message, mesh_pb2.Routing.BAD_REQUEST); return
+            if cid in self._phone_seen and now - self._phone_seen[cid] < 5:
+                session.reject(message, mesh_pb2.Routing.RATE_LIMIT_EXCEEDED); return
         if p.id in getattr(self._iface, "responseHandlers", {}) or p.id in getattr(self._iface, "queue", {}):
             session.reject(message, mesh_pb2.Routing.BAD_REQUEST); return
         if len(self._phone_seen) >= 1024:

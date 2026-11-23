@@ -1101,6 +1101,8 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
         msg["channel_id"] = self._channel_identity(ch)
         msg["channel_name"] = self._iface.localNode.channels[ch].settings.name
         msg["channel_private"] = self._private_channel(self._iface.localNode.channels[ch])
+        if phone_packet is not None:
+            msg["phone_payload_hash"] = hashlib.sha256(phone_packet.SerializeToString(deterministic=True)).hexdigest()
         self._record(msg, attempt)
         # Publish the initial state BEFORE the library can invoke an
         # ACK callback. Otherwise a delayed initial echo can overwrite

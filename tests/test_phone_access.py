@@ -310,6 +310,33 @@ class PhoneAccessTests(unittest.TestCase):
         self.s.phone_request(Session(self.s),self.request())
         self.assertEqual(len(self.sent),1)
 
+    def test_apple_retry_reuses_id_only_for_matching_failed_message(self):
+        session=Session(self.s); request=self.request()
+        self.s.phone_request(session,request)
+        self.s._iface.responseHandlers.pop(100)({'decoded':{'routing':{'errorReason':'TIMEOUT'}}})
+        self.s._phone_seen['phone:00000064'] -= 6
+        self.s.phone_request(session,request)
+        self.assertEqual(len(self.sent),2)
+        self.assertEqual(self.sent[0].id,self.sent[1].id)
+        self.assertEqual(len(self.s._messages),1)
+        self.s._iface.responseHandlers.pop(100)({'decoded':{'routing':{'errorReason':'TIMEOUT'}}})
+        self.s._phone_seen['phone:00000064'] -= 6
+        self.s.phone_request(session,self.request(text=b'Changed payload'))
+        self.assertEqual(len(self.sent),2)
+        self.assertEqual(session.errors[-1],mesh_pb2.Routing.BAD_REQUEST)
+
+    def test_failed_retry_has_cooldown_and_revalidates_channel(self):
+        session=Session(self.s); request=self.request()
+        self.s.phone_request(session,request)
+        self.s._iface.responseHandlers.pop(100)({'decoded':{'routing':{'errorReason':'NO_ROUTE'}}})
+        self.s.phone_request(session,request)
+        self.assertEqual(session.errors[-1],mesh_pb2.Routing.RATE_LIMIT_EXCEEDED)
+        self.s._phone_seen['phone:00000064'] -= 6
+        self.s._iface.localNode.channels[1].settings.psk=b'x'*32
+        session.context=self.s._phone_context()
+        self.s.phone_request(session,request)
+        self.assertEqual(len(self.sent),1)
+
     def test_collision_with_lockon_request_cannot_replace_ack_callback(self):
         self.s._iface.responseHandlers[100] = 'existing callback'
         self.s.phone_request(Session(self.s), self.request())

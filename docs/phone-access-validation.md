@@ -37,7 +37,7 @@ qualify roaming between Wi-Fi and cellular or general off-grid performance.
 
 ## Offline checkpoint — 2026-11-23
 
-- All 151 backend tests pass, including 27 phone protocol/security/failure tests.
+- All 153 backend tests pass, including 29 phone protocol/security/failure tests.
   An unmodified meshtastic 2.7.11 TCP client completes configuration and sends
   over a local PROXY-v2 fixture. This is not an actual-iPhone result.
 - Native macOS arm64 Address/Undefined sanitizer checks pass (four CTest targets),
@@ -58,3 +58,12 @@ qualify roaming between Wi-Fi and cellular or general off-grid performance.
   outside Git before installation. No private peer IDs, IPs, auth links or keys
   belong in this record. Actual iPhone, live RF and installed-candidate checks
   remain pending.
+
+## Native Retry compatibility follow-up
+
+Review of the same pinned Apple client's `resendMessage` showed that explicit
+Retry preserves its original ID. Matching failed messages may now retry after
+five seconds; pending/completed duplicates and changed payload, recipient or
+channel identity cannot be silently retransmitted. A canonical private payload
+hash accompanies phone history for this check. Two additional regression cases
+bring the backend suite to 153. No receipt is invented for an unknown outcome.

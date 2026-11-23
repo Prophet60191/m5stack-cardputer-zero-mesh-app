@@ -432,3 +432,8 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   assertions and the full synthetic screenshot run. Restore the surviving screen
   after a temporary theme capture in the test fixture. Debian arm64 package,
   install/upgrade and firewall gates passed before final CI qualification.
+
+- Native-client compatibility follow-up: preserve the iPhone's Retry behavior
+  for matching failed messages after a cooldown, while suppressing pending/
+  completed duplicates and rejecting changed targets/payloads. All 153 backend
+  tests pass; two added cases cover retry identity and channel changes.

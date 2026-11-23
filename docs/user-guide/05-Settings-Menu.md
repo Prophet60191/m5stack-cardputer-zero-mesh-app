@@ -277,3 +277,7 @@ Only the selected VPN device is admitted. Treat the phone as another copy of
 sensitive channel keys/messages/positions. Never expose the raw radio TCP port
 or configure public Internet forwarding. If delivery is uncertain, check the
 Cardputer before resending; reconnecting does not automatically resend messages.
+
+The iPhone Retry action is supported for a failed message; wait at least five
+seconds between attempts. A failed send may already have arrived, so check its
+status before retrying. Pending/completed duplicate requests are not sent again.
