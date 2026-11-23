@@ -59,4 +59,6 @@ jobs:
           PY
           cd guide
           sha256sum -c SHA256SUMS
-          gh release upload "$GUIDE_TAG" ./*.pdf ./SHA256SUMS ./guide-manifest.json --clobber
+          # Preserve the installer/source checksum asset when attaching manuals.
+          mv SHA256SUMS GUIDE_SHA256SUMS
+          gh release upload "$GUIDE_TAG" ./*.pdf ./GUIDE_SHA256SUMS ./guide-manifest.json --clobber

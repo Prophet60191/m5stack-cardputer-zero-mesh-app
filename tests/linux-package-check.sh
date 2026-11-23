@@ -19,6 +19,7 @@ cpack -G DEB
 mesh_version=$(python3 -c 'import json; print(json.load(open("/src/app-builder.json"))["version"])')
 package="dist/cardputerzero-mesh_${mesh_version}-rev1_arm64.deb"
 dpkg-deb --info "$package"
+test "$(dpkg-deb -f "$package" Pre-Depends)" = "python3 (>= 3.13), python3 (<< 3.14)"
 dpkg-deb --contents "$package" > package-contents.txt
 # Some minimized images exclude docs by default; include them for validation.
 dpkg --path-include='/usr/share/doc/*' -i "$package"

@@ -118,7 +118,9 @@ set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 # Derive native library dependencies from the built ELF, including SONAMEs.
 # Hardcoded libjpeg/libfmt package names were wrong across Debian/Ubuntu/BSPs.
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3 (>= 3.13), python3 (<< 3.14), python3-venv, python3-pil, libzbar0t64, fonts-noto-cjk, nftables, adduser, systemd")
+# preinst uses Python before this package is unpacked; ordinary Depends is too late.
+set(CPACK_DEBIAN_PACKAGE_PREDEPENDS "python3 (>= 3.13), python3 (<< 3.14)")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3-venv, python3-pil, libzbar0t64, fonts-noto-cjk, nftables, adduser, systemd")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "rpicam-apps-core, python3-opencv, tailscale")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CM0_LIBRARY_HINTS}")
