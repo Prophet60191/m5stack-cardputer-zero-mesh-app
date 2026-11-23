@@ -1,15 +1,16 @@
 # Current app status — 2026-11-23
 
-Mesh 0.1.18 is the current candidate. Its presentation change removes the header's
-battery glyph while retaining the numeric percentage when available. Radio,
-GPS, channel, privacy, message storage and phone behavior are unchanged. See
-CHANGELOG for deployment closeout; preparation is not installed qualification.
+Mesh 0.1.18 is installed and qualified for its header change: no battery glyph,
+with numeric percentage retained. A real-device partial-redraw regression was
+caught and corrected. The [closeout](header-presentation.md) identifies the exact
+functional source/package, successful checks and preserved data. Radio, GPS,
+channel, privacy, message storage and phone behavior are unchanged.
 
 ## Verified foundation
 
 - The installed 0.1.17 foundation passed 167 backend tests, native sanitizers,
   Debian arm64 build/install/upgrade/firewall/Store preflight and exact installed
-  file verification. Candidate-specific evidence is recorded after validation.
+  file verification. The current 0.1.18 checks and all 117 installed files also pass as linked above.
 - Public/private channels, grouped channel setup, saved mesh setups, conversations
   and drafts, search, pins, quiet hours and diagnostics are implemented. Private
   peer delivery and the official iPhone messaging/viewing path are exercised.

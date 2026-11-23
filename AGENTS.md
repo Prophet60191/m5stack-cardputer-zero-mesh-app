@@ -226,3 +226,20 @@ Preserve selected Phone access, settings/chats, other apps and ADB On. Bounded
 root-owned task temporary helpers remain idle for cleanup at the next USB
 maintenance connection; verified private rollback/backups are retained on host.
 Do not claim the nonfatal config ACK warning or earlier phone-drop cause fixed.
+
+
+## Header presentation closeout — 2026-11-23
+
+Mesh 0.1.18 final source/package 2913c01 is installed. Read
+`docs/header-presentation.md`: icon removed, numeric percentage retained;
+actual partial-framebuffer sibling-text failure was caught and fixed with bounded
+header invalidation. Font preloading did not fix it and was discarded. Exact
+final package SHA/file verification, 167 backend/four native checks and both CI
+jobs pass. Do not identify the earlier internal same-version candidate as final
+by version alone. Original 26 messages/settings/profiles are preserved. Launcher
+restored, Radio Online/send-receive, GPS enabled, location/MQTT Off, Phone access
+On, ADB On, native +czgps1 retained. No new outdoor/handset/cold-power claim.
+README/current status, synthetic illustrations, Desktop and existing Drive manuals
+and the app builder guide are refreshed; old versioned archives stay historical.
+Audit/sync secondary source/backend mirrors with private backups; preserve their
+independent hardware README notes. USB GPS is deferred by the owner.

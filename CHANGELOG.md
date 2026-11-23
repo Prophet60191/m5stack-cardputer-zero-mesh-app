@@ -609,3 +609,19 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   glyph removal. Restore full-strip invalidation for header updates; real-device
   A/B checks confirm text and percentage render together without the glyph. Font
   preloading did not fix this and is not retained.
+
+
+## 2026-11-23 — 0.1.18 installed and header/documentation closeout
+
+- Final functional/package source 2913c01 passes both CI jobs, 167 backend tests
+  and four local native checks. Verify all 117 installed files and 26 original
+  messages/settings/profiles; exact package/hash and limits are in
+  docs/header-presentation.md. Actual isolated framebuffer confirms complete
+  status text and percentage with no battery glyph; launcher restored.
+- Preserve native GPS patch, send/receive, location/MQTT Off, selected Phone
+  access and ADB On. No unrelated service, network or peer setting changes.
+- Refresh README/current status, guide versions/text, synthetic illustrations,
+  reviewed PDFs and current Desktop/Drive copies. Audit/back up/sync legacy
+  app/shared-backend/protocol mirrors; preserve independent hardware notes.
+  App builder guidance/preferences/PDF include the no-icon and redraw lessons.
+- USB GPS work is explicitly deferred; retain historical qualification limits.
