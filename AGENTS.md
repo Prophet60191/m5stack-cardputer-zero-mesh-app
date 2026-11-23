@@ -204,3 +204,7 @@ before starting the five-minute watch. Keep helpers for that check, then clean
 only exact task-created temporary paths. USB GPS remains deferred. The remaining
 nonfatal receiver config ACK warning and earlier unrelated phone-drop report
 are not claimed fixed. Retain backups privately outside Git.
+
+Subsequent indoor status also reports valid/fresh coordinates (source age 65s),
+confirming both installed fixes together. This is not a new five-minute outdoor
+interval; the requested final placement confirmation remains pending.

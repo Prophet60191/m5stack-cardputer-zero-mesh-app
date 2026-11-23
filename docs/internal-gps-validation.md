@@ -3,8 +3,9 @@
 Status: fitted receiver and app Map confirmed outdoors; both identified defects
 have corrections installed. App 0.1.17 refreshes local fixes without broadcasting.
 The separate native `+czgps1` package passes eight physical receiver starts and
-private RF/phone-gateway checks. A final outdoor acquisition with both installed
-together is requested; indoor no-fix readings do not qualify that last step.
+private RF/phone-gateway checks. A subsequent indoor readback also has a valid, fresh fix (source age 65s)
+with both installed. A final steady outdoor acquisition/freshness interval is
+requested; do not present the indoor readback as that outdoor interval.
 USB GPS dongle work remains deferred until it completes.
 
 ## Starting state — 2026-11-23
@@ -258,7 +259,9 @@ All 24 original messages, three threads and three preferences remain; only the
 two deliberate test messages are added. App settings/profiles/identity/privacy
 files match the original backup.
 
-The last indoor start has no valid fix, as expected without an adequate sky view.
+Initially the last indoor start has no valid fix. A subsequent readback obtains
+a real valid, fresh fix (source age 65s), confirming the combined installed
+native/app path. It is not the requested steady outdoor interval.
 The existing nonfatal ATGM configuration ACK warning remains; it also occurred
 in the earlier working outdoor run and is not concealed by the identification
 fix. No enable-NMEA/update-frequency failure or probe give-up is logged. Final

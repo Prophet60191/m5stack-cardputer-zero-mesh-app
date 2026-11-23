@@ -580,3 +580,6 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
   outdoor acquisition/freshness is requested before starting USB GPS work.
 - Refresh README/build/qualification records and FAQ/PDF to distinguish app cache
   correction from separate native service. No upstream submission or release.
+
+- Subsequent indoor readback obtains valid/fresh coordinates with both installed
+  corrections (source age 65s). Final steady outdoor interval remains requested.
