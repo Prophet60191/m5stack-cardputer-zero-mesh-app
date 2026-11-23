@@ -103,13 +103,16 @@ def main():
         shutil.copy2(stage/'python-corresponding-source.tar.gz',artifacts/'python-corresponding-source.tar.gz')
         shutil.copy2(stage/'runtime/manifest.json',artifacts/'RUNTIME_BUILD_INFO.json')
         print('Verified installer:',artifacts/package.name)
-        with tempfile.TemporaryDirectory(prefix='fresh-context-',dir=out) as temp:
-            context=Path(temp)
-            shutil.copy2(package,context/'cardputerzero-mesh.deb')
-            shutil.copy2(ROOT/'tests/Dockerfile.fresh-runtime',context/'Dockerfile')
-            run(['docker','build','--platform','linux/arm64','-t','cz-mesh-fresh-check',context])
-        docker('cz-mesh-fresh-check',['sh','/src/tests/fresh-runtime-check.sh'],[(ROOT,'/src',True)],True,
-               ('-e','CZ_MESH_ISOLATED_TEST=1'))
+        if not a.offline:
+            with tempfile.TemporaryDirectory(prefix='fresh-context-',dir=out) as temp:
+                context=Path(temp)
+                shutil.copy2(package,context/'cardputerzero-mesh.deb')
+                shutil.copy2(ROOT/'tests/Dockerfile.fresh-runtime',context/'Dockerfile')
+                run(['docker','build','--platform','linux/arm64','-t','cz-mesh-fresh-check',context])
+            docker('cz-mesh-fresh-check',['sh','/src/tests/fresh-runtime-check.sh'],[(ROOT,'/src',True)],True,
+                   ('-e','CZ_MESH_ISOLATED_TEST=1'))
+        else:
+            print('Offline first-launch passed in the package container; minimal fresh OS/APT resolution is a separate online/CI check.')
         clean=not subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain','--untracked-files=all']).strip()
         if clean:
             docker(APP_IMAGE,['python3','/src/scripts/runtime/export_release.py','--deb','/work/linux/dist/'+package.name,

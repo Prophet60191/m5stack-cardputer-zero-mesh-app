@@ -48,7 +48,9 @@ users should install the prebuilt `.deb` instead.
 only after hash/source/patch validation. `--prepare-only` prepares dependencies.
 `--offline` requires previously prepared caches and Docker images, including the
 upgrade-baseline package. It does not promise a fresh build without any downloads
-on an unprepared computer. Modified or wrong-revision source caches are rejected
+on an unprepared computer. Offline mode still exercises first-launch in the
+prepared package-test container; it skips the separate minimal fresh OS/APT
+dependency-download check, which online builds and CI run. Modified or wrong-revision source caches are rejected
 rather than reset. Use a different `--output DIRECTORY` for separate builds.
 
 ## Redistribution and corresponding source
