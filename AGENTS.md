@@ -248,3 +248,16 @@ The 0.1.18 USB closeout also removes the bounded GPS/header temporary helpers
 and stages (57 exact paths), after verified private host backups. Installed
 117 files, 20 device mirror modules and unchanged native GPS hash are reverified.
 No cleanup/reinstallation remains pending from those temporary helper notes.
+
+
+## Store review and GPS guide — 2026-11-23
+
+Read docs/store-submission-readiness-20261123.md before submission work. Current
+catalog b6c559a assigns MESH to meshtandem; older CI/preflight against 94eb8d7 is
+not current availability. Exact installed final 0.1.18 package has one current
+local blocker (code collision); clean-image dependencies, durable native GPS
+patch/source downloads, demo and final release/privacy checks remain. CZMS/CMES
+are suggestions only, not reserved or applied. No submission/upload/auth or app/
+device/metadata changes in this review. Guide GPS recipe reuses official parsing/
+ownership/freshness and adds integration/qualification lessons; do not label
+Meshtastic's native probe/cache fixes as M5Stack GPS-app defects. Dongle deferred.

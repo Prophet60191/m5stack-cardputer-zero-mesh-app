@@ -44,6 +44,10 @@ and other remaining checks stay explicit in the [verification record](docs/revie
 > **Meshtastic&reg; is a registered trademark of Meshtastic LLC.** This is an independent, community project and
 > is not affiliated with or endorsed by Meshtastic LLC or M5Stack.
 
+Store submission is still preparation work. The [current readiness report](docs/store-submission-readiness-20261123.md)
+records the share-code collision, dependency/install rehearsal and first-device-demo
+requirements. Passing the earlier package checks is not Store acceptance.
+
 ## Screenshots
 
 These are native LVGL renders using synthetic data, not personal messages or device identities.

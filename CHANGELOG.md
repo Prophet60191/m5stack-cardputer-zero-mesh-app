@@ -629,3 +629,16 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Complete exact-path temporary cleanup after verified private host backups;
   reverify 117 installed files, 20 device mirror files, native GPS hash and final
   app/radio/privacy/Phone/firewall/launcher/ADB state.
+
+
+## 2026-11-23 — GPS guide findings and fresh Store-readiness review
+
+- Review current official GPS hardware/usage/source and Store development,
+  submission, CLI and catalog policy. The general guide expands its existing
+  GPS section with official reuse and integration gaps; no GPS library/device
+  or runtime change. USB GPS remains deferred.
+- Exact installed 0.1.18 candidate against current catalog b6c559a is blocked:
+  MESH now belongs to meshtandem. Record alternatives as unreserved suggestions,
+  external dependency/fresh-image and demo/release work in
+  docs/store-submission-readiness-20261123.md. No metadata identity change,
+  submission, authentication, upload or release was performed.

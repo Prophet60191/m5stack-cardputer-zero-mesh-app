@@ -46,3 +46,12 @@ The radio-service GPS patch is a separate Linux package, not receiver firmware,
 and is not installed by the app package. Its exact source/artifact hashes and
 private rollback handling are in the GPS record. Preserve ADB enabled, saved
 chats/channels/profiles and current send/receive and privacy settings.
+
+## Store-readiness review
+
+The [2026-11-23 review](store-submission-readiness-20261123.md) finds a current
+share-code collision: MESH now belongs to another app. The installed app remains
+qualified for use; publication needs a new Store code, a clean-image dependency/
+install rehearsal, durable dependency/source distribution and the first-device
+demo. Existing CI used an older catalog and does not reserve a code. No Store
+submission, metadata identity change or device work occurred in this review.
