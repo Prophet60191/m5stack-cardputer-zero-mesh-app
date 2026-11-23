@@ -474,3 +474,15 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - First idle attempt was interrupted by owner-confirmed phone lock/app switching;
   RF/firewall stayed healthy. Repeat awake-screen idle qualification separately;
   do not count the interrupted attempt as foreground success or failure.
+
+- Owner reports a disconnect with Meshtastic visible and the screen awake: mark
+  foreground reliability unqualified and investigate. The start-bounded status
+  monitor did not catch that connection; collect synchronized, payload-free TCP
+  header/status evidence before assigning a cause or changing production code.
+
+- Controlled follow-up: owner confirms five minutes connected with the screen
+  awake; synchronized header trace records at least 317.2 seconds without FIN/
+  reset, and 31 status samples remain connected/Online/send-receive with healthy
+  firewall and one radio connection. The prior reported foreground drop was not
+  reproduced and remains unexplained; no production fix or full qualification
+  is claimed. Post-idle message/display checks remain pending.

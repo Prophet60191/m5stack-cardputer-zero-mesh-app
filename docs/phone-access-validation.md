@@ -1,8 +1,10 @@
 # Phone access qualification — 0.1.16
 
-Status: installed; the owner confirms the official App Store iPhone app connects,
-loads nodes/channels, and sends/receives successfully. Extended background,
-reconnection and lifecycle checks are in progress. Protocol fixture results
+Status: installed; initial connection, node/channel loading and two-way messaging
+work, but **the owner reports a foreground idle disconnect with the screen awake**.
+A subsequent owner-confirmed, traced five-minute repeat passed without a
+disconnect. The earlier failure was not reproduced; its cause remains unresolved.
+Intermittent foreground reliability is not fully qualified. Protocol fixture results
 remain separate from handset observations and roaming behavior.
 
 ## Source and exact installed artifact — 2026-11-23
@@ -137,12 +139,35 @@ and the physical radio connection count stayed one. The owner confirms the
 phone locked or switched apps during that interval. This is not a qualified
 foreground idle failure or pass. A new five-minute test waits for a real phone
 connection and asks the owner to keep Meshtastic visible on an awake screen;
-its result is still pending. Earlier owner-confirmed reopening after lock worked.
+the owner reports a disconnect while the screen remained awake. The automatic
+monitor never saw a ready connection within its two-minute start window, so
+that particular handset observation lacks a synchronized backend trace. It is
+still a failed owner acceptance result; the earlier 40-second local heartbeat
+fixture is not evidence against it. A follow-up records only loopback TCP header
+timing/direction/length/close flags, without packet payloads, keys or chat text.
+Earlier owner-confirmed reopening after lock worked.
+
+## Controlled repeat with synchronized trace
+
+The owner manually reconnected during a payload-free loopback TCP-header trace,
+kept the phone screen awake and reports five minutes connected. The trace
+independently recorded at least 317.2 seconds of connection activity, with zero
+TCP FIN/reset events on that phone flow. All 31 reduced status samples during
+the connected interval show the phone connected, Radio Online/send-receive,
+a healthy firewall and one physical radio connection. Heartbeat-size requests
+were forwarded to the real daemon and its replies returned through the gateway.
+No synthetic client replaced the handset or generated a local liveness receipt.
+
+This repeat passes that bounded test. The earlier foreground disconnect remains
+an owner-reported intermittent failure without a synchronized failure trace;
+no cause or repair is claimed, and no production code changed. A post-idle
+private message/reply and explicit display on Lockon's screen are being checked.
 
 Still pending with the owner:
 
 - Explicit confirmation of both message directions on Lockon's own screen.
-- Longer foreground idle behavior and roaming between Wi-Fi and cellular.
+- Post-idle message/reply, representative longer foreground use and roaming
+  between Wi-Fi and cellular; investigate any repeated awake-screen disconnect.
 - Cold-boot phone/VPN recovery and representative longer handset use. Automated
   recovery/slow-client tests and a stationary 40-second heartbeat check do not
   substitute for these physical results.

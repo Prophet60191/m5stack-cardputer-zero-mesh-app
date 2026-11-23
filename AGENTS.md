@@ -114,14 +114,26 @@ approximately two-minute lock/background interval and successful reconnect/send
 after toggling iPhone Wi-Fi. Phone access Off/On preserves the live radio; the
 owner needed a manual reconnect afterward, then messaging worked. Normal radio
 stop/start also passed on device with saved configuration/profile hashes unchanged;
-the owner confirms manual handset reconnect/message delivery afterward. The
-foreground idle check remains in progress. Current
+the owner confirms manual handset reconnect/message delivery afterward. A later five-minute foreground repeat passed as recorded below. Current
 checks are logged in docs/phone-access-validation.md; do not infer cellular
 handover from the Wi-Fi interruption. Lockon itself does not need a SIM.
 
 The first idle attempt was interrupted by confirmed phone lock/app switching;
-it does not qualify foreground stability. A replacement awake-screen test is
-running read-only via `/tmp/cz-phone-awake-idle.py`, with reduced status output
-in ignored `build/phone-access-016/manual-checks/awake-idle-observation.jsonl`.
-Wait for the owner's result; do not claim five-minute foreground success without
-checking it. No radio/profile/security defaults or production code changed.
+it does not qualify foreground stability. The replacement start-bounded monitor never saw a ready connection; the owner
+reported a foreground disconnect. A later synchronized trace and awake-screen
+repeat passed (at least 317.2 seconds, 31 healthy connected status samples, no
+TCP close/reset), confirmed by the owner. See the qualification record. No radio/profile/security defaults or production code changed.
+
+Known phone qualification issue: the owner reports a foreground disconnect with
+the screen awake. Do not mark reliability accepted. The awake-idle monitor had
+expired before it saw a connection, so correlate the new trace before assigning
+a cause. Read-only TCP-header timing/status helpers are running; reduced evidence
+is under ignored build/phone-access-016/manual-checks. No payload capture or radio
+configuration changes. Keep the actual-iPhone failure distinct from synthetic
+heartbeat successes.
+
+Controlled traced repeat now passed and is owner-confirmed; the prior foreground
+disconnect remains unexplained and was not reproduced. No repair is claimed.
+Post-idle exchange/Lockon display, cold-boot recovery and cellular handover are
+still pending. Reduced header/status evidence is ignored under manual-checks;
+never publish raw network identity or payloads. The installed runtime is unchanged.
