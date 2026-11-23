@@ -1,6 +1,6 @@
 # Quick Reference Card
 
-> For Mesh **0.1.16 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
+> For Mesh **0.1.17 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
 
 ## Hardware Safety Rules
 

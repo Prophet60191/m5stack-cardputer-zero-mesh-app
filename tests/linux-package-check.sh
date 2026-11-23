@@ -26,6 +26,7 @@ test -x /usr/bin/cardputerzero-mesh-launch
 test -f /usr/lib/cardputerzero-mesh/user_service.py
 test -f /usr/lib/cardputerzero-mesh/phone_gateway.py
 test -f /usr/lib/cardputerzero-mesh/phone_services.py
+test -f /usr/lib/cardputerzero-mesh/local_node_refresh.py
 test ! -e /usr/bin/mesh-launch
 test ! -e /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
 test ! -e /usr/bin/mesh_benchmarks

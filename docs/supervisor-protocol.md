@@ -278,3 +278,15 @@ Tailscale node ID; each peer contains `id`, display `name`, `online` and VPN
 and private Serve PROXY-v2 setup. Both reply with the current phone payload and
 normal request correlation. Neither starts RF nor changes TX/privacy/configuration.
 See [Phone access](phone-access.md) for the separate standard protobuf endpoint.
+
+## Local GPS refresh (0.1.17)
+
+While GPS is ENABLED and the owner is Online/config-confirmed, node-only API
+snapshots refresh local cached positions at most once per 30 seconds. They use
+the qualified daemon's reserved nonce 69421 on the sole physical connection;
+no RF packet, new TCP/serial client or location-sharing change is involved. A
+ten-second completion timeout backs off; stale owner replies cannot complete a
+new owner's refresh. Diagnostics add `gps_refresh` with one fixed value: `off`,
+`waiting`, `current`, `timeout`, or `unavailable`. Existing position validity and
+age checks remain authoritative; refresh completion does not fabricate a fix.
+The daemon's NodeInfo/PositionLite snapshot does not carry satellite count.

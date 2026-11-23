@@ -58,6 +58,7 @@ from application_services import ApplicationServices
 from channel_import import ChannelImport
 from channel_setup import ChannelSetup
 from phone_services import PhoneServices
+from local_node_refresh import LocalNodeRefresh
 from phone_gateway import observing_interface
 
 
@@ -244,6 +245,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
         self._config_confirmed = False
         self._init_imports()
         self._init_phone()
+        self._local_nodes = LocalNodeRefresh()
         self._worker = threading.Thread(target=self._work_loop, daemon=True)
         self._worker.start()
 
@@ -253,7 +255,9 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                 fn = self._work.get(timeout=0.2)
             except queue.Empty:
                 if not self._stop.is_set():
-                    with self._life_lock: self._phone_retry()
+                    with self._life_lock:
+                        self._phone_retry()
+                        self._refresh_local_position()
                 continue
             try:
                 with self._life_lock:
@@ -580,6 +584,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
 
     def _teardown(self) -> None:
         """Release iface, daemon and Cap. Caller holds _life_lock."""
+        self._local_nodes.reset()
         if getattr(self, "_phone", None): self._phone.stop()
         with self._lock:
             iface, daemon, log = self._iface, self._daemon, self._log
@@ -666,6 +671,18 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                 ticks += 1
             self._stop.wait(2)
 
+    def _radio_frame(self, interface, raw):
+        if self._local_nodes.observe(interface, raw):
+            self._nodes_dirty.set()
+        self._phone_frame(interface, raw)
+
+    def _refresh_local_position(self):
+        iface = self._iface
+        enabled = (self._radio == 'online' and self._config_confirmed and iface is not None
+                   and iface.localNode.localConfig.position.gps_mode ==
+                   iface.localNode.localConfig.position.GpsMode.ENABLED)
+        self._local_nodes.tick(iface if enabled else None)
+
     def _launch_daemon(self) -> None:
         self._port = API_PORT
         log_path = self._state_dir / "meshtasticd.log"
@@ -696,7 +713,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
 
     def _connect_mesh(self) -> None:
         from pubsub import pub
-        self._iface = observing_interface(self._phone_frame, hostname="127.0.0.1", portNumber=self._port, timeout=8)
+        self._iface = observing_interface(self._radio_frame, hostname="127.0.0.1", portNumber=self._port, timeout=8)
         pub.subscribe(self._on_receive_text, "meshtastic.receive.text")
         pub.subscribe(self._on_receive_packet, "meshtastic.receive")
         pub.subscribe(self._on_receive_position, "meshtastic.receive.position")

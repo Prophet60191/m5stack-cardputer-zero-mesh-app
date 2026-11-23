@@ -31,7 +31,7 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.16, a release candidate** with public/private channel
+The current source is **0.1.17, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. See the [current refinement record](docs/usability-refinement.md)
 for this candidate's verification and limits. Private-peer delivery, camera QR
@@ -137,7 +137,7 @@ TX or location settings. The daemon API remains confined to loopback.
 ```bash
 # Prevent the dependency package from starting its separate system daemon.
 sudo systemctl mask --now meshtasticd.service
-sudo apt install ./cardputerzero-mesh_0.1.16-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.17-rev1_arm64.deb
 # The qualified Debian build used for this candidate:
 sudo apt install 'meshtasticd=2.7.26.61~obs54e0d8d~beta'
 ```

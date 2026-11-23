@@ -261,6 +261,7 @@ class ApplicationServices:
                 "mode": self._status()["mode"], "firewall": firewall,
                 "gps_age": self._position_age(gps), "gps_satellites": gps.get("satsInView") if type(gps.get("satsInView")) is int and 0 <= gps["satsInView"] <= 255 else None,
                 "position_valid": position_valid, "position_fresh": position_valid and age is not None and age <= 120,
+                "gps_refresh": self._local_nodes.status,
                 "last_rx_age": max(0, int(time.time()) - self._last_rx) if self._last_rx else None,
                 "camera_available": camera_available,
                 "channels": len(channels), "private_channels": sum(ch["private"] for ch in channels),

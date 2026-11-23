@@ -510,3 +510,27 @@ GPS/camera/navigation, physical IPv6 and cold-power-cycle qualification limits.
 - Close the planned short handset checks with an acceptance table and remaining
   limits. Preserve the unexplained earlier awake-screen disconnect as follow-up;
   the successful traced repeat is not a claimed repair. No runtime changes.
+
+## 2026-11-23 — Internal/Cap GPS qualification started
+
+- Owner chose outdoor testing of the fitted Cap GPS before USB dongle work.
+  Initial diagnostics: GPS NOT_PRESENT, no valid/fresh coordinates. Normal
+  config.set/readback enabled the receiver while preserving send/receive and
+  location/MQTT sharing Off. No position-send intent or sharing enablement.
+- Verify SSH identity against USB-read host key for outdoor monitoring; prepare
+  reduced, location-free five-minute diagnostics. Await owner outdoor placement
+  before claiming a test interval or fix. See docs/internal-gps-validation.md.
+
+## 0.1.17 candidate — 2026-11-23 — Private local GPS refresh
+
+- Outdoor hardware test confirms the Cap receiver works: 59 fix samples and up
+  to 27 satellites used in a bounded direct read, zero checksum errors. The app
+  remained without a fix during its 321.8-second watch because it read cached
+  client node data while the daemon held fresh GPS coordinates.
+- Refresh node-only snapshots over the existing owner API connection while GPS
+  is enabled. Preserve RF/location privacy, TX mode, channels and SDK caches;
+  bound requests, timeout/backoff and stale-owner completion. Keep satellite
+  count unknown where the daemon's snapshot omits it. Add real-SDK, failure,
+  lifecycle and privacy tests and user/protocol qualification notes.
+- Package/source-correlated installation and outdoor map/freshness retest are
+  pending. USB GPS remains deferred until the fitted receiver path is qualified.

@@ -130,3 +130,22 @@ docs/phone-access-validation.md before further phone work.
 - Preserve settings/chats and other apps/services. Leave Radio in send/receive,
   selected Phone access On and ADB enabled. No production change was made during
   these extended tests; guide/PDF reconnect instructions were refreshed.
+
+## Current task: Cap GPS — 2026-11-23
+
+Read docs/internal-gps-validation.md. Owner's actual outdoor watch ran 321.8s:
+app no fix, although daemon log had local coordinates. Exclusive guardian/lease
+60s raw diagnostic confirmed 59 fix samples, up to 27 satellites used and zero
+checksum failures, then restored Online/send-receive, GPS enabled, sharing Off.
+No dongle or receiver firmware change is needed for this cache defect.
+
+0.1.17 candidate adds read-only node-only nonce 69421 snapshots on the existing
+API connection (30s interval, 10s completion timeout/backoff). Preserve library
+channels/caches, sharing/TX settings and single serial/TCP ownership. No location
+RF packet or synthetic timestamp. PositionLite omits satellites; do not fake them.
+All 167 backend tests pass locally in Debian; arm64 CI/package and installed
+outdoor/map/freshness tests are pending. Helpers/reduced evidence are ignored in
+build/internal-gps-qualification. Never commit raw coordinates, device IDs or
+private endpoints. Preserve chats/profiles/phone access/other apps; leave ADB On.
+User may bring device indoors while the correction is built. Do not begin the
+USB GPS work until this existing receiver/app path is qualified.

@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-> For Mesh **0.1.16 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
+> For Mesh **0.1.17 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
 
 When something doesn't behave the way you expect out in the field, look up the message or symptom you see below.
 
