@@ -33,6 +33,12 @@ Mesh 0.1.20 is installed; the earlier 0.1.19 RF qualification remains separate.
 - Byte-truncated conversation/incoming previews could split UTF-8 characters;
   both now use a shared boundary-safe preview helper.
 
+- Device-font checks found Help's fixed 16px rows/12px footer shorter than the
+  Noto line metrics, and a 16px composer interior for a 17px line. Help now sizes
+  its rows/footer/panel from font metrics; a 1px input border preserves the 22px
+  typing bar while leaving enough room for the text. Both themes and actual
+  device fonts are covered by independent geometry checks.
+
 ## Verification
 
 `mesh_ui_checkup` uses real LVGL at 320×170, synthetic state, ordinary-user

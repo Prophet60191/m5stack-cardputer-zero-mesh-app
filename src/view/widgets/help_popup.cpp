@@ -11,6 +11,7 @@
 #include "theme.h"
 
 #include <array>
+#include <algorithm>
 #include <cstddef>
 
 namespace view::widgets {
@@ -114,10 +115,15 @@ void HelpPopup::build() {
 
     auto* key_font = assets_.load_standard_font(11);
     auto* action_font = assets_.load_standard_font(12, app::StandardFontWeight::Regular);
+    const int32_t row_height = std::max<int32_t>({16,
+        lv_font_get_line_height(key_font ? key_font : &lv_font_montserrat_12),
+        lv_font_get_line_height(action_font ? action_font : &lv_font_montserrat_12)});
+    const int32_t rows_height = row_height * rows_.size() + rows_.size() - 1;
+    lv_obj_set_height(rows, rows_height);
     for (auto& widgets : rows_) {
         widgets.row = lv_obj_create(rows);
         lv_obj_remove_style_all(widgets.row);
-        lv_obj_set_size(widgets.row, LV_PCT(100), 16);
+        lv_obj_set_size(widgets.row, LV_PCT(100), row_height);
         lv_obj_clear_flag(widgets.row, LV_OBJ_FLAG_SCROLLABLE);
 
         widgets.key = lv_label_create(widgets.row);
@@ -140,7 +146,12 @@ void HelpPopup::build() {
     auto* footer_font = assets_.load_standard_font(10);
     lv_obj_set_style_text_font(footer_, footer_font ? footer_font : &lv_font_montserrat_10, 0);
     lv_obj_set_style_text_align(footer_, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_size(footer_, LV_SIZE_CONTENT, 12);
+    const int32_t footer_height = lv_font_get_line_height(footer_font ? footer_font : &lv_font_montserrat_10);
+    lv_obj_set_size(footer_, LV_SIZE_CONTENT, footer_height);
+    // Noto CJK on the device has taller line metrics than the host fallback.
+    // Size rows and the panel from those metrics instead of clipping their text.
+    lv_obj_set_height(panel_, std::min<int32_t>(view::kScreenHeight - 8,
+        std::max<int32_t>(146, 35 + rows_height + footer_height + 14)));
     lv_obj_align(footer_, LV_ALIGN_BOTTOM_LEFT, 12, -7);
 
     lv_subject_add_observer_obj(view_model_.dark_mode_subject(),

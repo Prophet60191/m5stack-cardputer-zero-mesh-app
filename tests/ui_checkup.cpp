@@ -8,6 +8,7 @@
 #include "map_screen.h"
 #include "menu_screen.h"
 #include "toast.h"
+#include "help_popup.h"
 #include "text.h"
 #include <png.h>
 #include <cstdlib>
@@ -193,6 +194,36 @@ static void unicode() {
     CHECK(view::preview_text("😀z",3)=="\xE2\x80\xA6");
     CHECK(view::preview_text("😀z",4)=="😀\xE2\x80\xA6");
 }
+static void font_fit(const std::string &dir) {
+    viewmodel::BaseViewModel vm;vm.set_dark_mode(dark);app::AssetManager assets;channel(vm);
+    auto *root=lv_obj_create(nullptr);lv_obj_set_size(root,320,170);
+    {
+        view::widgets::HelpPopup help(root,vm,assets);help.build();help.show(model::AppPage::Messages);
+        lv_obj_update_layout(root);screenshot(root,dir,"help.png");
+        const auto inspect=[&](auto &&self,lv_obj_t *o)->void {
+            if(lv_obj_has_flag(o,LV_OBJ_FLAG_HIDDEN))return;
+            if(lv_obj_check_type(o,&lv_label_class)) {
+                const int line=lv_font_get_line_height(lv_obj_get_style_text_font(o,LV_PART_MAIN));
+                CHECK(lv_obj_get_height(o)>=line);
+                CHECK(lv_obj_get_height(lv_obj_get_parent(o))>=line);
+                lv_area_t r,parent;lv_obj_get_coords(o,&r);lv_obj_get_coords(lv_obj_get_parent(o),&parent);
+                CHECK(r.x1>=parent.x1 && r.x2<=parent.x2 && r.y1>=parent.y1 && r.y2<=parent.y2);
+            }
+            for(uint32_t i=0;i<lv_obj_get_child_count(o);++i)self(self,lv_obj_get_child(o,i));
+        };
+        inspect(inspect,help.root());
+    }
+    lv_obj_delete(root);
+ }
+static void composer_fit(const std::string &dir) {
+    viewmodel::BaseViewModel vm;vm.set_dark_mode(dark);app::AssetManager assets;channel(vm);
+    screen::MessagesScreen s(vm,assets);s.on_down();s.on_enter();s.on_enter();
+    CHECK(s.is_composing());auto *box=input(s.root());lv_obj_update_layout(s.root());
+    std::cout << "composer content=" << lv_obj_get_content_height(box) << " line="
+              << lv_font_get_line_height(lv_obj_get_style_text_font(box,LV_PART_MAIN)) << std::endl;
+    CHECK(lv_obj_get_content_height(box)>=lv_font_get_line_height(lv_obj_get_style_text_font(box,LV_PART_MAIN)));
+    screenshot(s.root(),dir,"composer.png");s.on_back();
+}
 int main(int argc,char **argv) {
     lv_init(); auto *display=lv_display_create(320,170);CHECK(display);
     auto *group=lv_group_create();lv_group_set_default(group);
@@ -202,7 +233,7 @@ int main(int argc,char **argv) {
     const std::string dir=output.empty()?"":(std::filesystem::path(output)/(dark?"dark":"light")).string();
     for (const auto &entry : std::vector<std::pair<std::string,std::function<void()>>>{
          {"wrap",wrap},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
-         {"quote",quote_without_channel},{"toast",[&]{toasts(dir);}},{"qr",[&]{qr(dir);}},{"header",header},{"map",[&]{map_edges(dir);}},{"search",search},{"unicode",unicode}})
+         {"quote",quote_without_channel},{"toast",[&]{toasts(dir);}},{"qr",[&]{qr(dir);}},{"header",header},{"map",[&]{map_edges(dir);}},{"search",search},{"unicode",unicode},{"fonts",[&]{font_fit(dir);}},{"composer",[&]{composer_fit(dir);}}})
         if(test=="all" || test==entry.first) { std::cout<<entry.first<<std::endl;entry.second(); }
     }
     CHECK(lv_group_get_obj_count(group)==0);lv_group_delete(group);lv_display_delete(display);

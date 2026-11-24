@@ -120,6 +120,8 @@ void MessagesScreen::build_content(lv_obj_t* content) {
     lv_obj_set_style_text_color(input_, colors.text, 0);
     lv_obj_set_style_text_color(input_, colors.text_disabled, LV_PART_TEXTAREA_PLACEHOLDER);
     lv_obj_set_style_border_color(input_, colors.border, 0);
+    // Keep the 22px typing bar, with room for the device font's 17px line.
+    lv_obj_set_style_border_width(input_, 1, 0);
     lv_obj_set_style_bg_color(input_, colors.text, LV_PART_CURSOR);
     lv_obj_set_style_border_color(input_, colors.text, LV_PART_CURSOR);
     lv_obj_add_event_cb(input_, draft_changed, LV_EVENT_VALUE_CHANGED, this);
