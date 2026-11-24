@@ -23,6 +23,12 @@ static lv_obj_t *find(lv_obj_t *o, const std::string &text) {
         if (auto *result = find(lv_obj_get_child(o, i), text)) return result;
     return nullptr;
 }
+static lv_obj_t *find_prefix(lv_obj_t *o, const std::string &prefix) {
+    if (lv_obj_check_type(o,&lv_label_class) && std::string(lv_label_get_text(o)).rfind(prefix,0)==0) return o;
+    for (uint32_t i=0;i<lv_obj_get_child_count(o);++i)
+        if(auto *result=find_prefix(lv_obj_get_child(o,i),prefix))return result;
+    return nullptr;
+}
 static lv_obj_t *input(lv_obj_t *o) {
     if (lv_obj_check_type(o, &lv_textarea_class)) return o;
     for (uint32_t i = 0; i < lv_obj_get_child_count(o); ++i)
@@ -94,7 +100,7 @@ static void long_labels(const std::string &dir) {
     viewmodel::NodeInfo n; n.id="!10000001"; n.name=std::string(70,'W');
     n.shortName="WWWW"; n.lastHeard=1; n.hasPos=true; n.lat=12; n.lon=20;
     vm.set_nodes({n});
-    { screen::NodesScreen s(vm,assets); one_line(find(s.root(),n.name+"  [WWWW]"));
+    { screen::NodesScreen s(vm,assets); one_line(find_prefix(s.root(),std::string(10,'W')));
       screenshot(s.root(),dir,"nodes-long.png"); s.on_enter();
       bounds(find(s.root(),n.name)); screenshot(s.root(),dir,"node-detail-long.png"); }
     viewmodel::MessageInfo m; m.id="synthetic-message";m.from=n.id;m.fromName=n.name;
@@ -102,7 +108,7 @@ static void long_labels(const std::string &dir) {
     { screen::MessagesScreen s(vm,assets); s.on_down(); s.on_enter();
       bounds(find(s.root(),n.name)); screenshot(s.root(),dir,"sender-long.png"); }
     vm.set_messages({});vm.remember_conversation("dm:"+n.id);
-    { screen::MessagesScreen s(vm,assets); one_line(find(s.root(),n.name));
+    { screen::MessagesScreen s(vm,assets); one_line(find_prefix(s.root(),std::string(10,'W')));
       screenshot(s.root(),dir,"conversations-long.png"); }
 }
 static void invalid_slot() {
