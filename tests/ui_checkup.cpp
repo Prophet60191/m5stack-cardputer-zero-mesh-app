@@ -48,6 +48,10 @@ static void bounds(lv_obj_t *o, int left = 0, int right = 319) {
     lv_area_t r; lv_obj_get_coords(o, &r);
     CHECK(r.x1 >= left && r.x2 <= right);
 }
+static void one_line(lv_obj_t *label) {
+    bounds(label);
+    CHECK(lv_obj_get_height(label) == lv_font_get_line_height(lv_obj_get_style_text_font(label,LV_PART_MAIN)));
+}
 static void choose(screen::BaseScreen &s, const std::string &name) {
     for (int i = 0; i < 80; ++i) {
         if (selected(s.root()) == name) { s.on_enter(); return; }
@@ -90,7 +94,7 @@ static void long_labels(const std::string &dir) {
     viewmodel::NodeInfo n; n.id="!10000001"; n.name=std::string(70,'W');
     n.shortName="WWWW"; n.lastHeard=1; n.hasPos=true; n.lat=12; n.lon=20;
     vm.set_nodes({n});
-    { screen::NodesScreen s(vm,assets); bounds(find(s.root(),n.name+"  [WWWW]"));
+    { screen::NodesScreen s(vm,assets); one_line(find(s.root(),n.name+"  [WWWW]"));
       screenshot(s.root(),dir,"nodes-long.png"); s.on_enter();
       bounds(find(s.root(),n.name)); screenshot(s.root(),dir,"node-detail-long.png"); }
     viewmodel::MessageInfo m; m.id="synthetic-message";m.from=n.id;m.fromName=n.name;
@@ -98,7 +102,7 @@ static void long_labels(const std::string &dir) {
     { screen::MessagesScreen s(vm,assets); s.on_down(); s.on_enter();
       bounds(find(s.root(),n.name)); screenshot(s.root(),dir,"sender-long.png"); }
     vm.set_messages({});vm.remember_conversation("dm:"+n.id);
-    { screen::MessagesScreen s(vm,assets); bounds(find(s.root(),n.name));
+    { screen::MessagesScreen s(vm,assets); one_line(find(s.root(),n.name));
       screenshot(s.root(),dir,"conversations-long.png"); }
 }
 static void invalid_slot() {

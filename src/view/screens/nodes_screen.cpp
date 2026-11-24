@@ -199,6 +199,7 @@ void NodesScreen::rebuild() {
         lv_label_set_text(name, title.c_str());
         lv_obj_set_width(name, lv_pct(100));
         lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
+        lv_obj_set_height(name, lv_font_get_line_height(name_font));
         lv_obj_set_style_text_font(name, name_font, 0);
         lv_obj_set_style_text_color(name, (n.isSelf || n.favorite) ? colors.primary : colors.text, 0);
 

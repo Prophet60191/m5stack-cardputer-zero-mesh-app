@@ -9,6 +9,8 @@ The installed 0.1.19 qualification remains separate until installation is checke
 - Nodes, conversation titles, sender names and Map tags could exceed horizontal
   bounds. List captions now fit their rows, full node headings/values wrap in
   scrollable details, sender names wrap within bubbles and Map tags shorten.
+  Visual review also caught auto-height captions wrapping despite DOT mode; list
+  caption height is now explicitly one line and checked in both themes.
 - Nodes, conversations, recipient pickers and message action menus stopped at
   their ends while Settings wrapped. These selectable lists now wrap both ways;
   Shift-Tab also reverses the Nodes filter. Message chronology and scrollable

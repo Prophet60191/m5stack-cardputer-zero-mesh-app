@@ -319,6 +319,7 @@ void MessagesScreen::rebuild_list() {
         lv_label_set_text(name, conversations_[i].name.c_str());
         lv_obj_set_width(name, lv_pct(100));
         lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
+        lv_obj_set_height(name, lv_font_get_line_height(name_font));
         lv_obj_set_style_text_font(name, name_font, 0);
         lv_obj_set_style_text_color(name, colors.text, 0);
         auto* sub = lv_label_create(row);
