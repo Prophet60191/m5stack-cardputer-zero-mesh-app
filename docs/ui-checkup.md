@@ -2,7 +2,7 @@
 
 The owner reopened the change cycle for a full UI review. This 0.1.20 candidate
 keeps radio ownership, channel identity, privacy and storage behavior unchanged.
-The installed 0.1.19 qualification remains separate until installation is checked.
+Mesh 0.1.20 is installed; the earlier 0.1.19 RF qualification remains separate.
 
 ## Confirmed defects and corrections
 
@@ -45,9 +45,55 @@ Unicode boundaries have additional direct checks. Raw logs/screenshots stay in
 ignored build output, and contain only synthetic data.
 
 All five host CTest targets pass under ASan/UBSan, and the backend suite passes
-175 tests (one platform-specific skip). Debian arm64 package checks are required
-before device installation; exact source/package and installed results will be
-recorded here after completion. Rendered-code software decoding is
+175 tests (one platform-specific skip). Final Debian arm64 package and installed-device results are recorded below. Rendered-code software decoding is
 separate from an actual camera/phone scan. Fresh-image hardware, USB GPS, SIM,
 public-peer/IPv6/full physical keyboard and earlier unexplained phone disconnect
 limits remain as documented in [current status](current-status.md).
+
+## Final package and device result
+
+- Exact runtime/package source: `e4bbf2665a586cc11e6f26544510dfaa9c35d0e6`.
+- Installer: `cardputerzero-mesh_0.1.20-rev1_arm64.deb`, 7,867,278 bytes;
+  SHA-256 `6b81a63a0edce840f4c3b3ed925bd7b3be9b061812b75e463bd5ad8821677a43`.
+- [Source CI run 45495397890](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45495397890)
+  passes both jobs, including native runtime/source rebuild and minimal fresh
+  Debian container checks. This is separate from fresh-image physical hardware.
+- Matching Debian 13 arm64 isolated package/upgrade/firewall checks pass, including
+  all four device-target CTest suites (UI setup, checkup, maintenance and real
+  evdev reader) and all 175 backend tests. Tests do not open hardware or send RF.
+- All 259 installed regular files match package bytes, mode, owner and group.
+  Consistent private backups and the qualified previous installer remain retained.
+  All 27 original messages, three threads/preferences and saved app/radio/profile
+  files are unchanged after installation and after the real UI check.
+- The focused headless checkup also passes on Lockon as its normal user, using
+  the installed Noto CJK fonts; no physical display/input/radio is opened by that helper.
+- A normal-user installed UI launch stays healthy for 15 seconds. Actual full
+  framebuffer capture shows the home carousel and intact header text/percentage,
+  without a battery icon. The live supervisor confirms Radio Off; the native
+  daemon remains absent throughout. The launcher is restored and the test-created
+  supervisor is stopped, matching the starting lifecycle state. ADB remains On.
+- The Cap is disconnected. No radio power-on, message send, phone/GPS/RF or
+  physical keyboard/camera acceptance is claimed. Both-theme headless navigation
+  and rendered QR software decoding are separate from physical key/scan checks.
+- The first temporary live-status fixture used an incorrect socket filename;
+  its cleanup restored the launcher. The corrected fixture passes. The first
+  installation encountered ADB's nonexistent inherited TMPDIR in apt-listchanges;
+  the final reinstall uses TMPDIR=/tmp and completes without that warning.
+  Neither diagnostic/setup issue is presented as an application defect.
+- An intermediate same-version package preceded the final one-line-caption
+  correction. Version alone cannot identify the qualified installer: use the
+  exact source and SHA above. Its earlier hash is not the final package.
+
+The 42-page manual and one-page reference pass their build/link/version checks;
+all pages were rendered and contact-reviewed, with the changed pages inspected
+at full size. The existing Drive manual is updated in place. No public release,
+Store/upstream submission or renewed GPS/SIM/fresh-card work is authorized here.
+
+## Lessons for future UI checks
+
+Check total title/body/footer geometry at physical resolution, including long
+names and maximum counters. DOT mode needs an explicit caption height for a
+one-line result. Preserve rejected form values, distinguish a visible composer
+from merely allocated widgets, keep external text literal, and verify wrap-around
+navigation independently from chronological message navigation. Keep actual-device
+observations separate from headless screenshots and software QR decoding.

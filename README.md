@@ -140,15 +140,16 @@ TX or location settings. The daemon API remains confined to loopback.
 They cover obtaining/verifying the candidate, transferring it, first launch,
 upgrades, private backups, rollback, troubleshooting and removal.
 
-0.1.19 is currently a **draft**, not a public release or Store listing. The
-[qualified CI artifact](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45269883900)
-is identified by source and checksum in the installation guide. Older published
+0.1.20 is a **candidate**, not a public release or Store listing. Its
+[source CI run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45495397890)
+and exact installed package are distinguished in the installation guide and
+[UI qualification record](docs/ui-checkup.md). Older published
 candidates use the earlier dependency arrangement; do not mix their instructions.
 
 On the supported Debian 13 arm64 image, with the verified installer on the device:
 
 ```sh
-sudo apt install ./cardputerzero-mesh_0.1.19-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.20-rev1_arm64.deb
 ```
 
 The one installer includes the GPS-corrected private native radio and 15 pinned

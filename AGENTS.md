@@ -1,15 +1,17 @@
 # Cardputer Zero Mesh
 
 Current instructions: docs/install.md (operations), docs/distribution.md (build/source
-assets), docs/README.md (index). Runtime/package qualification stays at 8ada52a;
-documentation/export-template changes do not authorize another device install.
+assets), docs/README.md (index). Current installed runtime/package is e4bbf26
+(Mesh 0.1.20); later documentation changes do not imply another installation.
 Older dated notes below are historical and do not override those current runbooks.
 
 ## Current focus — UI checkup (2026-11-24)
 
 Owner reopened the change cycle for a full UI review and fixes. Read
 `docs/ui-checkup.md` for confirmed defects and candidate qualification. Source is
-0.1.20; installed 0.1.19 remains qualified until separate deployment checks.
+0.1.20 from exact e4bbf26 is installed; 259 files and saved data/settings match.
+Cap-free UI launch/header pass. Radio remains Off because the Cap is disconnected.
+Return to everyday use; do not turn the radio On for further UI work.
 Preserve existing data/settings and ADB On; no RF message, GPS dongle, SIM,
 fresh-card or publication work follows from UI testing.
 

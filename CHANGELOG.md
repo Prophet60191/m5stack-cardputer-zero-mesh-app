@@ -729,3 +729,10 @@ with independent hardware notes/private backups preserved.
   UTF-8-safe preview helper and focused headless regressions in both themes.
 - See docs/ui-checkup.md for reproduction scope and final qualification;
   desktop/package proof and installed-device proof remain distinct.
+
+- Final e4bbf26 package is installed and verified (259 regular files); all 27
+  messages and saved app/radio/profile data remain unchanged. Cap-free normal-user
+  startup/header and launcher restoration pass. Radio stayed Off, ADB stays On.
+- Final isolated arm64 gate passes four CTest suites and all 175 backend tests;
+  host ASan/UBSan checks pass. Manual/reference and current source copies are
+  refreshed. No RF/phone/GPS retest, fresh-image test or public submission.
