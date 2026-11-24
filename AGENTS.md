@@ -5,15 +5,16 @@ assets), docs/README.md (index). Current installed runtime/package is 5776364
 (Mesh 0.1.20); later documentation changes do not imply another installation.
 Older dated notes below are historical and do not override those current runbooks.
 
-## Current focus — UI checkup (2026-11-24)
+## Current focus — everyday use (2026-11-24)
 
-Owner reopened the change cycle for a full UI review and fixes. Read
-`docs/ui-checkup.md` for confirmed defects and candidate qualification. Source is
-0.1.20 from exact 5776364 is installed; 259 files and saved data/settings match.
-Cap-free UI launch/header pass. Radio remains Off because the Cap is disconnected.
-Return to everyday use; do not turn the radio On for further UI work.
-Preserve existing data/settings and ADB On; no RF message, GPS dongle, SIM,
-fresh-card or publication work follows from UI testing.
+Owner has closed the UI checkup and will use installed Mesh 0.1.20 (exact
+runtime/package source 5776364), reporting concrete issues before more changes.
+Do not resume implementation, cleanup, deployment or publication without a new
+request; start future fixes from the screen/action, expected result and actual
+result. See docs/ui-checkup.md and docs/current-status.md for qualification and
+deferrals. Last device verification: Cap absent, Radio Off, ADB On, saved data
+and settings preserved. Ordinary owner use may change that state; verify it
+before future maintenance and retain the standing instruction to leave ADB On.
 
 Native C++/LVGL UI (`src/`) talks to a Python radio supervisor (`supervisor/`)
 over newline JSON. The UI owns no radio hardware. Read `CHANGELOG.md`,

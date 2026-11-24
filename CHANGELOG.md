@@ -752,3 +752,18 @@ with independent hardware notes/private backups preserved.
   Matching arm64 package/upgrade/backend checks, installed-file verification,
   actual-font replay and normal-user startup pass. Radio stayed Off, ADB On;
   original messages, threads, preferences and saved settings remain unchanged.
+
+
+## 2026-11-24 — Wrap: use the app before further changes
+
+- Owner closes the UI change cycle and will report issues from ordinary use;
+  future work starts from concrete reproduction steps rather than more speculative
+  changes. Installed runtime/package stays at qualified 5776364 / Mesh 0.1.20.
+- Investigated Offline regressions #80: the intermediate test looked for a full
+  caption after ellipsis; corrected lookup in e4bbf26 retains geometry checks.
+  #81–85 pass, including both jobs for installed source #85. At wrap readback,
+  docs-only #86 has a passing regression job and an arm64 job still running;
+  do not interpret the old #80 alert as a new installed-app failure.
+- Updated handoff/work-board records and current source mirror only. No device
+  operation, configuration change, new package, public release or submission.
+  Deferred RF/physical, GPS dongle, SIM, fresh-card and video work stays explicit.
