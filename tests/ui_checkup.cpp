@@ -189,6 +189,8 @@ static void search() {
 }
 static void unicode() {
     CHECK(view::preview_text("abc",3)=="abc");
+    CHECK(view::preview_text("line1\nline2\r\tend",40)=="line1 line2  end");
+    CHECK(view::preview_text(std::string("a\0b",3),40)=="a b");
     CHECK(view::preview_text("aéz",2)=="a\xE2\x80\xA6");
     CHECK(view::preview_text("aéz",3)=="aé\xE2\x80\xA6");
     CHECK(view::preview_text("😀z",3)=="\xE2\x80\xA6");

@@ -31,7 +31,8 @@ Mesh 0.1.20 is installed; the earlier 0.1.19 RF qualification remains separate.
   matching. Its prompt is corrected, the active query stays visible and an empty
   result has an explicit explanation. Esc clears the filter.
 - Byte-truncated conversation/incoming previews could split UTF-8 characters;
-  both now use a shared boundary-safe preview helper.
+  both now use a shared boundary-safe, one-line preview helper. Line breaks and
+  control characters become spaces in previews; full message text is unchanged.
 
 - Device-font checks found Help's fixed 16px rows/12px footer shorter than the
   Noto line metrics, and a 16px composer interior for a 17px line. Help now sizes

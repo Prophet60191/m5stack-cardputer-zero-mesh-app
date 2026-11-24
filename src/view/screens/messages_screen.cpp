@@ -333,6 +333,7 @@ void MessagesScreen::rebuild_list() {
             sub, (preview(rows_data[i].preview) + (when[0] ? std::string(kDot) + when : "")).c_str());
         lv_label_set_long_mode(sub, LV_LABEL_LONG_DOT);
         lv_obj_set_width(sub, lv_pct(100));
+        lv_obj_set_height(sub, lv_font_get_line_height(sub_font));
         lv_obj_set_style_text_font(sub, sub_font, 0);
         lv_obj_set_style_text_color(sub, colors.text_disabled, 0);
     }
