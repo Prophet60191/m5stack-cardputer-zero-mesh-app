@@ -96,6 +96,14 @@ static void wrap() {
       s.on_enter(); s.on_up(); CHECK(selected(s.root())=="Beta");
       s.on_down(); CHECK(selected(s.root())=="# 1: Synthetic [Private]"); }
 }
+static void cancel_recipient() {
+    viewmodel::BaseViewModel vm;vm.set_dark_mode(dark);app::AssetManager assets;channel(vm);
+    viewmodel::NodeInfo a,b;a.id="!10000001";a.name="Alpha";b.id="!10000002";b.name="Beta";
+    vm.set_nodes({a,b});vm.remember_conversation("dm:"+a.id);
+    screen::MessagesScreen s(vm,assets);s.on_enter();s.on_down();s.on_down();
+    CHECK(s.on_back());CHECK(selected(s.root())=="+  New message");
+    s.on_enter();CHECK(find(s.root(),"New message to:"));CHECK(s.on_back());
+}
 static void long_labels(const std::string &dir) {
     viewmodel::BaseViewModel vm;vm.set_dark_mode(dark); app::AssetManager assets; channel(vm);
     viewmodel::NodeInfo n; n.id="!10000001"; n.name=std::string(70,'W');
@@ -234,7 +242,7 @@ int main(int argc,char **argv) {
     dark = theme;
     const std::string dir=output.empty()?"":(std::filesystem::path(output)/(dark?"dark":"light")).string();
     for (const auto &entry : std::vector<std::pair<std::string,std::function<void()>>>{
-         {"wrap",wrap},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
+         {"wrap",wrap},{"cancel-recipient",cancel_recipient},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
          {"quote",quote_without_channel},{"toast",[&]{toasts(dir);}},{"qr",[&]{qr(dir);}},{"header",header},{"map",[&]{map_edges(dir);}},{"search",search},{"unicode",unicode},{"fonts",[&]{font_fit(dir);}},{"composer",[&]{composer_fit(dir);}}})
         if(test=="all" || test==entry.first) { std::cout<<entry.first<<std::endl;entry.second(); }
     }

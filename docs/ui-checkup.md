@@ -40,6 +40,10 @@ Mesh 0.1.20 is installed; the earlier 0.1.19 RF qualification remains separate.
   typing bar while leaving enough room for the text. Both themes and actual
   device fonts are covered by independent geometry checks.
 
+- Cancelling the recipient picker retained its node index as the conversation
+  index, so Enter could open a chat different from the visible highlight. Closing
+  the picker now restores New message and refreshes chats received while covered.
+
 ## Verification
 
 `mesh_ui_checkup` uses real LVGL at 320×170, synthetic state, ordinary-user

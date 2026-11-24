@@ -642,7 +642,14 @@ void MessagesScreen::rebuild_picker() {
 }
 
 void MessagesScreen::close_picker() {
-    if (picker_) { lv_obj_delete(picker_); picker_ = nullptr; }
+    if (picker_) {
+        lv_obj_delete(picker_);
+        picker_ = nullptr;
+        // The recipient picker opens from New message. Its index is not a chat
+        // selection; restore that row and apply updates received while covered.
+        selected_ = 0;
+        rebuild_list();
+    }
 }
 
 // ---------------------------------------------------------------------------
