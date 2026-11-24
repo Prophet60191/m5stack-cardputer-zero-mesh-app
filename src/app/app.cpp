@@ -11,6 +11,7 @@
 #include "application_config.h"
 #include "asset_manager.h"
 #include "help_popup.h"
+#include "text.h"
 #include "logger.h"
 #include "linux_input.h"
 #include "screenshot_service.h"
@@ -462,7 +463,7 @@ private:
         std::string text = controller->view_model_.last_incoming_text();
         if (text.empty()) return;   // ignore the subscribe-time call (no message yet)
         if (controller->view_model_.current_page() == model::AppPage::Messages) return;
-        if (text.size() > 40) text = text.substr(0, 39) + "\xE2\x80\xA6";
+        text = view::preview_text(text, 40);
         controller->toast_->show_highlighted(from + ": ", text, "",
                                              view::widgets::ToastTone::Default, 3200, true);
     }

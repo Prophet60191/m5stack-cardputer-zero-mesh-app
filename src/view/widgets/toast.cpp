@@ -9,6 +9,7 @@
 #include "asset_manager.h"
 #include "base_viewmodel.h"
 #include "theme.h"
+#include "ui_const.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -47,7 +48,7 @@ void Toast::build() {
 
     label_ = lv_label_create(core_obj_);
     lv_label_set_long_mode(label_, LV_LABEL_LONG_WRAP);
-    lv_label_set_recolor(label_, true);
+    lv_label_set_recolor(label_, false);
     lv_obj_set_style_text_align(label_, LV_TEXT_ALIGN_CENTER, 0);
     font_ = assets_.load_standard_font(12);
     if (!font_) {
@@ -183,8 +184,12 @@ void Toast::update_label_text() {
     if (!label_) {
         return;
     }
-    if (highlighted_.empty()) {
-        lv_label_set_text(label_, (prefix_ + suffix_).c_str());
+    // Names, message text and paths are literal text, never LVGL markup.
+    // Preserve highlighting only when all payload parts are free of its delimiter.
+    if (highlighted_.empty() || prefix_.find('#') != std::string::npos ||
+        highlighted_.find('#') != std::string::npos || suffix_.find('#') != std::string::npos) {
+        lv_label_set_recolor(label_, false);
+        lv_label_set_text(label_, (prefix_ + highlighted_ + suffix_).c_str());
         return;
     }
 
@@ -207,6 +212,7 @@ void Toast::update_label_text() {
                   static_cast<unsigned int>(lv_color_to_int(highlight_color) & 0xffffffU));
     const std::string text =
         prefix_ + "#" + color_hex + " " + highlighted_ + "#" + suffix_;
+    lv_label_set_recolor(label_, true);
     lv_label_set_text(label_, text.c_str());
 }
 
@@ -233,13 +239,18 @@ void Toast::update_size() {
         config_.min_width,
         max_width);
     const int32_t text_height = scroll_ ? lv_font_get_line_height(font_) : text_size.y;
-    const int32_t toast_height =
-        std::max<int32_t>(config_.min_height, text_height + config_.vertical_padding * 2);
+    lv_obj_update_layout(parent_);
+    const int32_t max_height = std::max<int32_t>(1, lv_obj_get_height(parent_) -
+                                                    kTitleBarHeight - config_.bottom_offset);
+    const int32_t toast_height = std::min<int32_t>(max_height,
+        std::max<int32_t>(config_.min_height, text_height + config_.vertical_padding * 2));
+    const bool clipped = text_height + config_.vertical_padding * 2 > toast_height;
 
     lv_obj_set_width(label_, label_width);
-    lv_obj_set_height(label_, LV_SIZE_CONTENT);
-    lv_label_set_long_mode(label_,
-                           scroll_ ? LV_LABEL_LONG_SCROLL_CIRCULAR : LV_LABEL_LONG_WRAP);
+    lv_obj_set_height(label_, clipped ? std::max<int32_t>(1, toast_height - config_.vertical_padding * 2)
+                                     : LV_SIZE_CONTENT);
+    lv_label_set_long_mode(label_, scroll_ ? LV_LABEL_LONG_SCROLL_CIRCULAR
+                                         : clipped ? LV_LABEL_LONG_DOT : LV_LABEL_LONG_WRAP);
     lv_obj_set_style_anim_duration(label_, scroll_ ? lv_anim_speed(22) : 0, 0);
     lv_obj_set_size(core_obj_, toast_width, toast_height);
     lv_obj_align(core_obj_, LV_ALIGN_BOTTOM_MID, 0, -config_.bottom_offset);

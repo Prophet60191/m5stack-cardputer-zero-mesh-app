@@ -659,6 +659,16 @@ if(BUILD_TESTING)
         target_link_libraries(mesh_channel_setup_regressions PRIVATE CM0::PNG)
     endif()
     add_test(NAME mesh_channel_setup_regressions COMMAND mesh_channel_setup_regressions)
+    add_executable(mesh_ui_checkup tests/ui_checkup.cpp)
+    target_link_libraries(mesh_ui_checkup PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
+        ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
+    if(USE_DESKTOP)
+        target_link_libraries(mesh_ui_checkup PRIVATE PNG::PNG)
+    else()
+        target_link_libraries(mesh_ui_checkup PRIVATE CM0::PNG)
+    endif()
+    add_test(NAME mesh_ui_checkup COMMAND mesh_ui_checkup)
+
     add_executable(mesh_maintenance_regressions tests/maintenance_followup.cpp)
     target_link_libraries(mesh_maintenance_regressions PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
         ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)

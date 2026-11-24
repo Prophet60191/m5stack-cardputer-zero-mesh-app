@@ -31,11 +31,12 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-The current source is **0.1.19, a release candidate** with public/private channel
+The current source is **0.1.20, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. The header shows battery percentage without a battery
 icon. The [latest status](docs/current-status.md) separates current changes from
-previous hardware qualification. The [GPS record](docs/internal-gps-validation.md)
+previous hardware qualification. The [UI checkup](docs/ui-checkup.md) records
+layout, navigation, notification, QR and editor corrections. The [GPS record](docs/internal-gps-validation.md)
 covers outdoor fixes, the Map marker and the native-radio startup correction,
 now included in the 0.1.19 package. [Phone access](docs/phone-access-validation.md) covers the official
 iPhone app, cellular messaging and reconnect limits. Live public-mesh delivery

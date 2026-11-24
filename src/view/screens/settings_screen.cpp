@@ -663,9 +663,11 @@ void SettingsScreen::apply_overlay() {
             char* end = nullptr;
             errno = 0;
             const long slot = std::strtol(value.c_str(), &end, 10);
-            if (value.empty() || errno || !end || *end || slot < 0 || slot > 255)
+            if (value.empty() || errno || !end || *end || slot < 0 || slot > 255) {
                 view_model().apply_notice("Enter a frequency slot from 0 to 255 (0=Auto)");
-            else view_model().set_frequency_slot(static_cast<int>(slot));
+                return; // Keep the input and focus so the value can be corrected.
+            }
+            view_model().set_frequency_slot(static_cast<int>(slot));
         } else if (pending == "canned-add") {
             view_model().add_canned(value);
         } else if (pending == "canned-edit") {

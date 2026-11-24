@@ -718,3 +718,14 @@ with independent hardware notes/private backups preserved.
   and other documented qualification limits remain unresolved, not silently passed.
 - Session wrap changes only project records and maintained host copies; no
   device operation, package rebuild, settings change or public release.
+
+
+## 2026-11-24 — UI checkup candidate 0.1.20
+
+- Review all feature screens and shared widgets; correct verified clipping,
+  inconsistent list boundaries, slot-editor data loss, hidden quote insertion,
+  notification markup/height, QR fit, header overflow and search feedback.
+- Preserve modular radio ownership and saved preferences; add one shared
+  UTF-8-safe preview helper and focused headless regressions in both themes.
+- See docs/ui-checkup.md for reproduction scope and final qualification;
+  desktop/package proof and installed-device proof remain distinct.

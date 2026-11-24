@@ -8,6 +8,7 @@
 #include "bindings.h"
 #include "theme.h"
 #include "list_selection.h"
+#include "text.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -63,8 +64,7 @@ std::string status_text(int s) {
 }
 
 std::string preview(const std::string& s) {
-    if (s.size() <= 32) return s;
-    return s.substr(0, 31) + "\xE2\x80\xA6";
+    return view::preview_text(s, 32);
 }
 
 }  // namespace
@@ -178,13 +178,14 @@ std::string MessagesScreen::group_name(const std::string& key) {
 void MessagesScreen::update_hint() {
     if (!hint_ || !context_) return;
     const bool thread = mode_ == Mode::Thread;
-    if (thread) lv_obj_remove_flag(context_, LV_OBJ_FLAG_HIDDEN);
+    const bool filtered = !thread && !search_.empty();
+    if (thread || filtered) lv_obj_remove_flag(context_, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(context_, LV_OBJ_FLAG_HIDDEN);
-    const int top = thread ? kContextHeight : 0;
+    const int top = (thread || filtered) ? kContextHeight : 0;
     lv_obj_set_height(body_, view::kScreenHeight - view::kTitleBarHeight - kBarHeight - top);
     lv_obj_align(body_, LV_ALIGN_TOP_MID, 0, top);
     if (mode_ == Mode::List) {
-        lv_label_set_text(context_, "");
+        lv_label_set_text(context_, filtered ? ("Search: " + search_).c_str() : "");
         lv_label_set_text(hint_, "/: Search");
     } else {
         const int active = send_channel();
@@ -246,6 +247,7 @@ void MessagesScreen::rebuild() {
 // Conversations list
 // ---------------------------------------------------------------------------
 void MessagesScreen::rebuild_list() {
+    update_hint();
     const std::string selected_key = selected_ > 0 && selected_ <= static_cast<int>(conversations_.size())
                                          ? conversations_[selected_ - 1].key
                                          : "";
@@ -303,10 +305,20 @@ void MessagesScreen::rebuild_list() {
         lv_obj_set_style_text_color(label, colors.primary, 0);
     }
 
+    if (!search_.empty() && conversations_.empty()) {
+        auto *empty = lv_label_create(body_);
+        lv_label_set_text(empty, "No chats match this search.");
+        lv_obj_set_width(empty, lv_pct(100));
+        lv_obj_set_style_text_font(empty, sub_font, 0);
+        lv_obj_set_style_text_color(empty, colors.text_disabled, 0);
+    }
+
     for (int i = 0; i < static_cast<int>(conversations_.size()); ++i) {
         auto* row = make_row(i + 1);
         auto* name = lv_label_create(row);
         lv_label_set_text(name, conversations_[i].name.c_str());
+        lv_obj_set_width(name, lv_pct(100));
+        lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
         lv_obj_set_style_text_font(name, name_font, 0);
         lv_obj_set_style_text_color(name, colors.text, 0);
         auto* sub = lv_label_create(row);
@@ -437,6 +449,8 @@ void MessagesScreen::rebuild_thread() {
             std::string who = m.fromName.empty() ? m.from : m.fromName;
             auto* name = lv_label_create(bubble);
             lv_label_set_text(name, who.c_str());
+            lv_obj_set_style_max_width(name, 212, 0);
+            lv_label_set_long_mode(name, LV_LABEL_LONG_WRAP);
             lv_obj_set_style_text_font(name, small_font, 0);
             lv_obj_set_style_text_color(name, colors.primary, 0);
         }
@@ -637,11 +651,17 @@ void MessagesScreen::on_up() {
         if (room > 0) lv_obj_scroll_by(overlay_, 0, room < 40 ? room : 40, LV_ANIM_OFF);
         return;
     }
-    if (menu_) { if (menu_sel_ > 0) { --menu_sel_; rebuild_menu(); } return; }
-    if (picker_) { if (selected_ > 0) { --selected_; rebuild_picker(); } return; }
+    if (menu_) {
+        if (!menu_labels_.empty()) { menu_sel_ = (menu_sel_ + menu_labels_.size() - 1) % menu_labels_.size(); rebuild_menu(); }
+        return;
+    }
+    if (picker_) {
+        if (!picker_id_.empty()) { selected_ = (selected_ <= 0 ? static_cast<int>(picker_id_.size()) : selected_) - 1; rebuild_picker(); }
+        return;
+    }
     if (mode_ == Mode::List) {
-        if (selected_ > 0)
-            select_conversation(selected_ - 1);
+        const int rows = 1 + static_cast<int>(conversations_.size());
+        select_conversation((selected_ + rows - 1) % rows);
         return;
     }
     // Thread: dive from the compose row up into older messages.
@@ -662,17 +682,16 @@ void MessagesScreen::on_down() {
         return;
     }
     if (menu_) {
-        if (menu_sel_ < static_cast<int>(menu_labels_.size()) - 1) { ++menu_sel_; rebuild_menu(); }
+        if (!menu_labels_.empty()) { menu_sel_ = (menu_sel_ + 1) % menu_labels_.size(); rebuild_menu(); }
         return;
     }
     if (picker_) {
-        if (selected_ < static_cast<int>(picker_id_.size()) - 1) { ++selected_; rebuild_picker(); }
+        if (!picker_id_.empty()) { selected_ = (selected_ + 1) % picker_id_.size(); rebuild_picker(); }
         return;
     }
     if (mode_ == Mode::List) {
         const int rows = 1 + static_cast<int>(conversations_.size());
-        if (selected_ < rows - 1)
-            select_conversation(selected_ + 1);
+        select_conversation((selected_ + 1) % rows);
         return;
     }
     // Thread: come back toward the newest message, then to the compose row.
@@ -754,7 +773,7 @@ bool MessagesScreen::on_key(uint32_t key) {
     if (composing_ || overlay_ || menu_ || picker_) return false;
     if (mode_ == Mode::List && key == '/') {
         searching_ = composing_ = true;
-        lv_textarea_set_placeholder_text(input_, "Search chats (case sensitive)");
+        lv_textarea_set_placeholder_text(input_, "Search chats");
         lv_textarea_set_text(input_, search_.c_str());
         lv_obj_add_flag(hint_, LV_OBJ_FLAG_HIDDEN); lv_obj_remove_flag(input_, LV_OBJ_FLAG_HIDDEN);
         if (auto* g = lv_group_get_default()) { lv_group_add_obj(g, input_); lv_group_focus_obj(input_); }
@@ -1205,7 +1224,7 @@ void MessagesScreen::menu_activate() {
                 const std::string text = m->text;
                 msg_sel_ = -1;
                 start_compose();
-                if (input_) {
+                if (composing_ && input_) {
                     lv_textarea_set_text(input_, text.c_str());
                     lv_textarea_set_cursor_pos(input_, LV_TEXTAREA_CURSOR_LAST);
                 }
@@ -1275,6 +1294,8 @@ void MessagesScreen::open_info(const std::string& title, const std::string& body
 
     auto* h = lv_label_create(overlay_);
     lv_label_set_text(h, title.c_str());
+    lv_obj_set_width(h, lv_pct(100));
+    lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
     lv_obj_set_style_text_font(h, title_font, 0);
     lv_obj_set_style_text_color(h, colors.primary, 0);
 
@@ -1322,13 +1343,17 @@ void MessagesScreen::open_qr(const std::string& title, const std::string& url) {
 
     auto* h = lv_label_create(overlay_);
     lv_label_set_text(h, ("Scan to join " + title).c_str());
+    lv_obj_set_width(h, lv_pct(100));
+    lv_obj_set_height(h, lv_font_get_line_height(font));
+    lv_label_set_long_mode(h, LV_LABEL_LONG_DOT);
     lv_obj_set_style_text_font(h, font, 0);
     lv_obj_set_style_text_color(h, colors.primary, 0);
 
     // White quiet-zone box so a camera can read the code in either theme.
     auto* box = lv_obj_create(overlay_);
     lv_obj_remove_style_all(box);
-    lv_obj_set_size(box, 126, 126);
+    // Title + gap + quiet-zone box + padding must fit below the header (140px).
+    lv_obj_set_size(box, 110, 110);
     lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(box, lv_color_white(), 0);
     lv_obj_set_style_pad_all(box, 5, 0);
@@ -1337,10 +1362,11 @@ void MessagesScreen::open_qr(const std::string& title, const std::string& url) {
     lv_obj_set_flex_align(box, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     auto* qr = lv_qrcode_create(box);
-    lv_qrcode_set_size(qr, 116);
+    lv_qrcode_set_size(qr, 100);
     lv_qrcode_set_dark_color(qr, lv_color_black());
     lv_qrcode_set_light_color(qr, lv_color_white());
-    lv_qrcode_update(qr, url.c_str(), static_cast<uint32_t>(url.size()));
+    if (lv_qrcode_update(qr, url.c_str(), static_cast<uint32_t>(url.size())) != LV_RESULT_OK)
+        open_info(title, "Could not render this share code. Try sharing a single channel.");
 
 
 }

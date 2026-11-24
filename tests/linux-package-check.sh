@@ -37,6 +37,7 @@ test ! -e /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
 test ! -e /usr/bin/mesh_benchmarks
 test ! -e /usr/bin/mesh_channel_setup_regressions
 test ! -e /usr/bin/mesh_maintenance_regressions
+test ! -e /usr/bin/mesh_ui_checkup
 test ! -e /usr/bin/mesh_keyboard_regressions
 test ! -e /usr/bin/mesh_keyboard_evdev_regressions
 ./mesh_benchmarks > synthetic-benchmarks.txt

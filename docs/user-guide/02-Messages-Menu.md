@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.19 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
+> For Mesh **0.1.20 (release candidate)** · Updated **2026-11-24** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 
@@ -60,11 +60,15 @@ When you open **Messages**, you see your chats ordered so important and recent o
 
 ---
 
+Conversation and recipient lists and action menus wrap from the last item to the
+first (and back). Message bubbles retain their chronological navigation.
+
 ## Searching Conversations (`/`)
 
 If your list gets long, press **`/`** on the Conversations List to filter it:
 
 1. Press **`/`**, type a word or name, and press **Enter**.
+   - The active search stays visible above the list; an empty result is labeled.
    - Search ignores English-letter capitalization (`Basecamp` and `basecamp` match). Accented and other non-English characters still match exactly.
    - It matches any conversation whose title, draft, or saved messages contain that text.
 2. Press **ESC** on the filtered list to clear the search and see all chats again.

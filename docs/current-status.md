@@ -1,5 +1,9 @@
 # Current status
 
+**0.1.20 UI checkup is in qualification.** The owner requested a full UI review
+on 2026-11-24; [findings and tests](ui-checkup.md) track the fixes. The earlier
+pause is superseded for this bounded review; deferred hardware work stays deferred.
+
 **Mesh 0.1.19 is installed**, from exact functional/package source `8ada52a`.
 The [distribution qualification](distribution-validation-20261123.md) records
 CI, hashes, the 255 installed-file checks, data preservation and current limits.

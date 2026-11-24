@@ -197,6 +197,8 @@ void NodesScreen::rebuild() {
         if (n.isSelf) title += "  (you)";
         auto* name = lv_label_create(row);
         lv_label_set_text(name, title.c_str());
+        lv_obj_set_width(name, lv_pct(100));
+        lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
         lv_obj_set_style_text_font(name, name_font, 0);
         lv_obj_set_style_text_color(name, (n.isSelf || n.favorite) ? colors.primary : colors.text, 0);
 
@@ -235,8 +237,8 @@ void NodesScreen::on_up() {
         if (room > 0) lv_obj_scroll_by(detail_, 0, room < 40 ? room : 40, LV_ANIM_OFF);
         return;
     }
-    if (selected_ > 0)
-        select_node(selected_ - 1);
+    if (!display_.empty())
+        select_node((selected_ <= 0 ? static_cast<int>(display_.size()) : selected_) - 1);
 }
 
 void NodesScreen::on_down() {
@@ -245,8 +247,8 @@ void NodesScreen::on_down() {
         if (room > 0) lv_obj_scroll_by(detail_, 0, room < 40 ? -room : -40, LV_ANIM_OFF);
         return;
     }
-    if (selected_ < static_cast<int>(display_.size()) - 1)
-        select_node(selected_ + 1);
+    if (!display_.empty())
+        select_node((selected_ + 1) % static_cast<int>(display_.size()));
 }
 
 void NodesScreen::on_enter() {
@@ -277,7 +279,7 @@ bool NodesScreen::on_key(uint32_t key) {
         return true;
     }
     if (key == LV_KEY_NEXT || key == LV_KEY_PREV) {   // Tab cycles the filter
-        filter_ = (filter_ + 1) % 3;
+        filter_ = (filter_ + (key == LV_KEY_PREV ? 2 : 1)) % 3;
         selected_ = 0;
         selected_id_.clear();
         if (detail_) close_detail();
@@ -317,6 +319,8 @@ void NodesScreen::open_detail() {
     view::widgets::style_list_scrollbar(detail_, colors);
 
     detail_heading_ = lv_label_create(detail_);
+    lv_obj_set_width(detail_heading_, lv_pct(100));
+    lv_label_set_long_mode(detail_heading_, LV_LABEL_LONG_WRAP);
     lv_obj_set_style_text_font(detail_heading_, title_font, 0);
     lv_obj_set_style_text_color(detail_heading_, colors.primary, 0);
     for (const char *key : {"ID", "Signal", "Last heard", "Channel busy", "TX airtime", "Route", "Battery",
@@ -334,6 +338,9 @@ void NodesScreen::open_detail() {
         lv_obj_set_style_text_color(k, colors.text_disabled, 0);
         lv_obj_set_width(k, 78);
         auto *v = lv_label_create(row);
+        lv_obj_set_width(v, 0);
+        lv_obj_set_flex_grow(v, 1);
+        lv_label_set_long_mode(v, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_font(v, font, 0);
         lv_obj_set_style_text_color(v, colors.text, 0);
         detail_fields_[key] = v;

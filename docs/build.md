@@ -98,6 +98,10 @@ cmake --build build/darwin-arm64 --config Debug
 ctest --test-dir build/darwin-arm64 -C Debug --output-on-failure
 ```
 
+`mesh_ui_checkup` checks layout, list wrapping, overlays, editors, notifications,
+QR, header, search and Unicode at 320×170 in both themes. It uses synthetic data
+and no hardware; see [the review record](ui-checkup.md).
+
 `mesh_maintenance_regressions` runs on desktop and Linux device-target builds
 with a headless LVGL display, controlled clocks and synthetic state. It opens no
 radio socket, framebuffer or camera and is excluded from the installer.

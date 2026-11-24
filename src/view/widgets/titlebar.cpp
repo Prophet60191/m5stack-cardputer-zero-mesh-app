@@ -79,6 +79,12 @@ void TitleBar::build() {
     reactive::bind_theme(region_label_, view_model_.dark_mode_subject(), reactive::ThemeRole::Text);
 
     nodes_label_ = lv_label_create(left);
+    // Radio/region and unread count retain their space; shorten the node caption
+    // when a long region and a large badge would otherwise overlap the battery.
+    lv_obj_set_width(nodes_label_, 0);
+    lv_obj_set_flex_grow(nodes_label_, 1);
+    lv_obj_set_height(nodes_label_, lv_font_get_line_height(text_font));
+    lv_label_set_long_mode(nodes_label_, LV_LABEL_LONG_DOT);
     lv_obj_set_style_text_font(nodes_label_, text_font, 0);
     reactive::bind_theme(nodes_label_, view_model_.dark_mode_subject(), reactive::ThemeRole::Text);
 

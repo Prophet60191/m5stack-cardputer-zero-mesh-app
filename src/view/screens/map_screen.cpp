@@ -141,6 +141,9 @@ void MapScreen::rebuild() {
         lv_obj_set_style_text_font(label, font, 0);
         lv_obj_set_style_text_color(label, colors.text, 0);
         lv_obj_set_pos(label, x + 7, y - 7);
+        lv_obj_set_width(label, std::min(100, view::kScreenWidth - 6 - (x + 7)));
+        lv_obj_set_height(label, lv_font_get_line_height(font));
+        lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
     }
 
     // You, at the centre.

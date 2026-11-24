@@ -1,6 +1,6 @@
 # Nodes Menu
 
-> For Mesh **0.1.19 (release candidate)** · Updated **2026-11-23** · [Guide index](README.md)
+> For Mesh **0.1.20 (release candidate)** · Updated **2026-11-24** · [Guide index](README.md)
 
 The **Nodes** screen is your live directory of every Meshtastic radio your device has heard on the mesh (up to 256 nodes), with your own radio always anchored at the top as **`(you)`**.
 
@@ -49,6 +49,9 @@ The list refreshes when a nearby node sends a message, position, or status updat
 - If you select **Favorites** or **Active** and nothing matches, you'll see: `No nodes match this filter.` *(Your own `(you)` entry remains visible in every filter when your radio is running.)*
 
 ---
+
+The list wraps at both ends. **Shift-Tab** cycles filters in reverse. Long names
+shorten in the list; open Details to read the full name and scroll its fields.
 
 ## Filtering the List (`Tab`)
 
