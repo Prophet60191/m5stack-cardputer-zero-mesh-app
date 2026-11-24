@@ -736,3 +736,19 @@ with independent hardware notes/private backups preserved.
 - Final isolated arm64 gate passes four CTest suites and all 175 backend tests;
   host ASan/UBSan checks pass. Manual/reference and current source copies are
   refreshed. No RF/phone/GPS retest, fresh-image test or public submission.
+
+- Final device-font/cancellation follow-up: source 5776364 supersedes
+  intermediate same-version candidates. Help rows/footer follow actual font
+  metrics, the typing box fits Noto text, previews stay one line, and cancelling
+  the recipient picker restores New message instead of retargeting Enter.
+- Final installer SHA-256: f7dc4d0ad77173603959f9dd612a1bf877449edbb7ba9c50df200b3057414da7; 7,869,474 bytes. Repeated
+  isolated arm64/package/backend gates and normal-user device/font/startup checks
+  pass; 259 installed files and original messages/settings remain verified.
+
+- Actual device-font and cancellation checks close on source 5776364,
+  superseding intermediate same-version candidates: Help/composer text fits,
+  previews remain one line and cancelling recipients restores New message.
+- Final installer SHA-256 f7dc4d0ad77173603959f9dd612a1bf877449edbb7ba9c50df200b3057414da7 (7,869,474 bytes).
+  Matching arm64 package/upgrade/backend checks, installed-file verification,
+  actual-font replay and normal-user startup pass. Radio stayed Off, ADB On;
+  original messages, threads, preferences and saved settings remain unchanged.

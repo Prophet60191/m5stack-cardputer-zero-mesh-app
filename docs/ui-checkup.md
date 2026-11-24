@@ -48,11 +48,14 @@ Mesh 0.1.20 is installed; the earlier 0.1.19 RF qualification remains separate.
 
 `mesh_ui_checkup` uses real LVGL at 320×170, synthetic state, ordinary-user
 execution and a fake command sink. It covers the above layout, navigation,
-validation, quote, toast, QR/header, Map, search and Unicode cases in both themes.
+validation, quote, toast, QR/header, Map, search, Unicode, Help/composer font fit and recipient cancellation
+cases in both themes.
 It opens no hardware or network connection. It is excluded from installation.
 Optional screenshots: `mesh_ui_checkup all /absolute/output/directory`.
-The focused checks reproduce nine independent failures against pre-fix source;
-Unicode boundaries have additional direct checks. Raw logs/screenshots stay in
+The first focused checks reproduce nine independent failures against pre-fix
+source; recipient cancellation has a separate before/after regression. Actual
+device-font probes expose the two clipping issues missed by host fallback fonts.
+Unicode/control-character boundaries have additional direct checks. Raw logs/screenshots stay in
 ignored build output, and contain only synthetic data.
 
 All five host CTest targets pass under ASan/UBSan, and the backend suite passes
@@ -63,12 +66,12 @@ limits remain as documented in [current status](current-status.md).
 
 ## Final package and device result
 
-- Exact runtime/package source: `e4bbf2665a586cc11e6f26544510dfaa9c35d0e6`.
-- Installer: `cardputerzero-mesh_0.1.20-rev1_arm64.deb`, 7,867,278 bytes;
-  SHA-256 `6b81a63a0edce840f4c3b3ed925bd7b3be9b061812b75e463bd5ad8821677a43`.
-- [Source CI run 45495397890](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45495397890)
-  passes both jobs, including native runtime/source rebuild and minimal fresh
-  Debian container checks. This is separate from fresh-image physical hardware.
+- Exact runtime/package source: `5776364d99e2dae9b2565bd4cef452939a783e3a`.
+- Installer: `cardputerzero-mesh_0.1.20-rev1_arm64.deb`, 7,869,474 bytes;
+  SHA-256 `f7dc4d0ad77173603959f9dd612a1bf877449edbb7ba9c50df200b3057414da7`.
+- [Source CI run 45500604820](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45500604820)
+  tracks native runtime/source rebuild, regressions and minimal fresh Debian
+  container checks. This is separate from fresh-image physical hardware.
 - Matching Debian 13 arm64 isolated package/upgrade/firewall checks pass, including
   all four device-target CTest suites (UI setup, checkup, maintenance and real
   evdev reader) and all 175 backend tests. Tests do not open hardware or send RF.
@@ -76,7 +79,7 @@ limits remain as documented in [current status](current-status.md).
   Consistent private backups and the qualified previous installer remain retained.
   All 27 original messages, three threads/preferences and saved app/radio/profile
   files are unchanged after installation and after the real UI check.
-- The focused headless checkup also passes on Lockon as its normal user, using
+- The focused headless checkup also passes on the device as its normal user, using
   the installed Noto CJK fonts; no physical display/input/radio is opened by that helper.
 - A normal-user installed UI launch stays healthy for 15 seconds. Actual full
   framebuffer capture shows the home carousel and intact header text/percentage,
@@ -104,7 +107,8 @@ Store/upstream submission or renewed GPS/SIM/fresh-card work is authorized here.
 
 Check total title/body/footer geometry at physical resolution, including long
 names and maximum counters. DOT mode needs an explicit caption height for a
-one-line result. Preserve rejected form values, distinguish a visible composer
+one-line result. Preserve rejected form values, restore the underlying list selection when a picker closes,
+measure actual platform fonts, distinguish a visible composer
 from merely allocated widgets, keep external text literal, and verify wrap-around
 navigation independently from chronological message navigation. Keep actual-device
 observations separate from headless screenshots and software QR decoding.

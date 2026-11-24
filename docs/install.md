@@ -12,7 +12,7 @@ release or Store listing. Older published candidates do not include this new
 dependency arrangement. Check [current status](current-status.md) and
 [current UI qualification](ui-checkup.md) before choosing a file.
 
-The source-correlated candidate build is [CI run 45495397890](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45495397890),
+The source-correlated candidate build is [CI run 45500604820](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45500604820),
 artifact **cardputerzero-mesh-debian13-arm64**. Require a successful run before
 using its output. CI artifacts and the exact locally built, installed package
 have separate hashes; see [the device record](ui-checkup.md#final-package-and-device-result)
@@ -21,7 +21,7 @@ remains evidence for its separately qualified RF behavior. Signed-in GitHub user
 that artifact in a browser. With the optional GitHub CLI on your computer:
 
 ```sh
-gh run download 45495397890 \
+gh run download 45500604820 \
   --repo Prophet60191/m5stack-cardputer-zero-mesh-app \
   --name cardputerzero-mesh-debian13-arm64 --dir mesh-0.1.20
 cd mesh-0.1.20

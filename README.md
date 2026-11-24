@@ -141,7 +141,7 @@ They cover obtaining/verifying the candidate, transferring it, first launch,
 upgrades, private backups, rollback, troubleshooting and removal.
 
 0.1.20 is a **candidate**, not a public release or Store listing. Its
-[source CI run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45495397890)
+[source CI run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45500604820)
 and exact installed package are distinguished in the installation guide and
 [UI qualification record](docs/ui-checkup.md). Older published
 candidates use the earlier dependency arrangement; do not mix their instructions.
