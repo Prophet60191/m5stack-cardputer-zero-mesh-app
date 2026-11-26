@@ -278,6 +278,10 @@ Radio Off if the backup is incompatible or its settings are uncertain.
 
 ## Recovery
 
+If the Mesh icon appears but its window won’t open, [check the app’s runtime
+libraries](https://prophet60191.github.io/m5stack-cardputer-zero-app-guide/docs/device-app-troubleshooting.html#if-the-executable-is-there-check-what-linux-can-load) first. If the window opens
+but Radio won’t start, use the Mesh service checks below instead.
+
 | Symptom | Action |
 |---|---|
 | First launch is still preparing | Allow the bounded setup to complete; inspect the user journal. Do not start a second manual pip install. |
