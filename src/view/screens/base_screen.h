@@ -47,6 +47,9 @@ public:
 
 protected:
     virtual void build_content(lv_obj_t* content) = 0;
+    // A full-screen home widget owns its chrome; all other screens keep the
+    // existing Mesh title bar, device-status timer and content layout.
+    virtual bool owns_home_chrome() const { return false; }
 
     viewmodel::BaseViewModel& view_model();
     const viewmodel::BaseViewModel &view_model() const;

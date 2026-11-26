@@ -5,6 +5,7 @@
 #pragma once
 
 #include "base_screen.h"
+#include "home_menu.h"
 
 namespace screen {
 
@@ -14,18 +15,23 @@ namespace screen {
 class MenuScreen : public BaseScreen {
 public:
     MenuScreen(viewmodel::BaseViewModel& view_model, app::AssetManager& assets);
+    ~MenuScreen() override;
 
 private:
-    void build_content(lv_obj_t* content) override;
+    bool owns_home_chrome() const override { return true; }
+    void build_content(lv_obj_t* root) override;
     void update(bool animate);
-    void animate_in(int direction);   // -1 = came from the left, +1 = from the right
+    void refresh_battery();
+    void refresh_mesh_status();
     static void on_change(lv_observer_t* observer, lv_subject_t* subject);
+    static void on_battery_tick(lv_timer_t* timer);
 
-    lv_obj_t* center_ = nullptr;   // the sliding icon+label group
-    lv_obj_t* icon_ = nullptr;
-    lv_obj_t* label_ = nullptr;
-    lv_obj_t* prev_icon_ = nullptr;   // faint neighbour at the left edge
-    lv_obj_t* next_icon_ = nullptr;   // faint neighbour at the right edge
+    cp0_ui::HomeMenu menu_;
+    lv_obj_t* radio_ = nullptr;
+    lv_obj_t* region_ = nullptr;
+    lv_obj_t* nodes_ = nullptr;
+    lv_obj_t* unread_ = nullptr;
+    lv_timer_t* battery_timer_ = nullptr;
     int last_index_ = -1;
 };
 

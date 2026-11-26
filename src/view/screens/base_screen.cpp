@@ -33,6 +33,10 @@ void BaseScreen::init() {
     lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_set_size(root_, view::kScreenWidth, view::kScreenHeight);
+    if (owns_home_chrome()) {
+        build_content(root_);
+        return;
+    }
     reactive::bind_theme(root_, view_model_.dark_mode_subject(), reactive::ThemeRole::Screen);
 
     title_bar_ = std::make_unique<view::widgets::TitleBar>(root_, view_model_, assets_);
