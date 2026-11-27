@@ -708,7 +708,26 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
 
     def _connect_mesh(self) -> None:
         from pubsub import pub
-        self._iface = observing_interface(self._radio_frame, hostname="127.0.0.1", portNumber=self._port, timeout=8)
+        # SX1262 readiness precedes the daemon's TCP listener on some cold
+        # starts. Retry only a refused local connection, not failed handshakes
+        # or configuration errors. The pinned client closes failed constructors.
+        deadline = time.monotonic() + 10
+        waiting_logged = False
+        while True:
+            if self._stop.is_set():
+                raise RuntimeError("radio startup cancelled")
+            if self._daemon is None or self._daemon.poll() is not None:
+                raise RuntimeError("radio daemon stopped before API readiness")
+            try:
+                self._iface = observing_interface(self._radio_frame, hostname="127.0.0.1", portNumber=self._port, timeout=8)
+                break
+            except ConnectionRefusedError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("radio API did not become ready in time")
+                if not waiting_logged:
+                    print("Waiting for local radio API listener", file=sys.stderr, flush=True)
+                    waiting_logged = True
+                self._stop.wait(0.1)
         pub.subscribe(self._on_receive_text, "meshtastic.receive.text")
         pub.subscribe(self._on_receive_packet, "meshtastic.receive")
         pub.subscribe(self._on_receive_position, "meshtastic.receive.position")

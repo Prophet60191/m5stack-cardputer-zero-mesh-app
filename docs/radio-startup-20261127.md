@@ -39,3 +39,16 @@ Restarting the device remains the straightforward recovery when switching Caps
 and the overlay's ownership/driver support is unknown. Runtime release observed
 on this BSP is not a universal promise for older kernels. Keep the correct Cap
 and antenna attached before radio power; close the other hardware owner first.
+
+## Additional cold-start race found during qualification
+
+With full Cap power-off between starts, the third 0.1.24 intermediate start
+failed with connection refused: SX1262 initialized before the daemon bound its
+local TCP API. The supervisor had treated radio initialization as complete API
+readiness. It now waits up to ten seconds for that listener, retrying only a
+refused connection to the fixed loopback endpoint. Daemon exit and service stop
+abort the wait; handshake/configuration failures are not replayed. The pinned
+Meshtastic client closes failed constructors, and callbacks are subscribed only
+after the one successful connection. Six tests cover readiness, one fixed
+deadline, daemon death, stop/cancel and non-retryable failures. The intermediate
+installed artifact is superseded by final qualification below.

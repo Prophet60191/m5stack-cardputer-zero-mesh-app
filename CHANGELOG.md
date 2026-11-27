@@ -803,3 +803,4 @@ with independent hardware notes/private backups preserved.
 - Identify and administratively clear a stale NFC SPI-CS2 ownership conflict using supported BSP runtime release.
 - Add one bounded, leased power-cycle retry for an unresponsive Cap I2C identity; preserve switch restoration and all existing safety gates.
 - Add seven fault/cleanup tests. Exact package and installed cycle/soak results are in docs/radio-startup-20261127.md.
+- Cold-power qualification also exposed an API-listener readiness race. Retry only refused loopback connections within a fixed ten-second deadline, abort on daemon death/stop and retain handshake failures; add six tests.
