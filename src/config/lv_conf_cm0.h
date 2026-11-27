@@ -45,7 +45,14 @@
 
 #define LV_USE_ASSERT_NULL                 1
 #define LV_USE_ASSERT_MALLOC               1
+/* LVGL walks the object tree for every checked object API call. Keep this
+ * development diagnostic in Debug builds, not the shipped Release UI.
+ * Fast NULL/allocation assertions above remain enabled in both builds. */
+#ifdef NDEBUG
+#define LV_USE_ASSERT_OBJ                  0
+#else
 #define LV_USE_ASSERT_OBJ                  1
+#endif
 
 /*====================
    DRM/KMS

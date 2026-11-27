@@ -28,6 +28,7 @@ public:
 
 private:
     enum class Mode { List, Thread };
+    enum class Tab { Channels, DirectMessages };
     enum class MenuKind { None, Thread, Message, Canned, Channel, PublicLocation, DeleteConfirm };
 
     void build_content(lv_obj_t* content) override;
@@ -35,8 +36,12 @@ private:
     void rebuild_list();
     void rebuild_thread();
     void select_message(int index);
+    void select_thread_message(int global_index);
     void select_conversation(int index);
-    void open_thread(const std::string& key, const std::string& peer_id, const std::string& peer_name);
+    void open_thread(const std::string& key, const std::string& peer_id, const std::string& peer_name,
+                     bool choose_channel = true);
+    int list_offset() const { return search_.empty() ? 1 : 0; }
+    void update_tabs();
     void open_picker();
     void close_picker();
     void rebuild_picker();
@@ -76,6 +81,9 @@ private:
 
     lv_obj_t* body_ = nullptr;     // list or thread renders here
     lv_obj_t* context_ = nullptr;  // fixed channel/peer header, outside scrolling messages
+    lv_obj_t* tabs_ = nullptr;
+    lv_obj_t* channel_tab_ = nullptr;
+    lv_obj_t* direct_tab_ = nullptr;
     lv_obj_t* bar_ = nullptr;      // bottom compose bar
     lv_obj_t* hint_ = nullptr;
     lv_obj_t* input_ = nullptr;
@@ -84,11 +92,16 @@ private:
     lv_obj_t* overlay_ = nullptr;  // read-only info/details overlay
 
     Mode mode_ = Mode::List;
+    Tab tab_ = Tab::Channels;
+    bool from_search_ = false;
     std::string thread_key_;       // "ch" or "dm:<id>"
     std::string peer_id_;
     std::string peer_name_;
     int selected_ = 0;             // selection in the list / picker
+    int list_start_ = 0;
     int msg_sel_ = -1;             // thread: -1 = compose row, 0..n-1 = a bubble
+    int thread_start_ = -1;
+    int thread_total_ = 0;
     std::string selected_message_;
     bool composing_ = false;
     bool subscribing_ = true;
@@ -111,7 +124,7 @@ private:
     std::vector<int> menu_actions_;
 
     struct Conversation {
-        std::string key, peer, name;
+        std::string key, peer, name, message_key;
     };
     std::vector<Conversation> conversations_;
     std::vector<lv_obj_t *> conversation_rows_;

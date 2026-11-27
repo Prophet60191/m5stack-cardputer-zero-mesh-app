@@ -34,6 +34,8 @@ test -f /usr/lib/cardputerzero-mesh/runtime/requirements.lock
 test -f /usr/lib/cardputerzero-mesh/runtime_prepare.py
 test ! -e /usr/bin/mesh-launch
 test ! -e /usr/lib/systemd/user/cardputerzero-mesh-supervisor.service
+test ! -e /usr/bin/mesh_messages_load_benchmark
+test ! -e /usr/bin/mesh_messages_regressions
 test ! -e /usr/bin/mesh_benchmarks
 test ! -e /usr/bin/mesh_channel_setup_regressions
 test ! -e /usr/bin/mesh_maintenance_regressions

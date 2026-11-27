@@ -767,3 +767,10 @@ with independent hardware notes/private backups preserved.
 - Updated handoff/work-board records and current source mirror only. No device
   operation, configuration change, new package, public release or submission.
   Deferred RF/physical, GPS dongle, SIM, fresh-card and video work stays explicit.
+
+
+## 2026-11-26 — Messages tabs, combined search and bounded loading
+
+- Preserve the existing shared home carousel and add Channels / Direct Messages tabs, strict recent-activity ordering and one newest-first search over individual messages from both lists. Search opens the matching bubble; Esc returns to its results without a sending-channel prompt.
+- Bound rendered list and chat windows to 50 rows while retaining all saved/searchable history, stable identities, drafts and safety checks. Update help, user-guide sources and package/build instructions.
+- Investigate reported launch and Messages delay; record measured warm startup separately from long-history rendering and qualify the change with synthetic history and actual installed-font checks. Final qualification is in docs/messages-navigation.md.

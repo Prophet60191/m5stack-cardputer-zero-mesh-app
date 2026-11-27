@@ -21,6 +21,7 @@ namespace {
 
 constexpr int kBarHeight = 22;
 constexpr int kContextHeight = 20;
+constexpr int kThreadPageSize = 50;
 constexpr const char* kDot = "   \xC2\xB7   ";
 
 void fmt(const char* pattern, char* buf, std::size_t n, long t) {
@@ -99,6 +100,24 @@ void MessagesScreen::build_content(lv_obj_t* content) {
     lv_label_set_long_mode(context_, LV_LABEL_LONG_DOT);
     lv_obj_align(context_, LV_ALIGN_TOP_LEFT, 4, 0);
     lv_obj_add_flag(context_, LV_OBJ_FLAG_HIDDEN);
+
+    tabs_ = lv_obj_create(content);
+    lv_obj_remove_style_all(tabs_);
+    lv_obj_set_size(tabs_, lv_pct(100), kContextHeight);
+    lv_obj_clear_flag(tabs_, LV_OBJ_FLAG_SCROLLABLE);
+    channel_tab_ = lv_label_create(tabs_);
+    direct_tab_ = lv_label_create(tabs_);
+    for (auto* label : {channel_tab_, direct_tab_}) {
+        lv_obj_set_style_text_font(label, context_font ? context_font : font, 0);
+        lv_obj_set_size(label, 152, kContextHeight);
+        lv_obj_set_style_pad_top(label, 2, 0);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
+    }
+    lv_label_set_text(channel_tab_, "Channels");
+    lv_label_set_text(direct_tab_, "Direct Messages");
+    lv_obj_align(channel_tab_, LV_ALIGN_TOP_LEFT, 4, 0);
+    lv_obj_align(direct_tab_, LV_ALIGN_TOP_RIGHT, -4, 0);
 
     bar_ = lv_obj_create(content);
     lv_obj_remove_style_all(bar_);
@@ -183,12 +202,18 @@ void MessagesScreen::update_hint() {
     const bool filtered = !thread && !search_.empty();
     if (thread || filtered) lv_obj_remove_flag(context_, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(context_, LV_OBJ_FLAG_HIDDEN);
-    const int top = (thread || filtered) ? kContextHeight : 0;
+    if (thread || filtered) lv_obj_add_flag(tabs_, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_remove_flag(tabs_, LV_OBJ_FLAG_HIDDEN);
+    update_tabs();
+    const int top = kContextHeight;
     lv_obj_set_height(body_, view::kScreenHeight - view::kTitleBarHeight - kBarHeight - top);
     lv_obj_align(body_, LV_ALIGN_TOP_MID, 0, top);
     if (mode_ == Mode::List) {
         lv_label_set_text(context_, filtered ? ("Search: " + search_).c_str() : "");
-        lv_label_set_text(hint_, "/: Search");
+        lv_label_set_text(hint_, filtered ? "Enter: open result   /: Search" : "Tab: switch   /: Search");
+        const int total = list_offset() + static_cast<int>(conversations_.size());
+        if (total > kThreadPageSize)
+            lv_label_set_text(hint_, (std::to_string(selected_ + 1) + "/" + std::to_string(total) + "   /: Search").c_str());
     } else {
         const int active = send_channel();
         const std::string who = viewmodel::is_group_thread(thread_key_) ? group_name(thread_key_)
@@ -198,6 +223,18 @@ void MessagesScreen::update_hint() {
             ? "Enter: actions  o: options"
             : "Enter: write  q: quick  o: options";
         lv_label_set_text(hint_, keys);
+    }
+}
+
+void MessagesScreen::update_tabs() {
+    if (!channel_tab_ || !direct_tab_) return;
+    const auto colors = view::palette(view_model().is_dark_mode());
+    for (auto* label : {channel_tab_, direct_tab_}) {
+        const bool active = (label == channel_tab_) == (tab_ == Tab::Channels);
+        lv_obj_set_style_text_color(label, active ? colors.primary : colors.text_disabled, 0);
+        lv_obj_set_style_border_side(label, LV_BORDER_SIDE_BOTTOM, 0);
+        lv_obj_set_style_border_width(label, active ? 2 : 0, 0);
+        lv_obj_set_style_border_color(label, colors.primary, 0);
     }
 }
 
@@ -250,9 +287,9 @@ void MessagesScreen::rebuild() {
 // ---------------------------------------------------------------------------
 void MessagesScreen::rebuild_list() {
     update_hint();
-    const std::string selected_key = selected_ > 0 && selected_ <= static_cast<int>(conversations_.size())
-                                         ? conversations_[selected_ - 1].key
-                                         : "";
+    const int old_index = selected_ - list_offset();
+    const Conversation selected_chat = old_index >= 0 && old_index < static_cast<int>(conversations_.size())
+        ? conversations_[old_index] : Conversation{};
     conversation_rows_.clear();
     thread_rows_.clear();
     thread_bubbles_.clear();
@@ -265,20 +302,30 @@ void MessagesScreen::rebuild_list() {
     const lv_font_t* sub_font = assets().load_standard_font(11, app::StandardFontWeight::Regular);
     if (!sub_font) sub_font = &lv_font_montserrat_12;
 
-    auto rows_data = view_model().conversation_rows(search_);
+    std::vector<viewmodel::ConversationRow> rows_data;
     conversations_.clear();
-    conversations_.reserve(rows_data.size());
-    for (auto &row : rows_data)
-        conversations_.push_back({std::move(row.key), std::move(row.peer), std::move(row.name)});
-    if (!selected_key.empty()) {
-        const auto selected = std::find_if(conversations_.begin(), conversations_.end(),
-                                           [&](const auto &row) { return row.key == selected_key; });
-        if (selected != conversations_.end())
-            selected_ = static_cast<int>(selected - conversations_.begin()) + 1;
+    if (!search_.empty()) {
+        for (auto& result : view_model().search_messages(search_)) {
+            const std::string name = (viewmodel::is_group_thread(result.key) ? "Channel: " : "DM: ") + result.name;
+            rows_data.push_back({result.key, result.peer, name, result.text, result.time});
+            conversations_.push_back({result.key, result.peer, name, result.message_key});
+        }
+    } else {
+        for (auto& row : view_model().conversation_rows()) {
+            if (viewmodel::is_group_thread(row.key) != (tab_ == Tab::Channels)) continue;
+            conversations_.push_back({row.key, row.peer, row.name, ""});
+            rows_data.push_back(std::move(row));
+        }
     }
-    const int rows = 1 + static_cast<int>(conversations_.size()); // +1 for "New message"
-    if (selected_ < 0) selected_ = 0;
-    if (selected_ >= rows) selected_ = rows - 1;
+    if (!selected_chat.key.empty()) {
+        const auto selected = std::find_if(conversations_.begin(), conversations_.end(), [&](const auto& row) {
+            return row.key == selected_chat.key && row.message_key == selected_chat.message_key;
+        });
+        if (selected != conversations_.end()) selected_ = static_cast<int>(selected - conversations_.begin()) + list_offset();
+    }
+    const int rows = list_offset() + static_cast<int>(conversations_.size());
+    selected_ = rows == 0 ? 0 : std::clamp(selected_, 0, rows - 1);
+    list_start_ = (selected_ / kThreadPageSize) * kThreadPageSize;
 
     lv_obj_t* sel_row = nullptr;
     const auto make_row = [&](int i) -> lv_obj_t* {
@@ -298,8 +345,8 @@ void MessagesScreen::rebuild_list() {
         return row;
     };
 
-    // "New message"
-    {
+    // Search is one flat message-result list, without a New message pseudo-result.
+    if (search_.empty() && list_start_ == 0) {
         auto* row = make_row(0);
         auto* label = lv_label_create(row);
         lv_label_set_text(label, "+  New message");
@@ -309,14 +356,16 @@ void MessagesScreen::rebuild_list() {
 
     if (!search_.empty() && conversations_.empty()) {
         auto *empty = lv_label_create(body_);
-        lv_label_set_text(empty, "No chats match this search.");
+        lv_label_set_text(empty, "No messages match this search.");
         lv_obj_set_width(empty, lv_pct(100));
         lv_obj_set_style_text_font(empty, sub_font, 0);
         lv_obj_set_style_text_color(empty, colors.text_disabled, 0);
     }
 
     for (int i = 0; i < static_cast<int>(conversations_.size()); ++i) {
-        auto* row = make_row(i + 1);
+        const int logical_index = i + list_offset();
+        if (logical_index < list_start_ || logical_index >= list_start_ + kThreadPageSize) continue;
+        auto* row = make_row(i + list_offset());
         auto* name = lv_label_create(row);
         lv_label_set_text(name, conversations_[i].name.c_str());
         lv_obj_set_width(name, lv_pct(100));
@@ -338,6 +387,7 @@ void MessagesScreen::rebuild_list() {
         lv_obj_set_style_text_color(sub, colors.text_disabled, 0);
     }
 
+    update_hint();
     lv_obj_update_layout(body_);
     if (sel_row) lv_obj_scroll_to_view(sel_row, LV_ANIM_OFF);
 }
@@ -365,18 +415,26 @@ void MessagesScreen::rebuild_thread() {
     if (!selected_key.empty())
         msg_sel_ = -1;
 
-    // Clamp the selection to this thread's message count.
+    // Locate selection by identity, then build only one page of bubbles. Full
+    // history stays in the model/search; entering an old result never builds
+    // thousands of LVGL objects just to scroll most of them off screen.
     int count = 0;
+    int selected_global = -1;
     for (const auto& m : view_model().messages()) {
         if (thread_of(m) == thread_key_) {
             const std::string key = m.id.empty() ? "" : m.from + "\n" + m.id;
             if (!selected_key.empty() && key == selected_key)
-                msg_sel_ = count;
+                selected_global = count;
             ++count;
         }
     }
-    if (msg_sel_ >= count)
-        msg_sel_ = -1;
+    thread_total_ = count;
+    const int last_start = std::max(0, count - kThreadPageSize);
+    if (thread_start_ < 0 || (at_bottom_ && selected_key.empty())) thread_start_ = last_start;
+    thread_start_ = std::clamp(thread_start_, 0, last_start);
+    if (selected_global >= 0 && (selected_global < thread_start_ || selected_global >= thread_start_ + kThreadPageSize))
+        thread_start_ = std::clamp(selected_global - kThreadPageSize / 2, 0, last_start);
+    msg_sel_ = selected_global < 0 ? -1 : selected_global - thread_start_;
     if (msg_sel_ < 0)
         selected_message_.clear();
     update_hint();
@@ -384,8 +442,17 @@ void MessagesScreen::rebuild_thread() {
     bool any = false;
     long prev_day = 0;
     int midx = -1;
+    int global_index = -1;
+    if (thread_start_ > 0) {
+        auto* older = lv_label_create(body_);
+        lv_label_set_text_fmt(older, "%d older messages (Up)", thread_start_);
+        lv_obj_set_style_text_font(older, small_font, 0);
+        lv_obj_set_style_text_color(older, colors.text_disabled, 0);
+    }
     for (const auto& m : view_model().messages()) {
         if (thread_of(m) != thread_key_) continue;
+        ++global_index;
+        if (global_index < thread_start_ || global_index >= thread_start_ + kThreadPageSize) continue;
         any = true;
         ++midx;
         const bool selected = (midx == msg_sel_);
@@ -497,6 +564,13 @@ void MessagesScreen::rebuild_thread() {
         }
     }
 
+    const int newer_count = thread_total_ - thread_start_ - static_cast<int>(thread_rows_.size());
+    if (newer_count > 0) {
+        auto* newer = lv_label_create(body_);
+        lv_label_set_text_fmt(newer, "%d newer messages (Down)", newer_count);
+        lv_obj_set_style_text_font(newer, small_font, 0);
+        lv_obj_set_style_text_color(newer, colors.text_disabled, 0);
+    }
     if (!any) {
         auto* empty = lv_label_create(body_);
         const std::string saved = view_model().conversation_draft(thread_key_);
@@ -521,9 +595,15 @@ void MessagesScreen::rebuild_thread() {
 }
 
 void MessagesScreen::select_conversation(int index) {
-    view::widgets::select_list_row(conversation_rows_, selected_, index,
+    if (index < list_start_ || index >= list_start_ + static_cast<int>(conversation_rows_.size())) {
+        selected_ = index;
+        rebuild_list();
+        return;
+    }
+    view::widgets::select_list_row(conversation_rows_, selected_ - list_start_, index - list_start_,
                                    view::palette(view_model().is_dark_mode()));
     selected_ = index;
+    update_hint();
 }
 
 void MessagesScreen::select_message(int index) {
@@ -547,18 +627,33 @@ void MessagesScreen::select_message(int index) {
         lv_obj_scroll_to_view(thread_rows_[index], LV_ANIM_OFF);
 }
 
+void MessagesScreen::select_thread_message(int global_index) {
+    int i = 0;
+    for (const auto& message : view_model().messages()) {
+        if (thread_of(message) != thread_key_) continue;
+        if (i++ != global_index) continue;
+        selected_message_ = message.from + "\n" + message.id;
+        msg_sel_ = 0;
+        at_bottom_ = false;
+        rebuild_thread();
+        return;
+    }
+}
+
 void MessagesScreen::open_thread(const std::string& key, const std::string& peer_id,
-                                 const std::string& peer_name) {
+                                 const std::string& peer_name, bool choose_channel) {
     mode_ = Mode::Thread;
+    if (!from_search_) tab_ = viewmodel::is_group_thread(key) ? Tab::Channels : Tab::DirectMessages;
     thread_key_ = key;
     view_model().remember_conversation(key);
     peer_id_ = peer_id;
     peer_name_ = peer_name.empty() ? peer_name_for(peer_id) : peer_name;
     at_bottom_ = true;
+    thread_start_ = -1;
     msg_sel_ = -1;
     dm_channel_ = -1;
     rebuild();
-    if (!viewmodel::is_group_thread(thread_key_)) open_channel_picker();
+    if (choose_channel && !viewmodel::is_group_thread(thread_key_)) open_channel_picker();
 }
 
 // ---------------------------------------------------------------------------
@@ -671,8 +766,8 @@ void MessagesScreen::on_up() {
         return;
     }
     if (mode_ == Mode::List) {
-        const int rows = 1 + static_cast<int>(conversations_.size());
-        select_conversation((selected_ + rows - 1) % rows);
+        const int rows = list_offset() + static_cast<int>(conversations_.size());
+        if (rows > 0) select_conversation((selected_ + rows - 1) % rows);
         return;
     }
     // Thread: dive from the compose row up into older messages.
@@ -682,6 +777,8 @@ void MessagesScreen::on_up() {
         select_message(count - 1);
     else if (msg_sel_ > 0)
         select_message(msg_sel_ - 1);
+    else if (thread_start_ > 0)
+        select_thread_message(thread_start_ - 1);
     at_bottom_ = false;
 }
 
@@ -701,8 +798,8 @@ void MessagesScreen::on_down() {
         return;
     }
     if (mode_ == Mode::List) {
-        const int rows = 1 + static_cast<int>(conversations_.size());
-        select_conversation((selected_ + 1) % rows);
+        const int rows = list_offset() + static_cast<int>(conversations_.size());
+        if (rows > 0) select_conversation((selected_ + 1) % rows);
         return;
     }
     // Thread: come back toward the newest message, then to the compose row.
@@ -710,6 +807,8 @@ void MessagesScreen::on_down() {
     if (count == 0 || msg_sel_ < 0) return;
     if (msg_sel_ < count - 1)
         select_message(msg_sel_ + 1);
+    else if (thread_start_ + count < thread_total_)
+        select_thread_message(thread_start_ + count);
     else {
         select_message(-1);
         at_bottom_ = true;
@@ -737,15 +836,20 @@ void MessagesScreen::on_enter() {
         return;
     }
     if (mode_ == Mode::List) {
-        if (selected_ == 0) { open_picker(); return; }
-        const int i = selected_ - 1;
+        if (search_.empty() && selected_ == 0) { open_picker(); return; }
+        const int i = selected_ - list_offset();
         if (i >= 0 && i < static_cast<int>(conversations_.size())) {
-            if (viewmodel::is_group_thread(conversations_[i].key)) {
-                view_model().clear_dm_target();
-                open_thread(conversations_[i].key, "", "");
-            } else {
-                view_model().set_dm_target(conversations_[i].peer, conversations_[i].name);
-                open_thread(conversations_[i].key, conversations_[i].peer, conversations_[i].name);
+            // Copy the target: opening/rebuilding invalidates the list vectors.
+            const Conversation target = conversations_[i];
+            from_search_ = !search_.empty();
+            if (viewmodel::is_group_thread(target.key)) view_model().clear_dm_target();
+            else view_model().set_dm_target(target.peer, peer_name_for(target.peer));
+            open_thread(target.key, target.peer, peer_name_for(target.peer), !from_search_);
+            if (from_search_) {
+                selected_message_ = target.message_key;
+                msg_sel_ = 0;
+                at_bottom_ = false;
+                rebuild_thread();
             }
         }
         return;
@@ -764,16 +868,18 @@ bool MessagesScreen::on_back() {
     if (menu_) { close_menu(); return true; }
     if (composing_) { cancel_compose(); return true; }
     if (picker_) { close_picker(); return true; }
-    if (mode_ == Mode::List && !search_.empty()) { search_.clear(); rebuild_list(); return true; }
+    if (mode_ == Mode::List && !search_.empty()) {
+        search_.clear(); selected_ = 0; conversations_.clear(); rebuild_list(); return true;
+    }
     if (mode_ == Mode::Thread) {
-        if (msg_sel_ >= 0) {
+        if (msg_sel_ >= 0 && !from_search_) {
             select_message(-1);
             at_bottom_ = true;
             return true;
         }
         mode_ = Mode::List;
+        from_search_ = false;
         view_model().clear_dm_target();
-        selected_ = 0;
         rebuild();
         return true;
     }
@@ -782,9 +888,16 @@ bool MessagesScreen::on_back() {
 
 bool MessagesScreen::on_key(uint32_t key) {
     if (composing_ || overlay_ || menu_ || picker_) return false;
+    if (mode_ == Mode::List && search_.empty() && (key == LV_KEY_NEXT || key == LV_KEY_PREV)) {
+        tab_ = tab_ == Tab::Channels ? Tab::DirectMessages : Tab::Channels;
+        selected_ = 0;
+        conversations_.clear();
+        rebuild_list();
+        return true;
+    }
     if (mode_ == Mode::List && key == '/') {
         searching_ = composing_ = true;
-        lv_textarea_set_placeholder_text(input_, "Search chats");
+        lv_textarea_set_placeholder_text(input_, "Search all messages");
         lv_textarea_set_text(input_, search_.c_str());
         lv_obj_add_flag(hint_, LV_OBJ_FLAG_HIDDEN); lv_obj_remove_flag(input_, LV_OBJ_FLAG_HIDDEN);
         if (auto* g = lv_group_get_default()) { lv_group_add_obj(g, input_); lv_group_focus_obj(input_); }
@@ -820,7 +933,10 @@ void MessagesScreen::start_compose() {
 void MessagesScreen::commit_compose() {
     if (!input_) return;
     const std::string value = lv_textarea_get_text(input_);
-    if (searching_) { search_ = value; searching_ = composing_ = false; cancel_compose(); rebuild_list(); return; }
+    if (searching_) {
+        search_ = value; selected_ = 0; conversations_.clear();
+        searching_ = composing_ = false; cancel_compose(); rebuild_list(); return;
+    }
     const char* text = value.c_str();
     if (text && text[0] != '\0') {
         const std::string dest = (viewmodel::is_group_thread(thread_key_)) ? std::string() : peer_id_;

@@ -219,3 +219,9 @@ configuration, selects a local package and copies it with scp. It does not verif
 remote installation, stop the radio or install dependencies. Do not use it as a
 replacement for the documented checked package workflow or publish its outputs
 merely because the copy succeeded.
+
+`mesh_messages_regressions` exercises the two lists, combined message search,
+identity-safe result selection and bounded history rendering with 2,000 synthetic
+messages in both themes. `mesh_messages_load_benchmark` is an optional
+`MESH_BUILD_BENCHMARKS=ON` target for headless load timing with no socket or RF.
+Neither executable is installed by the Debian package.

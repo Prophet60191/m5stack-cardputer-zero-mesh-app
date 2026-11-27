@@ -7,7 +7,7 @@ Use the Cap LoRa-1262 and attach its antenna **before Radio On**.
 
 ## 1. Get the correct installer
 
-At this documentation update, 0.1.20 is a **source/package candidate**, not a public
+At this documentation update, 0.1.22 is a **source/package candidate**, not a public
 release or Store listing. Older published candidates do not include this new
 dependency arrangement. Check [current status](current-status.md) and
 [current UI qualification](ui-checkup.md) before choosing a file.
@@ -23,8 +23,8 @@ that artifact in a browser. With the optional GitHub CLI on your computer:
 ```sh
 gh run download 45500604820 \
   --repo Prophet60191/m5stack-cardputer-zero-mesh-app \
-  --name cardputerzero-mesh-debian13-arm64 --dir mesh-0.1.20
-cd mesh-0.1.20
+  --name cardputerzero-mesh-debian13-arm64 --dir mesh-0.1.22
+cd mesh-0.1.22
 sha256sum -c SHA256SUMS
 ```
 
@@ -35,7 +35,7 @@ Ordinary users need the `.deb`; developers/redistributors also need its paired
 source and license material. Actions artifacts expire; they are not permanent
 release hosting. A private draft requires maintainer access.
 
-The qualified installer is `cardputerzero-mesh_0.1.20-rev1_arm64.deb`:
+The qualified installer is `cardputerzero-mesh_0.1.22-rev1_arm64.deb`:
 
 ```text
 SHA-256: feb0579ef8517b3629d10c8ac6e098751e9c85c6c02727e0bccbdfd190057a61
@@ -70,7 +70,7 @@ Copy the `.deb` to the device using your usual download/transfer method. For SSH
 replace `YOUR_USER` and `YOUR_DEVICE` with your own working login and host:
 
 ```sh
-scp cardputerzero-mesh_0.1.20-rev1_arm64.deb YOUR_USER@YOUR_DEVICE:~/
+scp cardputerzero-mesh_0.1.22-rev1_arm64.deb YOUR_USER@YOUR_DEVICE:~/
 ```
 
 An SSH server, VPN or USB/ADB connection is not required by Mesh itself. The
@@ -109,10 +109,10 @@ physical qualification, not something the minimal Debian container proves.
 In a terminal on the Cardputer, from the directory containing the installer:
 
 ```sh
-sudo apt install ./cardputerzero-mesh_0.1.20-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.22-rev1_arm64.deb
 ```
 
-If this version is already installed, use `sudo apt install --reinstall ./cardputerzero-mesh_0.1.20-rev1_arm64.deb` to replace it with these verified bytes or repair package files. Normal install may otherwise leave a same-version package alone.
+If this version is already installed, use `sudo apt install --reinstall ./cardputerzero-mesh_0.1.22-rev1_arm64.deb` to replace it with these verified bytes or repair package files. Normal install may otherwise leave a same-version package alone.
 
 Keep `./` so APT uses the local file. APT installs missing declared Debian
 packages; refresh its indexes with `sudo apt update` if the configured image's
@@ -296,7 +296,7 @@ Radio Off if the backup is incompatible or its settings are uncertain.
 For missing/corrupt **package-owned** files, after Radio Off/close/backup:
 
 ```sh
-sudo apt install --reinstall ./cardputerzero-mesh_0.1.20-rev1_arm64.deb
+sudo apt install --reinstall ./cardputerzero-mesh_0.1.22-rev1_arm64.deb
 ```
 
 For a **user managed-cache** problem, first stop its service. If the app's data
@@ -348,7 +348,7 @@ with Developer → ADB enabled intentionally. Copy the verified package:
 
 ```sh
 adb devices
-adb push cardputerzero-mesh_0.1.20-rev1_arm64.deb /tmp/cardputerzero-mesh.deb
+adb push cardputerzero-mesh_0.1.22-rev1_arm64.deb /tmp/cardputerzero-mesh.deb
 adb shell sha256sum /tmp/cardputerzero-mesh.deb
 adb shell apt install /tmp/cardputerzero-mesh.deb
 ```

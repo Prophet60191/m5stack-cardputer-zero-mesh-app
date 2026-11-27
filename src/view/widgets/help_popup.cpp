@@ -31,9 +31,9 @@ constexpr std::array<HelpRow, 4> kMenuRows = {{
     {"HELP", "This help"},
 }};
 constexpr std::array<HelpRow, 5> kMessagesRows = {{
-    {"F / X", "Select message"},
+    {"Tab", "Channels / DMs"},
     {"Enter", "Write / open"},
-    {"q", "Quick message"},
+    {"/", "Search all messages"},
     {"o", "Thread options"},
     {"ESC", "Back"},
 }};

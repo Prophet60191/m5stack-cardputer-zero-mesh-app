@@ -4,137 +4,146 @@
  */
 #include "menu_screen.h"
 
-#include "asset_manager.h"
-#include "bindings.h"
-#include "theme.h"
+#include "device_status.h"
+#include "ui_const.h"
+
+#include <cstdio>
+#include <cstring>
 
 namespace screen {
 namespace {
 
 struct Entry {
     const char* icon;
-    const char* label;
+    const char* title;
+    const char* subtitle;
 };
 
 // Order must match the view-model's menu index (0=Messages .. 3=Settings).
-const Entry kEntries[4] = {
-    {LV_SYMBOL_ENVELOPE, "Messages"},
-    {LV_SYMBOL_WIFI,     "Nodes"},
-    {LV_SYMBOL_GPS,      "Map"},
-    {LV_SYMBOL_SETTINGS, "Settings"},
+constexpr Entry kEntries[] = {
+    {LV_SYMBOL_ENVELOPE, "Messages", "Read, write & manage messages"},
+    {LV_SYMBOL_WIFI,     "Nodes",    "Find and manage mesh nodes"},
+    {LV_SYMBOL_GPS,      "Map",      "View node locations"},
+    {LV_SYMBOL_SETTINGS, "Settings", "Radio, appearance & preferences"},
 };
 
-constexpr int kEntryCount = 4;
-constexpr int kSlidePx = 46;     // how far the new item slides in from
-constexpr uint32_t kSlideMs = 180;
+constexpr int kEntryCount = sizeof(kEntries) / sizeof(kEntries[0]);
 
-// LVGL animation exec callbacks (plain C function pointers).
-void anim_translate_x_cb(void* obj, int32_t value) {
-    lv_obj_set_style_translate_x(static_cast<lv_obj_t*>(obj), value, 0);
+cp0_ui::HomeMenuPalette menu_palette(bool dark_mode) {
+    using namespace view::color;
+    return dark_mode
+        ? cp0_ui::HomeMenuPalette{dark::kBody, dark::kAction, dark::kTextPrimary,
+                                dark::kPrimary, dark::kTextDisabled, dark::kBorder}
+        : cp0_ui::HomeMenuPalette{light::kBody, light::kAction, light::kTextPrimary,
+                                light::kSuccess, light::kTextDisabled, light::kBorder};
 }
 
-void anim_opa_cb(void* obj, int32_t value) {
-    lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value), 0);
+lv_obj_t* status_label(lv_obj_t* bar, int x, int width) {
+    auto* label = lv_label_create(bar);
+    lv_obj_set_pos(label, x, 7);
+    lv_obj_set_size(label, width, 13);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_10, 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+    return label;
 }
 
-}  // namespace
+} // namespace
 
 MenuScreen::MenuScreen(viewmodel::BaseViewModel& view_model, app::AssetManager& assets)
     : BaseScreen(view_model, assets) {
     init();
 }
 
-void MenuScreen::build_content(lv_obj_t* content) {
-    // Faint neighbour icons peeking at the far edges.
-    prev_icon_ = lv_label_create(content);
-    lv_obj_set_style_text_font(prev_icon_, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_opa(prev_icon_, LV_OPA_40, 0);
-    lv_obj_align(prev_icon_, LV_ALIGN_LEFT_MID, 12, 0);
+MenuScreen::~MenuScreen() {
+    if (battery_timer_) lv_timer_delete(battery_timer_);
+}
 
-    next_icon_ = lv_label_create(content);
-    lv_obj_set_style_text_font(next_icon_, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_opa(next_icon_, LV_OPA_40, 0);
-    lv_obj_align(next_icon_, LV_ALIGN_RIGHT_MID, -12, 0);
-
-    // The centre group: one big icon above its label. This is what slides.
-    center_ = lv_obj_create(content);
-    lv_obj_remove_style_all(center_);
-    lv_obj_set_size(center_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(center_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(center_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(center_, 10, 0);
-    lv_obj_center(center_);
-    lv_obj_clear_flag(center_, LV_OBJ_FLAG_SCROLLABLE);
-
-    icon_ = lv_label_create(center_);
-    lv_obj_set_style_text_font(icon_, &lv_font_montserrat_40, 0);
-
-    label_ = lv_label_create(center_);
-    auto* label_font = assets().load_standard_font(17, app::StandardFontWeight::Regular);
-    lv_obj_set_style_text_font(label_, label_font ? label_font : &lv_font_montserrat_18, 0);
-    reactive::bind_theme(label_, view_model().dark_mode_subject(), reactive::ThemeRole::Text);
-
+void MenuScreen::build_content(lv_obj_t* root) {
+    menu_ = cp0_ui::HomeMenu::create(root, menu_palette(view_model().is_dark_mode()), kEntryCount,
+                                     LV_SYMBOL_WIFI, "MESH", "Z / C  choose    Enter  open    Fn+H  help");
+    // The NFC chrome is unchanged. Mesh only fills part of the blank space
+    // between app title and battery with its existing operational status.
+    lv_obj_set_width(menu_.header_title, 53);
+    radio_ = status_label(menu_.header_bar, 85, 46);
+    region_ = status_label(menu_.header_bar, 134, 47);
+    nodes_ = status_label(menu_.header_bar, 184, 33);
+    unread_ = status_label(menu_.header_bar, 220, 47);
     update(false);
-    lv_subject_add_observer_obj(view_model().menu_index_subject(), on_change, icon_, this);
-    lv_subject_add_observer_obj(view_model().dark_mode_subject(), on_change, icon_, this);
+    refresh_mesh_status();
+    refresh_battery();
+    lv_subject_add_observer_obj(view_model().menu_index_subject(), on_change, root, this);
+    lv_subject_add_observer_obj(view_model().dark_mode_subject(), on_change, root, this);
+    for (auto* subject : {view_model().radio_state_subject(), view_model().health_subject(),
+                          view_model().region_subject(), view_model().nodes_version_subject(),
+                          view_model().unread_version_subject()}) {
+        lv_subject_add_observer_obj(subject, on_change, root, this);
+    }
+    battery_timer_ = lv_timer_create(on_battery_tick, 5000, this);
 }
 
 void MenuScreen::on_change(lv_observer_t* observer, lv_subject_t* subject) {
-    auto* self = static_cast<MenuScreen*>(lv_observer_get_user_data(observer));
-    if (!self) {
-        return;
+    if (auto* self = static_cast<MenuScreen*>(lv_observer_get_user_data(observer))) {
+        if (subject == self->view_model().menu_index_subject()) self->update(true);
+        else if (subject == self->view_model().dark_mode_subject()) self->update(false);
+        self->refresh_mesh_status();
     }
-    // Only slide when the selection changed; a theme flip just recolours.
-    const bool selection_changed = subject == self->view_model().menu_index_subject();
-    self->update(selection_changed);
 }
 
 void MenuScreen::update(bool animate) {
     int i = lv_subject_get_int(view_model().menu_index_subject());
-    if (i < 0 || i >= kEntryCount) {
-        i = 0;
-    }
-    const auto colors = view::palette(view_model().is_dark_mode());
-
-    lv_label_set_text(icon_, kEntries[i].icon);
-    lv_label_set_text(label_, kEntries[i].label);
-    lv_obj_set_style_text_color(icon_, view_model().is_dark_mode() ? colors.primary : lv_color_hex(0x139a4d), 0);  // active icon in mesh green
-
-    // Faint neighbours (wrap around).
-    const int prev = (i + kEntryCount - 1) % kEntryCount;
-    const int next = (i + 1) % kEntryCount;
-    lv_label_set_text(prev_icon_, kEntries[prev].icon);
-    lv_label_set_text(next_icon_, kEntries[next].icon);
-    lv_obj_set_style_text_color(prev_icon_, lv_color_hex(view_model().is_dark_mode() ? 0x616161 : 0xc2c2c2), 0);
-    lv_obj_set_style_text_color(next_icon_, lv_color_hex(view_model().is_dark_mode() ? 0x616161 : 0xc2c2c2), 0);
-
+    if (i < 0 || i >= kEntryCount) i = 0;
+    menu_.set_palette(menu_palette(view_model().is_dark_mode()));
+    menu_.set_item(static_cast<std::size_t>(i),
+                   kEntries[(i + kEntryCount - 1) % kEntryCount].icon,
+                   kEntries[i].icon, kEntries[(i + 1) % kEntryCount].icon,
+                   kEntries[i].title, kEntries[i].subtitle);
     if (animate && last_index_ >= 0 && i != last_index_) {
-        // Which way did we roll? next (incl. 3->0 wrap) slides in from the right.
         const int delta = i - last_index_;
-        const bool went_next = (delta == 1) || (delta == -(kEntryCount - 1));
-        animate_in(went_next ? +1 : -1);
+        const bool went_next = delta == 1 || delta == -(kEntryCount - 1);
+        menu_.animate(went_next ? +1 : -1);
     }
     last_index_ = i;
 }
 
-void MenuScreen::animate_in(int direction) {
-    // Slide the new item in from the edge it came from, fading up as it lands.
-    lv_anim_t slide;
-    lv_anim_init(&slide);
-    lv_anim_set_var(&slide, center_);
-    lv_anim_set_values(&slide, direction * kSlidePx, 0);
-    lv_anim_set_duration(&slide, kSlideMs);
-    lv_anim_set_path_cb(&slide, lv_anim_path_ease_out);
-    lv_anim_set_exec_cb(&slide, anim_translate_x_cb);
-    lv_anim_start(&slide);
+void MenuScreen::refresh_battery() {
+    const auto status = platform::read_device_status();
+    menu_.set_battery(status.battery_present ? status.battery_percent : -1);
+    lv_obj_invalidate(menu_.header_bar);
+}
 
-    lv_anim_t fade;
-    lv_anim_init(&fade);
-    lv_anim_set_var(&fade, center_);
-    lv_anim_set_values(&fade, LV_OPA_TRANSP, LV_OPA_COVER);
-    lv_anim_set_duration(&fade, kSlideMs);
-    lv_anim_set_exec_cb(&fade, anim_opa_cb);
-    lv_anim_start(&fade);
+void MenuScreen::refresh_mesh_status() {
+    const char* state = lv_subject_get_string(view_model().radio_state_subject());
+    const char* label = state ? state : "unknown";
+    const auto colors = menu_palette(view_model().is_dark_mode());
+    auto radio_color = lv_color_hex(colors.muted);
+    if (state && std::strcmp(state, "online") == 0) {
+        label = view_model().radio_mode() == "receive-only" ? "RX"
+                : view_model().radio_mode() == "transmit" ? "TX/RX" : "Online ?";
+        radio_color = lv_color_hex(colors.accent);
+    } else if (state && std::strcmp(state, "error") == 0) {
+        radio_color = lv_color_hex(view_model().is_dark_mode() ? view::color::dark::kError : view::color::light::kError);
+    }
+    lv_label_set_text(radio_, label);
+    lv_obj_set_style_text_color(radio_, radio_color, 0);
+    lv_label_set_text(region_, lv_subject_get_string(view_model().region_subject()));
+    lv_obj_set_style_text_color(region_, lv_color_hex(colors.muted), 0);
+    char count[25];
+    std::snprintf(count, sizeof(count), "%zun", view_model().nodes().size());
+    lv_label_set_text(nodes_, count);
+    lv_obj_set_style_text_color(nodes_, lv_color_hex(colors.muted), 0);
+    const int unread = view_model().total_unread();
+    if (unread > 0) {
+        std::snprintf(count, sizeof(count), LV_SYMBOL_ENVELOPE " %d", unread);
+        lv_label_set_text(unread_, count);
+    } else {
+        lv_label_set_text(unread_, "");
+    }
+    lv_obj_set_style_text_color(unread_, lv_color_hex(colors.accent), 0);
+    lv_obj_invalidate(menu_.header_bar);
+}
+
+void MenuScreen::on_battery_tick(lv_timer_t* timer) {
+    if (auto* self = static_cast<MenuScreen*>(lv_timer_get_user_data(timer))) self->refresh_battery();
 }
 
 } // namespace screen

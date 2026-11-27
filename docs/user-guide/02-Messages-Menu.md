@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.20 (release candidate)** · Updated **2026-11-24** · [Guide index](README.md)
+> For Mesh **0.1.22 (release candidate)** · Updated **2026-11-26** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 
@@ -14,7 +14,8 @@ From the Home Carousel, roll to **Messages** with **Z** / **C** and press **Ente
 |---|---|---|
 | **Conversations List** | **F / X** | Move up and down the list |
 | | **Enter** | Open **`+ New message`** or the highlighted conversation |
-| | **/** | Filter conversations by keyword (case-insensitive for English letters) |
+| | **Tab / Shift+Tab** | Switch between Channels and Direct Messages |
+| | **/** | Search saved messages across both lists (case-insensitive for English letters) |
 | | **ESC** | Clear an active search filter, or return to the Home Carousel |
 | **Inside a Chat** | **Enter** | Open the typing box *(or open options when a message bubble is highlighted)* |
 | | **q** | Send a **Quick message** |
@@ -38,13 +39,15 @@ You can read existing messages and browse chats anytime, even while the radio is
 
 ## The Conversations List
 
-When you open **Messages**, you see your chats ordered so important and recent ones stay easy to reach:
+When you open **Messages**, the **Channels** tab shows group chats. Press **Tab** or **Shift+Tab** for **Direct Messages**, which shows one-to-one chats. Each list is ordered by most recent message activity:
 
 ![Messages Conversations List](images/messages-list.png)
 
 1. **`+ New message`** is always at the top.
-2. **Pinned chats** come next, marked with a `*` before the name.
-3. **All other chats** follow from most recent to oldest.
+2. **Conversations** follow from most recent to oldest, separately in each tab.
+3. **Pinned chats** retain a `*` before the name. A pin breaks ties between equally recent chats; it does not push old activity above newer messages.
+
+![Direct Messages tab](images/messages-direct.png)
 
 ### Reading Conversation Titles & Previews
 
@@ -63,17 +66,18 @@ When you open **Messages**, you see your chats ordered so important and recent o
 Conversation and recipient lists and action menus wrap from the last item to the
 first (and back). Message bubbles retain their chronological navigation.
 
-## Searching Conversations (`/`)
+## Searching Both Lists (`/`)
 
-If your list gets long, press **`/`** on the Conversations List to filter it:
+1. From either tab, press **/**, enter a word or phrase and press **Enter**.
+2. A single list shows matching saved messages from **both** Channels and Direct Messages, newest first. Each result names its channel or person and shows the matching text and time. English-letter matching ignores case; conversation and sender names also match. Unsent drafts are not message results.
+3. Press **Enter** on a result to open its conversation at the matching bubble, outlined in red. Reading a DM result does not require choosing a sending channel.
+4. Press **Esc** to return to the results. Press **Esc** again to clear search and return to the tab you started from.
 
-1. Press **`/`**, type a word or name, and press **Enter**.
-   - The active search stays visible above the list; an empty result is labeled.
-   - Search ignores English-letter capitalization (`Basecamp` and `basecamp` match). Accented and other non-English characters still match exactly.
-   - It matches any conversation whose title, draft, or saved messages contain that text.
-2. Press **ESC** on the filtered list to clear the search and see all chats again.
+![Combined search](images/messages-search.png)
 
----
+![Matching message](images/messages-match.png)
+
+Long lists and conversations load a small window at a time. Continue with **F / X** to reach more history; older/newer indicators show when another window is available. All retained messages remain searchable. This improves loading without discarding history. Inside a conversation, messages retain their chronological reading order, newest at the bottom.
 
 ## Starting a Chat (`+ New message`)
 
@@ -178,7 +182,7 @@ While inside any conversation, press **`o`** to open its options menu:
 
 - **Mark as read:** Appears if the chat still has unread messages *(opening a chat also marks it read automatically)*.
 - **Mute / Unmute:** Silences pop-up notifications and unread badge counts for this conversation only.
-- **Pin chat / Unpin chat:** Pins the conversation near the top of your Conversations List with a `*`.
+- **Pin chat / Unpin chat:** Marks the conversation with a `*`; equally recent chats use pins as a tie-breaker.
 - **Send my location:** Sends a one-time text message containing your current GPS coordinates (e.g., `📍 40.00000, -105.00000`).
   - Requires a fresh GPS fix (within 2 minutes). If your GPS doesn't have a fresh lock yet, a banner warns `"no position fix yet"` or `"GPS fix is stale or its age is unknown; wait for a fresh fix before sending"`.
   - If the active channel is **`[Public]`**, a confirmation screen (**Send precise coordinates**) protects you from broadcasting exact coordinates by accident.

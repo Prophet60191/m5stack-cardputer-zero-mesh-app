@@ -1,9 +1,11 @@
 # Current status
 
-**Mesh 0.1.20 is installed**, from exact runtime/package source `5776364`.
-The [UI checkup](ui-checkup.md) records the corrections, package identity,
-regressions, installed-file checks and Cap-free device qualification. Later
-closeout changes are documentation only.
+**Mesh 0.1.22 is the tested Messages/loading candidate.** The pre-update
+installed package is 0.1.21-rev2 with the shared home carousel. This change
+preserves that layout and adds two conversation tabs, recency ordering, combined
+message search and bounded rendering. See [Messages navigation and loading](messages-navigation.md)
+for measurements and final device qualification. The previous [UI checkup](ui-checkup.md)
+remains historical evidence for the 0.1.20 fixes retained here.
 
 The earlier [0.1.19 distribution qualification](distribution-validation-20261123.md)
 remains evidence for the unchanged bundled native/Python runtime and radio/GPS/

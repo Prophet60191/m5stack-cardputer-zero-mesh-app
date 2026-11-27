@@ -117,7 +117,7 @@ static void long_labels(const std::string &dir) {
     { screen::MessagesScreen s(vm,assets); s.on_down(); s.on_enter();
       bounds(find(s.root(),n.name)); screenshot(s.root(),dir,"sender-long.png"); }
     vm.set_messages({});vm.remember_conversation("dm:"+n.id);
-    { screen::MessagesScreen s(vm,assets); one_line(find_prefix(s.root(),std::string(10,'W')));
+    { screen::MessagesScreen s(vm,assets); s.on_key(LV_KEY_NEXT); one_line(find_prefix(s.root(),std::string(10,'W')));
       screenshot(s.root(),dir,"conversations-long.png"); }
 }
 static void invalid_slot() {
@@ -177,7 +177,85 @@ static void header() {
     for(int i=0;i<2000;++i) { viewmodel::MessageInfo m;m.id=std::to_string(i);m.from="!10000001";
         m.to="broadcast";m.channelIdentity="synthetic";m.text="Synthetic";vm.add_message(m); }
     screen::MenuScreen s(vm,assets);auto *badge=find(s.root(),LV_SYMBOL_ENVELOPE " 2000");CHECK(badge);
-    bounds(badge,13,242);
+    bounds(badge,220,266);
+}
+static void home_standard(const std::string &dir) {
+    viewmodel::BaseViewModel vm;
+    vm.set_dark_mode(dark);
+    app::AssetManager assets;
+    screen::MenuScreen home(vm,assets);
+    auto *root=home.root();
+    auto *previous=lv_screen_active();
+    lv_screen_load(root);
+    auto geometry=[](lv_obj_t* obj, int x, int y, int w) {
+        CHECK(obj);
+        lv_obj_update_layout(obj);
+        lv_area_t box;
+        lv_obj_get_coords(obj,&box);
+        CHECK(box.x1==x && box.y1==y && box.x2==x+w-1);
+    };
+    auto *header=find(root,"MESH");
+    geometry(header,28,5,53);
+    CHECK(lv_obj_get_height(lv_obj_get_parent(header))==23);
+#if USE_DESKTOP
+    auto *battery=find(root,"100%");
+    geometry(battery,272,7,40);
+    CHECK(lv_obj_get_style_text_align(battery,LV_PART_MAIN)==LV_TEXT_ALIGN_RIGHT);
+#endif
+    auto *title=find(root,"Messages");
+    auto *subtitle=find(root,"Read, write & manage messages");
+    geometry(title,52,82,216);
+    geometry(subtitle,52,108,216);
+    CHECK(lv_obj_get_style_text_font(title,LV_PART_MAIN)==&lv_font_montserrat_16);
+    CHECK(lv_obj_get_style_text_font(subtitle,LV_PART_MAIN)==&lv_font_montserrat_10);
+    auto *left_icon=find(root,LV_SYMBOL_SETTINGS);
+    geometry(left_icon,14,69,37);
+    CHECK(lv_obj_get_style_opa(left_icon,LV_PART_MAIN)==LV_OPA_40);
+    CHECK(lv_obj_get_style_text_font(left_icon,LV_PART_MAIN)==&lv_font_montserrat_28);
+    auto *center_icon=find(root,LV_SYMBOL_ENVELOPE);
+    geometry(center_icon,52,33,216);
+    CHECK(lv_obj_get_style_text_font(center_icon,LV_PART_MAIN)==&lv_font_montserrat_40);
+    // The header also uses the Wi-Fi symbol, so search for its side position.
+    bool side=false, divider=false;
+    int active_x=-1, dots=0;
+    auto check_dots=[&]() {
+        dots=0; active_x=-1;
+        for(uint32_t i=0;i<lv_obj_get_child_count(root);++i) {
+            auto *child=lv_obj_get_child(root,i); lv_area_t box;
+            lv_obj_get_coords(child,&box);
+            if(box.x1==270 && box.y1==69 && box.x2==306) {
+                side=true;
+                CHECK(lv_obj_get_style_opa(child,LV_PART_MAIN)==LV_OPA_40);
+            }
+            if(box.x1==8 && box.y1==146 && box.x2==311 && box.y2==146) divider=true;
+            if(box.y1==138 && box.y2==140) {
+                ++dots;
+                int width=box.x2-box.x1+1;
+                CHECK(width==4 || width==8);
+                if(width==8) { CHECK(active_x<0); active_x=box.x1; }
+            }
+        }
+        CHECK(dots==4);
+    };
+    auto *footer=find(root,"Z / C  choose    Enter  open    Fn+H  help");
+    geometry(footer,8,153,307);
+    CHECK(lv_obj_get_style_text_font(footer,LV_PART_MAIN)==&lv_font_montserrat_10);
+    check_dots(); CHECK(active_x==144 && divider && side);
+    screenshot(root,dir,"mesh-home-standard.png");
+    vm.menu_prev(); // backward wrap into Settings
+    CHECK(find(root,"Settings")&&find(root,"Radio, appearance & preferences"));
+    lv_tick_inc(200); lv_anim_refr_now(); lv_obj_update_layout(root);
+    check_dots(); CHECK(active_x==171);
+    screenshot(root,dir,"mesh-home-settings.png");
+    vm.set_dark_mode(!dark);
+    CHECK(find(root,"Settings"));
+    lv_tick_inc(200); lv_anim_refr_now(); lv_obj_update_layout(root);
+    check_dots(); CHECK(active_x==171);
+    vm.menu_next(); // forward wrap into Messages
+    CHECK(find(root,"Messages"));
+    lv_tick_inc(200); lv_anim_refr_now(); lv_obj_update_layout(root);
+    check_dots(); CHECK(active_x==144);
+    lv_screen_load(previous);
 }
 static void map_edges(const std::string &dir) {
     viewmodel::BaseViewModel vm;vm.set_dark_mode(dark);app::AssetManager assets;
@@ -188,11 +266,11 @@ static void map_edges(const std::string &dir) {
 static void search() {
     viewmodel::BaseViewModel vm;vm.set_dark_mode(dark);app::AssetManager assets;channel(vm);
     screen::MessagesScreen s(vm,assets);CHECK(s.on_key('/'));
-    CHECK(std::string(lv_textarea_get_placeholder_text(input(s.root())))=="Search chats");
+    CHECK(std::string(lv_textarea_get_placeholder_text(input(s.root())))=="Search all messages");
     lv_textarea_set_text(input(s.root()),"Absent");s.on_enter();
     auto *context=find(s.root(),"Search: Absent");CHECK(context && !lv_obj_has_flag(context,LV_OBJ_FLAG_HIDDEN));
-    CHECK(find(s.root(),"No chats match this search."));CHECK(s.on_back());
-    CHECK(!find(s.root(),"No chats match this search."));
+    CHECK(find(s.root(),"No messages match this search."));CHECK(s.on_back());
+    CHECK(!find(s.root(),"No messages match this search."));
     CHECK(find(s.root(),"# 1: Synthetic [Private]"));
 }
 static void unicode() {
@@ -243,7 +321,7 @@ int main(int argc,char **argv) {
     const std::string dir=output.empty()?"":(std::filesystem::path(output)/(dark?"dark":"light")).string();
     for (const auto &entry : std::vector<std::pair<std::string,std::function<void()>>>{
          {"wrap",wrap},{"cancel-recipient",cancel_recipient},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
-         {"quote",quote_without_channel},{"toast",[&]{toasts(dir);}},{"qr",[&]{qr(dir);}},{"header",header},{"map",[&]{map_edges(dir);}},{"search",search},{"unicode",unicode},{"fonts",[&]{font_fit(dir);}},{"composer",[&]{composer_fit(dir);}}})
+         {"quote",quote_without_channel},{"toast",[&]{toasts(dir);}},{"qr",[&]{qr(dir);}},{"header",header},{"home-standard",[&]{home_standard(dir);}},{"map",[&]{map_edges(dir);}},{"search",search},{"unicode",unicode},{"fonts",[&]{font_fit(dir);}},{"composer",[&]{composer_fit(dir);}}})
         if(test=="all" || test==entry.first) { std::cout<<entry.first<<std::endl;entry.second(); }
     }
     CHECK(lv_group_get_obj_count(group)==0);lv_group_delete(group);lv_display_delete(display);

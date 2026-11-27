@@ -1,6 +1,6 @@
 # Quick Reference Card
 
-> For Mesh **0.1.20 (release candidate)** · Updated **2026-11-24** · [Guide index](README.md)
+> For Mesh **0.1.22 (release candidate)** · Updated **2026-11-26** · [Guide index](README.md)
 
 ## Hardware Safety Rules
 
@@ -19,7 +19,7 @@
 
 | Screen | Extra keys |
 |---|---|
-| **Messages list** | **/** Search (A/a match); **ESC** clears search, then returns Home |
+| **Messages list** | **Tab** Channels / DMs; **/** Search both (A/a match); **ESC** clears search, then returns Home |
 | **Inside a chat** | **Enter** Write / act on selected bubble; **q** Quick message; **o** Thread options; **F / X** Select bubbles |
 | **Nodes** | **Enter** Details; **s** Favorite; **m** DM; **Tab** All / Favorites / Active |
 | **Map** | North-up; dots are not selectable. Use Nodes for details. **ESC** returns Home. |

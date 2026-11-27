@@ -914,8 +914,8 @@ std::vector<ConversationRow> BaseViewModel::conversation_rows(const std::string&
         return !item.match && !matches(item.row.name) && !matches(item.row.preview);
     }),items.end());
     std::stable_sort(items.begin(),items.end(),[](const Item& a,const Item& b) {
-        if (a.pinned != b.pinned) return a.pinned;
-        return a.row.last_time > b.row.last_time;
+        if (a.row.last_time != b.row.last_time) return a.row.last_time > b.row.last_time;
+        return a.pinned && !b.pinned;
     });
     std::vector<ConversationRow> rows;
     rows.reserve(items.size());
@@ -924,6 +924,34 @@ std::vector<ConversationRow> BaseViewModel::conversation_rows(const std::string&
         rows.push_back(std::move(item.row));
     }
     return rows;
+}
+
+std::vector<MessageSearchRow> BaseViewModel::search_messages(const std::string& query) const {
+    if (query.empty()) return {};
+    const auto fold = [](std::string text) {
+        for (char& c : text) if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+        return text;
+    };
+    const auto needle = fold(query);
+    const auto matches = [&](const std::string& text) { return fold(text).find(needle) != std::string::npos; };
+    std::unordered_map<std::string, ConversationRow> conversations;
+    for (auto& row : conversation_rows()) {
+        const auto key = row.key;
+        conversations.emplace(key, std::move(row));
+    }
+    std::vector<MessageSearchRow> results;
+    for (const auto& message : messages_) {
+        const auto key = thread_key_of(message);
+        const auto row = conversations.find(key);
+        if (row == conversations.end()) continue;
+        const auto& chat = row->second;
+        const auto name = chat.name.rfind("* ", 0) == 0 ? chat.name.substr(2) : chat.name;
+        if (!matches(message.text) && !matches(name) && !matches(message.fromName)) continue;
+        results.push_back({key, chat.peer, chat.name, message.text,
+                           message.from + "\n" + message.id, message.time});
+    }
+    std::stable_sort(results.begin(), results.end(), [](const auto& a, const auto& b) { return a.time > b.time; });
+    return results;
 }
 
 void BaseViewModel::apply_threads(const json::Value& event) {

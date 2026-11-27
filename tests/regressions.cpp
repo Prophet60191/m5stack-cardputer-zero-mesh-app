@@ -149,6 +149,7 @@ static void maintenance_data_regression() {
     selected.set_nodes({a,b}); selected.set_messages({dm(a.id,"Older","1",1),dm(b.id,"Newer","2",2)});
     selected.set_channels({{2,"Field",true,"PRIMARY",0,"live"}});
     app::AssetManager assets;screen::MessagesScreen screen(selected,assets);lv_screen_load(screen.root());
+    screen.on_key(LV_KEY_NEXT); // Direct messages have their own tab.
     screen.on_down(); // Beta is the latest chat.
     selected.set_messages({dm(a.id,"Now latest","3",3),dm(b.id,"Newer","2",2)});
     CHECK(selected_setting(screen.root())=="Beta");
@@ -373,7 +374,7 @@ static void compact_layout_regression(const char* screenshot_path) {
     CHECK(labels(messages.root()).find("DM via choose channel")!=std::string::npos);
     messages.on_back();messages.on_back();lv_obj_update_layout(messages.root());
     CHECK(lv_obj_has_flag(context,LV_OBJ_FLAG_HIDDEN));
-    check_help(label_starting(messages.root(),"/: Search"));
+    check_help(label_starting(messages.root(),"Tab: switch"));
 }
 
 static void qr_scan_ui_regression(const char* screenshot_path) {

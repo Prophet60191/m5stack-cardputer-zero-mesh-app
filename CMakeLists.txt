@@ -645,11 +645,18 @@ include(cmake/cm0-package.cmake)
 include(CTest)
 option(MESH_BUILD_BENCHMARKS "Build synthetic, headless maintenance measurements" OFF)
 if(MESH_BUILD_BENCHMARKS)
+    add_executable(mesh_messages_load_benchmark tests/messages_load_benchmark.cpp)
+    target_link_libraries(mesh_messages_load_benchmark PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
+        ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
     add_executable(mesh_benchmarks tests/maintenance_benchmarks.cpp)
     target_link_libraries(mesh_benchmarks PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
         ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
 endif()
 if(BUILD_TESTING)
+    add_executable(mesh_messages_regressions tests/messages_navigation.cpp)
+    target_link_libraries(mesh_messages_regressions PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
+        ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)
+    add_test(NAME mesh_messages_regressions COMMAND mesh_messages_regressions)
     add_executable(mesh_channel_setup_regressions tests/channel_setup.cpp)
     target_link_libraries(mesh_channel_setup_regressions PRIVATE ${PROJECT_NAME}_core ${PROJECT_NAME}_view
         ${PROJECT_NAME}_viewmodel ${PROJECT_NAME}_platform ${PROJECT_NAME}_reactive ${PROJECT_NAME}_model)

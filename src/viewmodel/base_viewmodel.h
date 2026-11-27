@@ -104,6 +104,7 @@ public:
     bool pinned(const std::string& key) const;
     void remember_conversation(const std::string& key);
     std::vector<ConversationRow> conversation_rows(const std::string& search = "") const;
+    std::vector<MessageSearchRow> search_messages(const std::string& query) const;
     std::vector<std::string> conversation_keys() const;
     std::string conversation_draft(const std::string& key) const;
     void toggle_pin(const std::string& key);
