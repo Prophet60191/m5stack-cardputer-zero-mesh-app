@@ -817,3 +817,12 @@ with independent hardware notes/private backups preserved.
 - Clamp signal telemetry before floating-point-to-integer conversion in Nodes.
 - Add protobuf/lifecycle/failure and actual LVGL signal-bar regression cases.
   See docs/reliability-followup-20261127.md for validation and device limits.
+
+0.1.25 local/device qualification: all 199 backend tests, seven host sanitizer
+suites, six arm64 native suites and package/install/upgrade/firewall gates pass.
+All 267 installed regular files/modes/owners match source 31d3b43's installer;
+original saved files/SQLite rows remain intact. Three full Cap starts and a
+separate two-minute/12-sample API/firewall/TX watch pass. Actual launcher UI and
+running executable hash verify. ADB stays On, Radio Online/send-receive; private
+backups retained and exact device stages removed. See the qualification record
+for source-correlated CI and unclaimed physical/peer checks.

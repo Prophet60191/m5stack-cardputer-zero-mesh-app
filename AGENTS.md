@@ -2,12 +2,13 @@
 
 Current instructions: docs/install.md (operations), docs/distribution.md (build/source
 assets), docs/README.md (index). Installed runtime/package source is
-66fd215 (Mesh 0.1.24); later documentation/CI changes do not imply reinstall.
-Read docs/radio-startup-20261127.md for current radio evidence and scope;
+31d3b43 (Mesh 0.1.25); later documentation/CI changes do not imply reinstall.
+Read docs/reliability-followup-20261127.md for current qualification and
+docs/radio-startup-20261127.md for the preceding radio evidence and scope;
 docs/keyboard-audit-20261127.md preserves the earlier input qualification.
 Older dated notes below are historical and do not override current runbooks.
 
-## Current focus — Messages/loading acceptance (2026-11-26)
+## Earlier focus — Messages/loading acceptance (2026-11-26)
 
 0.1.22 is installed from runtime/package source 15092a8; docs/messages-navigation.md
 records package identity, tests, preserved data and performance limits. Channels /
@@ -341,3 +342,14 @@ Final 0.1.24 qualification passes 12 cold Cap starts, a ten-minute healthy
 radio/API/firewall watch, normal launcher UI, 188 backend tests and both CI jobs
 on runtime source 66fd215. Leave Radio Online/send-receive and ADB On. No
 automatic overlay takeover; preserve all settings and defer unrelated hardware work.
+
+## Reliability follow-up — 2026-11-27
+
+Mesh 0.1.25 source 31d3b43 is installed and byte/data verified. Read
+`docs/reliability-followup-20261127.md`: truthful trace results, serialized trace
+send/cancellation, failure-slot release, short I2C reads and signal conversion.
+199 backend tests, seven host sanitizer and six arm64/package suites pass; three
+full Cap starts plus two-minute healthy watch pass. Exact-source CI regression
+job passes; arm64 CI still running at this closeout, so refresh it before claiming
+both jobs passed. Keep Radio Online/send-receive and ADB On. Preserve other apps,
+app-builder-guide WIP, saved setup/data and deferred hardware/publication limits.
