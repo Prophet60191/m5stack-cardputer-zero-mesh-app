@@ -857,3 +857,20 @@ Online/send-receive and ADB enabled; see the record for exact hashes and CI stat
   Supersede the earlier pending-CI notes without erasing historical entries.
 - Retain ignored builds/private rollback evidence, original saved state and other
   projects' WIP. No new code, installation, RF test or device setting change.
+
+## 2026-11-27 — Documentation navigation and status organization
+
+- Consolidate current status around the completed 0.1.26 session handoff and
+  link exact dated qualification records. Preserve previous concatenated status
+  in docs/history with rebased relative links; retain all original reports.
+- Reorganize the documentation index by operating/build tasks and evidence;
+  remove stale 0.1.19-current and deferred-keyboard wording from that entry point.
+- Preserve the concurrent Mesh closeout, source/runtime, app data and existing
+  private/ignored evidence. Local Markdown targets/headings pass workspace checks.
+  No build, device operation, installation, new qualification or publication.
+
+## 2026-11-27 — Authorized source synchronization
+
+- Owner authorized committing completed work and updating the existing GitHub
+  repositories after other app sessions stopped. Private snapshots retain their
+  reviewed export boundary; no device operation or new binary release is implied.
