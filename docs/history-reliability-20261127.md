@@ -57,4 +57,48 @@ exercise real protobuf decoding, 1,000 expired registrations, packet-ID reuse an
 concurrent decode/expiry. The native LVGL Diagnostics path checks the failure and
 success rows in both themes. Tests open no physical radio and perform no RF send.
 
-Final full gates, package identity and device qualification are pending here.
+## Installed qualification
+
+Mesh **0.1.26-rev1** is installed from functional/package source
+`91308d6dff22a4ce53c006762d921185db18691d`. Local installer SHA256:
+`ba53e9279f1c5e47d0c3f5a8c883db07597d039c5e7c90992ca33d3f1703691a`.
+All **268** packaged regular files, modes and root ownership match (the preserved
+system conffile is excluded from package-byte equality). Original app settings,
+profiles and all original SQLite rows remain intact; integrity is OK.
+
+- **215 backend tests pass**, including eleven new history cases and five SDK
+  lifetime/decoding/concurrency cases. Seven host sanitizer CTest suites and six
+  Debian arm64 CTest suites pass. Isolated arm64 package/install/upgrade/firewall
+  and offline managed-runtime checks pass; dependencies/native binary unchanged.
+- Exact-source [CI run 46021801767](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/46021801767)
+  has a successful regressions job; Debian arm64 CI remains in progress at this
+  closeout. Local arm64 qualification is complete. The corresponding-source CI
+  artifact has its own checksum; the hash above is the local installed package.
+  User-guide CI 46021801987 passes for this exact source.
+- Actual normal-user radio startup reaches Online/send-receive in **3.43s**.
+  **Three complete read-only configuration snapshots pass** through the new SDK
+  adapter, followed by a **two-minute/12-sample** healthy radio/API/firewall/history
+  watch, including time beyond the 90s eligibility window. Abandoned-callback and
+  storage-failure cases were simulated; no real device database was damaged.
+- Actual launcher UI opens, running executable matches the installer, Diagnostics
+  shows app 0.1.26 and **Last history save: OK**, and Esc returns correctly. The
+  initial reopen helper wrongly assumed Enter would select Mesh: it opened the
+  launcher's IP Panel again. Final verification explicitly selects the visible
+  Mesh icon; a close-only helper now documents that required test step.
+- No new peer-message/trace, phone, outdoor GPS, USB GPS, SIM, fresh-image or
+  whole-device cold-boot result is claimed. Radio remains Online/send-receive,
+  Mesh stays open and ADB stays On. Source/docs and guarded mirrors are updated;
+  raw evidence/backups remain private outside Git. Exact task device stages were
+  removed after verifying the private host backup byte for byte. Other app/guide
+  WIP is untouched.
+
+## Lessons reusable in other apps
+
+Separate an actual received outcome from its disk-save result. Storage exceptions
+must not terminate an unrelated safety/health monitor, and RAM-only operation must
+be visible. Apply destructive changes only after persistence commits; opt-in
+preferences and the data they promise to save should commit together. Treat packet
+IDs as duplicates without promoting old data, and inspect SDK callback cleanup
+rather than assuming a UI timeout releases it. Test rollback in disposable databases
+and synchronize callback expiry with the actual decoder. These lessons are kept
+here for the shared guide's next coordinated update; its separate work is untouched.

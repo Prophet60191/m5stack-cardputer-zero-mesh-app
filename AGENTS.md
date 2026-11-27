@@ -2,8 +2,8 @@
 
 Current instructions: docs/install.md (operations), docs/distribution.md (build/source
 assets), docs/README.md (index). Installed runtime/package source is
-31d3b43 (Mesh 0.1.25); later documentation/CI changes do not imply reinstall.
-Read docs/reliability-followup-20261127.md for current qualification and
+91308d6 (Mesh 0.1.26); later documentation/CI changes do not imply reinstall.
+Read docs/history-reliability-20261127.md for current qualification and
 docs/radio-startup-20261127.md for the preceding radio evidence and scope;
 docs/keyboard-audit-20261127.md preserves the earlier input qualification.
 Older dated notes below are historical and do not override current runbooks.
@@ -353,3 +353,17 @@ full Cap starts plus two-minute healthy watch pass. Exact-source CI regression
 job passes; arm64 CI still running at this closeout, so refresh it before claiming
 both jobs passed. Keep Radio Online/send-receive and ADB On. Preserve other apps,
 app-builder-guide WIP, saved setup/data and deferred hardware/publication limits.
+
+## History/background reliability — 2026-11-27
+
+0.1.26 source 91308d6 is installed. Read docs/history-reliability-20261127.md:
+215 backend tests, seven host sanitizer and six arm64/package suites pass;
+268 installed files and all original saved data verify. Three real config
+readbacks and a two-minute radio/API/firewall/history watch pass. Actual launcher,
+new Diagnostics save-health row and running binary verify. Radio Online/TX,
+ADB On. Exact-source regression and user-guide CI pass; arm64 CI is still running
+at closeout. Previous 0.1.25 runtime and docs CI jobs have since passed fully.
+Do not acquire _life_lock inside SDK decoder callbacks or hold _lock while
+waiting for the decoder/response expiry lock. No RF replay for storage recovery.
+Keep other apps/guide WIP and original profiles/data untouched; tests for disk
+failure use disposable DBs, never the owner's live database. Deferred limits stay.

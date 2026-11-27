@@ -840,3 +840,10 @@ for source-correlated CI and unclaimed physical/peer checks.
 - Add real SQLite abort/rollback, pinned-SDK decoding/expiry/concurrency and native
   Diagnostics tests. No automatic RF resend or settings/profile migration.
 - Qualification/install status is in docs/history-reliability-20261127.md.
+
+0.1.26 qualification: source 91308d6's installer is installed and all 268
+regular files/modes/owners plus original app files/SQLite rows verify. 215 backend,
+seven host sanitizer and six arm64/package suites pass. Actual startup, three
+read-only config snapshots, two-minute/12-sample healthy watch and Diagnostics/UI
+checks pass. No actual storage damage or new peer/phone/GPS claim. Radio stays
+Online/send-receive and ADB enabled; see the record for exact hashes and CI status.

@@ -41,3 +41,5 @@ No public release or Store submission follows automatically from a source push.
 - [Radio startup recovery and final qualification](radio-startup-20261127.md) — current 0.1.24 hardware/API recovery and exact installer.
 
 - [Reliability follow-up and 0.1.25 qualification](reliability-followup-20261127.md)
+
+- [History/background reliability and 0.1.26 qualification](history-reliability-20261127.md)

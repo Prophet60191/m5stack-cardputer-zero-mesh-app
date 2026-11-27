@@ -1,9 +1,13 @@
-# History/background reliability candidate — 2026-11-27
+# History/background reliability installed — 2026-11-27
 
-Mesh **0.1.26** is in package qualification. Its fixes and exact validation status
-are in [the history review](history-reliability-20261127.md). Until installation
-is recorded there, the device remains on qualified 0.1.25 below. Both exact-source
-0.1.25 CI jobs have now passed; the older pending note is historical.
+Mesh **0.1.26 is installed** from functional/package source `91308d6`.
+[The history/background review](history-reliability-20261127.md) records storage
+failure visibility, transaction rollback, duplicate handling and bounded SDK
+callbacks. All 268 package files and original saved data verify. Local gates pass
+215 backend tests, seven host sanitizer suites and six arm64/package suites;
+three actual config readbacks and a two-minute healthy watch pass. Radio remains
+Online/send-receive, ADB On. Exact-source regression CI and user-guide CI pass;
+arm64 CI is still running at closeout. Older sections remain historical.
 
 # Reliability follow-up installed — 2026-11-27
 
