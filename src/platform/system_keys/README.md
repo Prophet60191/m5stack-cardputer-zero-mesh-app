@@ -24,9 +24,33 @@ Missing libpulse/server/backlight access fails visibly. OS volume/mute state is
 used rather than an app-local cached percentage; boot persistence remains the
 platform's responsibility. The adapter does not edit launcher configuration.
 
-The C ABI optionally supports a Python compatibility adapter. No app source or
-firmware is bundled here. Fake-backend tests never change real system settings.
+The optional C ABI supports an isolated test probe. No firmware is bundled here. Fake-backend tests never change real system settings.
 Hardware/input replay, mixer readback and physical-key acceptance are distinct.
 
 Files under upstream/ remain Copyright M5Stack Technology CO LTD, MIT. Local
 adapter and tests are MIT. See LICENSE and upstream.json for exact provenance.
+
+## Add to a standalone app
+
+Copy this directory to `src/platform/system_keys`, retaining upstream.json,
+LICENSE and the unchanged upstream files. Add `add_subdirectory(src/platform/system_keys)`
+and link the platform/application target to `cp0_system_keys`. Include
+`system_keys/bridge.h` and keep one Bridge alive for the interactive UI lifetime,
+after LVGL init and before input begins. Destroy it before deleting LVGL/display.
+
+The raw EV_KEY reader must call `platform::route_system_key_event(code,value)`
+before text decoding, for press, repeat and release. Use the corresponding
+SystemKeyListener APIs in the example apps' linux_input files. Consume handled
+events so the same action cannot reach an editor or run twice. SDL maps its
+semantic media/display keys through the same hook. Do not start another reader.
+Register after other platform setup but before application shortcut dispatch.
+
+Runtime dependencies: `libpulse0` and `libglib2.0-bin`, plus the existing user
+Pulse/PipeWire and session D-Bus services. Brightness uses the existing device
+backlight permissions; this component adds none. MPRIS media actions only target
+one registered player. Do not promise unsupported player integrations.
+
+Run the included tests with `cmake -S . -B build`, `cmake --build build`, then
+`ctest --test-dir build --output-on-failure`. The tests use a fake backend and
+change no system settings. Test the integration in each app too, particularly
+while typing, with Help open, on release/disconnect and under repeated input.

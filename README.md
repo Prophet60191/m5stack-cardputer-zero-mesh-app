@@ -31,12 +31,12 @@ keyboard, screen, battery and a **LoRa SX1262 "Cap"** radio. This project turns 
 out there, and share a channel by QR — with an interface designed for the tiny 320&times;170 screen and the
 46-key keyboard.
 
-Messages now separates **Channels** and **Direct Messages** (Tab switches),
+Messages now separates **Channels** and **Direct Messages** (Left/Right selects; Tab also switches),
 sorts each by recent activity, and searches both in one newest-first result list.
 Long histories load in small windows while retaining all saved messages.
 See [Messages navigation and loading](docs/messages-navigation.md).
 
-The current source is **0.1.22, a release candidate** with public/private channel
+The current source is **0.1.23, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. The header shows battery percentage without a battery
 icon. The [latest status](docs/current-status.md) separates current changes from
@@ -145,8 +145,8 @@ TX or location settings. The daemon API remains confined to loopback.
 They cover obtaining/verifying the candidate, transferring it, first launch,
 upgrades, private backups, rollback, troubleshooting and removal.
 
-0.1.22 is a **candidate**, not a public release or Store listing. Its
-[source CI run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45500604820)
+0.1.23 is a **candidate**, not a public release or Store listing. Its
+[source CI run](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45948339756)
 and exact installed package are distinguished in the installation guide and
 [UI qualification record](docs/ui-checkup.md). Older published
 candidates use the earlier dependency arrangement; do not mix their instructions.
@@ -154,7 +154,7 @@ candidates use the earlier dependency arrangement; do not mix their instructions
 On the supported Debian 13 arm64 image, with the verified installer on the device:
 
 ```sh
-sudo apt install ./cardputerzero-mesh_0.1.22-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.23-rev1_arm64.deb
 ```
 
 The one installer includes the GPS-corrected private native radio and 15 pinned

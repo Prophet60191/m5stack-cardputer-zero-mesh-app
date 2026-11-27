@@ -2,7 +2,7 @@
 
 ## Scope and decision
 
-This work covers Mesh, Wireless Surveyor, NFC Tools and App Shell only.
+This work covers Mesh, Wireless Surveyor, NFC Tools, App Shell and Tick & Bell only.
 Quartermaster and other third-party applications are excluded and unchanged.
 These apps use standalone Template-derived LVGL input. Keep that architecture;
 do not decode events a second time in an app using the official shared runtime.
@@ -84,3 +84,10 @@ stays Off. No Cap power, RF send, scan, tag write or camera/GPS test was made.
 Media's real normal-user D-Bus backend delivered PlayPause/Previous/Next to a
 synthetic player; absent/ambiguous players were safely reported. This is not
 acceptance of an arbitrary music app lacking MPRIS or of every physical key.
+
+## Exact installed artifact
+
+- Version: `0.1.23`; runtime/package source: `25ff876`.
+- SHA-256: `f8b4fb2b231963961c321ce4fa994638984dae9c4b6280592d01c04debb8914a`.
+- Verified 265 regular packaged files, modes and root ownership.
+- All five apps also passed their ordinary-user on-device 32-symbol/reader/editor fixture replay. This is synthetic input, not physical key presses.
