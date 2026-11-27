@@ -847,3 +847,13 @@ seven host sanitizer and six arm64/package suites pass. Actual startup, three
 read-only config snapshots, two-minute/12-sample healthy watch and Diagnostics/UI
 checks pass. No actual storage damage or new peer/phone/GPS claim. Radio stays
 Online/send-receive and ADB enabled; see the record for exact hashes and CI status.
+
+## 2026-11-27 — Wrap and clean handoff
+
+- Confirm all runtime fixes already installed/committed/pushed; refresh current
+  status and add HANDOFF.md so a new session does not resume completed work.
+- Confirm exact-source 91308d6 CI 46021801767 and qualification-documentation
+  85ede1b CI 46023158946 pass both jobs; user-guide CI 46021801987 passes.
+  Supersede the earlier pending-CI notes without erasing historical entries.
+- Retain ignored builds/private rollback evidence, original saved state and other
+  projects' WIP. No new code, installation, RF test or device setting change.

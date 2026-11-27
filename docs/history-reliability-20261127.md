@@ -71,8 +71,9 @@ profiles and all original SQLite rows remain intact; integrity is OK.
   Debian arm64 CTest suites pass. Isolated arm64 package/install/upgrade/firewall
   and offline managed-runtime checks pass; dependencies/native binary unchanged.
 - Exact-source [CI run 46021801767](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/46021801767)
-  has a successful regressions job; Debian arm64 CI remains in progress at this
-  closeout. Local arm64 qualification is complete. The corresponding-source CI
+  passes both regressions and Debian arm64 jobs. The documentation snapshot
+  85ede1b also passes both jobs in run 46023158946. Local arm64 qualification is
+  complete. The corresponding-source CI
   artifact has its own checksum; the hash above is the local installed package.
   User-guide CI 46021801987 passes for this exact source.
 - Actual normal-user radio startup reaches Online/send-receive in **3.43s**.

@@ -6,8 +6,9 @@ failure visibility, transaction rollback, duplicate handling and bounded SDK
 callbacks. All 268 package files and original saved data verify. Local gates pass
 215 backend tests, seven host sanitizer suites and six arm64/package suites;
 three actual config readbacks and a two-minute healthy watch pass. Radio remains
-Online/send-receive, ADB On. Exact-source regression CI and user-guide CI pass;
-arm64 CI is still running at closeout. Older sections remain historical.
+Online/send-receive, ADB On. Both exact-source CI jobs and user-guide CI pass; the subsequent 85ede1b
+documentation snapshot also passes both jobs. See HANDOFF.md for session closeout.
+Older sections remain historical.
 
 # Reliability follow-up installed — 2026-11-27
 

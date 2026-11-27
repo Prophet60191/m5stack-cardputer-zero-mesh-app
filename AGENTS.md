@@ -6,6 +6,9 @@ assets), docs/README.md (index). Installed runtime/package source is
 Read docs/history-reliability-20261127.md for current qualification and
 docs/radio-startup-20261127.md for the preceding radio evidence and scope;
 docs/keyboard-audit-20261127.md preserves the earlier input qualification.
+Read HANDOFF.md first when resuming. All implementation and installation work
+from this review is complete; start further work from the next user request.
+Both runtime-source and qualification-documentation CI runs now pass all jobs.
 Older dated notes below are historical and do not override current runbooks.
 
 ## Earlier focus — Messages/loading acceptance (2026-11-26)
@@ -367,3 +370,11 @@ Do not acquire _life_lock inside SDK decoder callbacks or hold _lock while
 waiting for the decoder/response expiry lock. No RF replay for storage recovery.
 Keep other apps/guide WIP and original profiles/data untouched; tests for disk
 failure use disposable DBs, never the owner's live database. Deferred limits stay.
+
+## Session wrapped — 2026-11-27
+
+Read HANDOFF.md. All requested fixes are committed, installed and pushed; no
+implementation, installation or temporary-device cleanup is outstanding. Both
+91308d6 CI 46021801767 and 85ede1b CI 46023158946 pass both jobs; user-guide CI
+46021801987 also passes. Older pending-CI notes above are superseded. Preserve
+ignored builds/private rollback evidence and other projects' uncommitted work.
