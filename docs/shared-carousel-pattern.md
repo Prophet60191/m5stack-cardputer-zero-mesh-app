@@ -12,3 +12,12 @@ count, and unread indicator. These can't overlap the battery lane. The
 feature screens retain their original title bars and the home app keeps its
 own palette, labels, actions, and keyboard routes. This layout change does not
 start the radio, modify saved state, or change the supervisor or packaging.
+
+![Mesh home in the light theme](screenshots/carousel.png)
+
+The [dark-theme capture](screenshots/carousel-dark.png) and this light-theme
+capture come from synthetic 320×170 simulator runs. The simulator's 100%
+value is not a device measurement. See the
+[Cardputer Zero App Guide](https://prophet60191.github.io/m5stack-cardputer-zero-app-guide/)
+for the reusable layout. Device installation and physical checks are separate
+from this source and simulator update.

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.21 — 2026-11-26 (home-menu update)
+
+- Adopt the reusable NFC Tools home layout: compact title bar, plain
+  right-aligned battery percentage, centered icon and title/subtitle,
+  shaded side icons, dot row, and keyboard-hint footer.
+- Keep Mesh radio mode, region, node count and unread status in the
+  space between app title and battery. Feature-screen title bars,
+  keyboard behavior, radio configuration and supervisor are unchanged.
+- Add light/dark simulator captures and layout, wrap, and focus regression checks.
+
+See [the shared home-menu notes](docs/shared-carousel-pattern.md).
+
 ## 0.1.14 — 2026-11-17 (release candidate)
 
 - Make the channel form its own review, with a fixed 1: Save channel/profile action
