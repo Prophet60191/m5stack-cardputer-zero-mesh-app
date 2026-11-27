@@ -304,6 +304,23 @@ static void font_fit(const std::string &dir) {
     }
     lv_obj_delete(root);
  }
+static void history_health() {
+    for (bool healthy : {false, true}) {
+        viewmodel::BaseViewModel vm; vm.set_dark_mode(dark); app::AssetManager assets;
+        json::Value sent;
+        vm.set_command_sink([&](const std::string &text){ CHECK(json::parse(text,sent)); return true; });
+        vm.set_connected(true);
+        screen::SettingsScreen screen(vm,assets);
+        choose(screen,"Diagnostics"); screen.on_enter();
+        CHECK(sent.str_at("intent")=="diagnostics.get");
+        json::Value reply;
+        CHECK(json::parse("{\"event\":\"diagnostics\",\"id\":\""+sent.str_at("id")+
+             "\",\"history_enabled\":true,\"history_storage_ok\":"+(healthy?"true":"false")+"}",reply));
+        vm.apply_service(reply);
+        CHECK(find(screen.root(),healthy?"Last history save: OK":"Last history save: Failed; memory only"));
+        screen.on_back();
+    }
+}
 static void signal_bounds() {
     viewmodel::BaseViewModel vm; vm.set_dark_mode(dark); app::AssetManager assets;
     for (double snr : {-1e300, 1e300, -20.0, 10.0, std::numeric_limits<double>::quiet_NaN()}) {
@@ -337,7 +354,7 @@ int main(int argc,char **argv) {
     dark = theme;
     const std::string dir=output.empty()?"":(std::filesystem::path(output)/(dark?"dark":"light")).string();
     for (const auto &entry : std::vector<std::pair<std::string,std::function<void()>>>{
-         {"signal-bounds",signal_bounds},{"wrap",wrap},{"cancel-recipient",cancel_recipient},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
+         {"history-health",history_health},{"signal-bounds",signal_bounds},{"wrap",wrap},{"cancel-recipient",cancel_recipient},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
          {"quote",quote_without_channel},{"toast",[&]{toasts(dir);}},{"qr",[&]{qr(dir);}},{"header",header},{"home-standard",[&]{home_standard(dir);}},{"map",[&]{map_edges(dir);}},{"search",search},{"unicode",unicode},{"fonts",[&]{font_fit(dir);}},{"composer",[&]{composer_fit(dir);}}})
         if(test=="all" || test==entry.first) { std::cout<<entry.first<<std::endl;entry.second(); }
     }

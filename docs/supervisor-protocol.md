@@ -302,3 +302,20 @@ bundle, not a PATH lookup or external package query. Radio start still validates
 compatibility/firewall before power. Use [operations](install.md) for startup,
 logs and incomplete-install recovery; do not expose a setup/recovery shell over
 the intent socket. The UI owns no radio or runtime-installation authority.
+
+## History storage failures (0.1.26)
+
+A failed message-history write does not suppress live `message`, `delivery` or
+`messages` events or stop radio monitoring. A fixed `notice` reports memory-only
+updates; another reports successful recovery. Writes retry on the next update or
+history read, never by retransmitting RF. Diagnostics adds `history_storage_ok`;
+`history_enabled:false` still means deliberate RAM-only use. Draft acceptance
+retains its separate correlated durable/RAM/error contract.
+
+Explicit delete/clear/retention changes must commit before removing RAM records;
+a failure keeps the old history and attempts. Enabling history commits its
+preference, messages, drafts and pins in one SQLite transaction. Incoming duplicate
+sender/packet IDs neither move history nor produce another message event.
+The pinned SDK's abandoned response callbacks become eligible for cleanup after
+90 seconds (longer than app send/trace/admin waits), under the decoder's shared
+lock. Expiry never invokes the callback or resends a packet.

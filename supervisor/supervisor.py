@@ -47,6 +47,7 @@ import re
 import shutil
 import signal
 import socket
+import sqlite3
 import subprocess
 import threading
 import tempfile
@@ -225,11 +226,12 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
             raise RuntimeError("a supervisor already owns the radio state") from None
         self._settings = RadioSettings(self._state_dir)
         self._store = StateStore(self._state_dir)
+        self._history_storage_error = False
         self._messages = self._store.load_messages()
         for message in self._messages:
             if message.get("status") == "sending":
                 message.update(status="failed", reason="Restarted before acknowledgment; not replayed")
-        self._store.replace_messages(self._messages)
+        self._persist_history()
         self._threads = self._store.load_threads()
         self._nodes_dirty = threading.Event()
         self._last_rx = 0
@@ -437,7 +439,9 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
         # Client.send only enqueues: no blocking network write occurs here.
         with self._lock:
             payload = self._messages_payload(channel)
-            self._store.replace_messages(self._messages)
+            already_failed = self._history_storage_error
+            if not self._persist_history() and client is not None and already_failed:
+                self._send(client, {"event": "notice", "text": "History storage unavailable; new messages are in memory only"})
             if request is not None:
                 payload["id"] = request
             if client is None:
@@ -476,6 +480,34 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                     "history_enabled": self._store.preference("history.enabled", True)}
 
     # --- history store (authoritative) ---------------------------------------
+    def _persist_history(self):
+        """Storage failure must not hide RF outcomes or kill health monitoring.
+
+        Caller owns _lock (or is initializing before threads start). Retry only
+        persistence on the next history update/read, never the radio operation.
+        """
+        try:
+            self._store.replace_messages(self._messages)
+        except (sqlite3.Error, OSError):
+            if not self._history_storage_error:
+                self._broadcast({"event": "notice", "text": "History storage unavailable; new messages are in memory only"})
+            self._history_storage_error = True
+            return False
+        if self._history_storage_error:
+            self._broadcast({"event": "notice", "text": "History saving recovered"})
+        self._history_storage_error = False
+        return True
+
+    def _commit_history_removal(self, messages):
+        """Explicit deletion is accepted only after its durable write succeeds."""
+        try:
+            self._store.replace_messages(messages)
+        except (sqlite3.Error, OSError):
+            raise RuntimeError("Could not save history change; nothing was removed") from None
+        self._messages = messages
+        live = {m["id"] for m in messages if m.get("outgoing")}
+        self._attempts = {key: value for key, value in self._attempts.items() if key in live}
+
     def _trim_history(self):
         counts = {}
         kept = []
@@ -495,21 +527,26 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
         live = {m["id"] for m in self._messages if m.get("outgoing")}
         self._attempts = {k: v for k, v in self._attempts.items() if k in live}
 
-    def _record(self, msg: dict, attempt=None) -> None:
+    def _record(self, msg: dict, attempt=None) -> bool:
         with self._lock:
+            existing = next((i for i, m in enumerate(self._messages)
+                             if m.get("id") == msg.get("id") and m.get("from") == msg.get("from")), None)
+            if existing is not None and not msg.get("outgoing"):
+                return False  # An RF retransmission is not a new message/update.
             if attempt is not None:
                 self._attempts[msg["id"]] = attempt
             # Retry updates the same bubble; duplicate RF packets are idempotent.
-            self._messages = [m for m in self._messages
-                              if not (m.get("id") == msg.get("id") and
-                                      m.get("from") == msg.get("from"))]
             before = {(m.get("from"), m.get("id")) for m in self._messages}
-            self._messages.append(msg)
+            if existing is None:
+                self._messages.append(msg)
+            else:
+                self._messages[existing] = msg
             self._trim_history()
-            self._store.replace_messages(self._messages)
+            self._persist_history()
             removed = before - {(m.get("from"), m.get("id")) for m in self._messages}
         if removed:
             self._publish_history()
+        return True
 
     def _delivery(self, cid, attempt, status, hops=None, reason=""):
         with self._lock:
@@ -524,7 +561,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
             self._attempts.pop(cid, None)
             ev = {"event": "delivery", "cid": cid, "status": status}
             ev["reason"] = reason
-            self._store.replace_messages(self._messages)
+            self._persist_history()
             if hops is not None:
                 ev["hops"] = max(hops, 0)
             self._broadcast(ev)
@@ -645,6 +682,9 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                         raise RuntimeError("radio API disconnected")
                     if d.poll() is not None:
                         raise RuntimeError(f"radio guardian exited with status {d.returncode}")
+                    expire = getattr(self._iface, "expire_responses", None)
+                    if expire is not None:
+                        expire()
                 except Exception as exc:
                     reason = bounded_text(f"{type(exc).__name__}: {exc}", 280)
                     print("radio health failure: " + reason, flush=True)
@@ -773,8 +813,8 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                 "snr": snr,
                 "hops": hops,
             }
-            self._record(msg)
-            self._broadcast({"event": "message", "message": msg})
+            if self._record(msg):
+                self._broadcast({"event": "message", "message": msg})
             self._nodes_dirty.set()
         except Exception:
             pass
@@ -949,11 +989,11 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                 value = req.get("enabled")
                 if type(value) is not bool: raise ValueError("history preference must be boolean")
                 with self._lock:
-                    self._store.set_preference("history.enabled", value)
                     if value:
-                        self._store.replace_messages(self._messages)
-                        for thread, state in self._threads.items():
-                            self._store.set_thread(thread, state)
+                        self._store.enable_history(self._messages, self._threads)
+                    else:
+                        self._store.set_preference("history.enabled", False)
+                    self._history_storage_error = False
                     reply(self._thread_state())
                     self._broadcast(self._thread_state())
             elif intent == "radio.start":
@@ -974,7 +1014,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
             elif intent == "message.clear":
                 key = str(req["thread"])
                 with self._lock:
-                    self._messages = [m for m in self._messages if thread_key(m) != key]
+                    self._commit_history_removal([m for m in self._messages if thread_key(m) != key])
                 self._publish_history()
                 reply({"event": "notice", "text": "cleared"})
             elif intent == "message.delete":
@@ -983,7 +1023,7 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                     raise ValueError("invalid message identifier")
                 if mid:
                     with self._lock:
-                        self._messages = [m for m in self._messages if m.get("id") != mid]
+                        self._commit_history_removal([m for m in self._messages if m.get("id") != mid])
                 self._publish_history()
                 reply({"event": "notice", "text": "deleted"})
             elif intent == "message.retention":
@@ -993,8 +1033,14 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                 with self._lock:
                     cap = max(0, min(MAX_MESSAGES, int(req.get("cap", 0))))
                     if cap != self._retention:
-                        self._retention = cap
-                        self._trim_history()
+                        previous = self._messages, self._attempts, self._retention
+                        try:
+                            self._retention = cap
+                            self._trim_history()
+                            self._commit_history_removal(self._messages)
+                        except Exception:
+                            self._messages, self._attempts, self._retention = previous
+                            raise
                         self._publish_history()
                 if silent:
                     reply({"event": "message.retention", "cap": cap})

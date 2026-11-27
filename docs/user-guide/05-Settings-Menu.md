@@ -1,6 +1,6 @@
 # Settings Menu
 
-> For Mesh **0.1.25 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
+> For Mesh **0.1.26 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
 
 The **Settings** screen is where you turn the radio on and off, set your region and channels, manage privacy and notifications, save mesh profiles, and check system health.
 
@@ -188,7 +188,7 @@ Set the display name other radios see for you. Your 4-character short name is au
 | **Quick messages** | Manage the canned replies shown when you press `q` in [Messages](02-Messages-Menu.md). Choose **`+ Add new`** to add one, or highlight an existing phrase to edit it. To **delete** a phrase, open it, erase all the text so it is empty, and press **Enter**. |
 | **Delivery confirmations** | Toggle **On / Off**. When **On**, sent messages request delivery confirmation (`Mesh confirmed` / `Recipient received`). |
 | **Signal on messages** | Toggle **On / Off**. Shows or hides signal (`dB`) and hop count under incoming chat bubbles. |
-| **Save conversations** | Controls whether chat history, drafts, and pinned chat records are saved across restarts. Saved history is kept in a private folder on the device's storage (**not encrypted**). If you prefer not to keep chats on disk if the device is lost, choose **`Erase saved history; RAM only`** to remove stored messages and conversation records so your current session stays in memory only. Re-enabling it saves your current session and drafts back to storage. This is not a forensic secure erase of flash storage or a deletion of screenshots, backups, or copies on other radios. |
+| **Save conversations** | Controls whether chat history, drafts, and pinned chat records are saved across restarts. Saved history is kept in a private folder on the device's storage (**not encrypted**). If you prefer not to keep chats on disk if the device is lost, choose **`Erase saved history; RAM only`** to remove stored messages and conversation records so your current session stays in memory only. Re-enabling it saves your current messages, drafts and pins together; if saving fails, it keeps the previous choice. This is not a forensic secure erase of flash storage or a deletion of screenshots, backups, or copies on other radios. |
 | **Keep per chat** | Limit saved messages per conversation: **`All`**, **`50`**, **`100`**, or **`200`** (subject to a 2,000-message total limit across all chats). |
 
 ---
@@ -210,7 +210,7 @@ Set the display name other radios see for you. Your 4-character short name is au
 |---|---|
 | **Appearance** | Switch between **Dark** mode (comfortable at night) and **Light** mode. |
 | **First-run setup** | Safe to open anytime: if your radio is already set up, it opens a **Setup ready** card showing your active Region, Transmit mode, and Firewall status without changing anything. If no profile exists yet, it launches the first-time Region & Channel wizard. |
-| **Diagnostics** | Choose **View current health** to inspect app/daemon/client versions, radio and API status, camera availability, GPS fix freshness/age/satellites, seconds since last received radio packet (`Last RX age`), message count, and firewall health.<br>Choose **Export sanitized health** to save a private `diagnostics-export.json` report that strips out all messages, channel keys, node IDs, and GPS coordinates. |
+| **Diagnostics** | Choose **View current health** to inspect app/daemon/client versions, radio and API status, camera availability, GPS fix freshness/age/satellites, seconds since last received radio packet (`Last RX age`), message count, the last message-history save result, and firewall health.<br>Choose **Export sanitized health** to save a private `diagnostics-export.json` report that strips out all messages, channel keys, node IDs, and GPS coordinates. |
 | **About** | Shows app version, source URL, your Node ID, firmware version, hardware model, active region, and node name. |
 
 ---

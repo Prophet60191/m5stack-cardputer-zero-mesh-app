@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-> For Mesh **0.1.25 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
+> For Mesh **0.1.26 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
 
 When something doesn't behave the way you expect out in the field, look up the message or symptom you see below.
 
@@ -109,3 +109,19 @@ a pin from another hardware owner. Keep the Cap seated and antenna attached.
 ---
 
 [← Settings Menu](05-Settings-Menu.md) | [Quick Reference](00-Quick-Reference-Card.md) | [Introduction →](01-Introduction-and-Getting-Started.md)
+
+## History storage warnings
+
+If you see **History storage unavailable; new messages are in memory only**,
+received messages and delivery results still appear, but the new information may
+be lost on restart. Avoid restarting until storage is working. Check
+**Settings → Diagnostics → Last history save**, and check the device's free space.
+Mesh retries the save on the next history update or read; it never resends radio
+messages to repair a storage problem. **History saving recovered** means the
+current message history was saved successfully. Failed draft saves remain
+separate errors: do not assume an unsaved draft is durable.
+
+If a delete, clear or shorter retention limit cannot be saved, Mesh keeps the
+previous messages and reports the failure. Turning saved conversations back on
+saves the current messages, drafts and pins together, or keeps the previous
+setting if that operation fails.

@@ -1,3 +1,10 @@
+# History/background reliability candidate — 2026-11-27
+
+Mesh **0.1.26** is in package qualification. Its fixes and exact validation status
+are in [the history review](history-reliability-20261127.md). Until installation
+is recorded there, the device remains on qualified 0.1.25 below. Both exact-source
+0.1.25 CI jobs have now passed; the older pending note is historical.
+
 # Reliability follow-up installed — 2026-11-27
 
 Mesh **0.1.25 is installed** from runtime/package source `31d3b43`. It fixes

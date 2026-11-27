@@ -831,7 +831,10 @@ void SettingsScreen::service_result() {
             "GPS age: " + (event.int_at("gps_age", -1) < 0 ? std::string("Unknown") : std::to_string(event.int_at("gps_age")) + "s"),
             "GPS satellites: " + (event.int_at("gps_satellites", -1) < 0 ? std::string("Unknown") : std::to_string(event.int_at("gps_satellites"))),
             "Last radio reception: " + (event.int_at("last_rx_age", -1) < 0 ? std::string("Unknown") : std::to_string(event.int_at("last_rx_age")) + "s ago"),
-            "History: " + std::to_string(event.int_at("history_count")), view_model().radio_detail()};
+            "History: " + std::to_string(event.int_at("history_count")),
+            std::string("Last history save: ") + (!flag(event,"history_enabled") ? "Disabled" :
+                !event.find("history_storage_ok") ? "Unknown" : flag(event,"history_storage_ok") ? "OK" : "Failed; memory only"),
+            view_model().radio_detail()};
         const auto* fw = event.find("firewall"); rows.push_back(std::string("Firewall: ") + (fw && flag(*fw,"ok") ? "healthy" : "FAILED"));
         open_info("Diagnostics", rows);
     } else { open_info("Complete", {"Saved and confirmed."}); }

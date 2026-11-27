@@ -18,6 +18,7 @@ from meshtastic.protobuf import mesh_pb2, portnums_pb2
 PORT = 47401
 MAX_FRAME = 512
 MAX_BUFFER = 256 * 1024
+RESPONSE_LIFETIME = 90  # longer than app send/trace/admin waits; never replay RF
 PROXY_MAGIC = b'\r\n\r\n\0\r\nQUIT\n'
 
 
@@ -303,10 +304,38 @@ class PhoneGateway:
 def observing_interface(callback, **kwargs):
     from meshtastic.tcp_interface import TCPInterface
     class ObservingInterface(TCPInterface):
+        def __init__(self, **options):
+            self._response_lock = threading.RLock()
+            self._response_deadlines = {}
+            super().__init__(**options)
+
+        def _addResponseHandler(self, requestId, callback, ackPermitted=False):
+            with self._response_lock:
+                self.expire_responses()
+                super()._addResponseHandler(requestId, callback, ackPermitted)
+                self._response_deadlines[requestId] = (
+                    time.monotonic() + RESPONSE_LIFETIME, self.responseHandlers[requestId])
+
+        def expire_responses(self):
+            # The pinned SDK retains unanswered callbacks indefinitely. Use
+            # the same lock as decoding, including its get/pop/callback chain,
+            # so expiry cannot race that chain or remove a replacement handler.
+            with self._response_lock:
+                now = time.monotonic()
+                for request, (deadline, handler) in list(self._response_deadlines.items()):
+                    if self.responseHandlers.get(request) is not handler:
+                        self._response_deadlines.pop(request, None)
+                    elif now >= deadline:
+                        self.responseHandlers.pop(request, None)
+                        self._response_deadlines.pop(request, None)
+
         def _handleFromRadio(self, raw):
             # Run the original decoder first. The callback sees the same wire
             # record, never mutated dictionaries or admin response objects.
-            super()._handleFromRadio(raw)
-            try: callback(self, raw)
-            except Exception: pass
+            # Reader callbacks may take the state/store lock, never the
+            # lifecycle lock. Expiry callers must not hold the state lock.
+            with self._response_lock:
+                super()._handleFromRadio(raw)
+                try: callback(self, raw)
+                except Exception: pass
     return ObservingInterface(**kwargs)

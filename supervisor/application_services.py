@@ -264,7 +264,8 @@ class ApplicationServices:
                 "last_rx_age": max(0, int(time.time()) - self._last_rx) if self._last_rx else None,
                 "camera_available": camera_available,
                 "channels": len(channels), "private_channels": sum(ch["private"] for ch in channels),
-                "history_count": len(self._messages), "history_enabled": self._store.preference("history.enabled", True)}
+                "history_count": len(self._messages), "history_enabled": self._store.preference("history.enabled", True),
+                "history_storage_ok": not self._history_storage_error}
 
     def _export_diagnostics(self):
         result = self._diagnostics()

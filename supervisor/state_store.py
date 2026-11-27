@@ -69,6 +69,25 @@ class StateStore:
             rows = self._db.execute("SELECT payload FROM messages ORDER BY seq,rowid LIMIT 2000").fetchall()
             return [json.loads(row[0]) for row in rows]
 
+    def enable_history(self, messages, threads):
+        """Opt in and save current RAM history/drafts in one transaction."""
+        if len(threads) > 256:
+            raise ValueError("conversation state limit reached")
+        thread_rows = [(name, json.dumps(self.clean_thread(name, value)))
+                       for name, value in threads.items()]
+        rows = [(str(m.get("from", "")), str(m["id"]),
+                 json.dumps(m, ensure_ascii=False, allow_nan=False), sequence)
+                for sequence, m in enumerate(messages[-2000:], 1) if m.get("id")]
+        with self._lock:
+            with self._db:
+                self._db.execute("INSERT OR REPLACE INTO preferences VALUES (?,?)", ("history.enabled", "true"))
+                self._db.execute("DELETE FROM messages")
+                self._db.execute("DELETE FROM threads")
+                self._db.executemany("INSERT INTO messages VALUES (?,?,?,?)", rows)
+                self._db.executemany("INSERT INTO threads VALUES (?,?)", thread_rows)
+            self._message_cache = {(sender, ident): (payload, seq) for sender, ident, payload, seq in rows}
+            self._sequence = max((row[3] for row in rows), default=0)
+
     def replace_messages(self, messages):
         # One transaction makes retention/deletion/retry state authoritative on
         # disk as well as in a reconnect snapshot. Hard global cap also applies

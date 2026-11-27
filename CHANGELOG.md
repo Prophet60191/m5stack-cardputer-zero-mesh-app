@@ -826,3 +826,17 @@ separate two-minute/12-sample API/firewall/TX watch pass. Actual launcher UI and
 running executable hash verify. ADB stays On, Radio Online/send-receive; private
 backups retained and exact device stages removed. See the qualification record
 for source-correlated CI and unclaimed physical/peer checks.
+
+## 0.1.26 — 2026-11-27 (history/background reliability)
+
+- Keep live incoming messages and delivery outcomes visible when saving history
+  fails; warn once, retain bounded RAM state and retry persistence on updates or
+  reads. Prevent storage exceptions from killing radio health monitoring.
+- Commit delete/clear/retention before removing RAM state; opt back into saved
+  history with messages/drafts/pins and the preference in one transaction.
+- Ignore duplicate RF packets without reordering stored messages or repeated UI
+  events. Expire abandoned SDK callbacks after the app's existing wait windows,
+  synchronized with decoding so a valid reply cannot race cleanup.
+- Add real SQLite abort/rollback, pinned-SDK decoding/expiry/concurrency and native
+  Diagnostics tests. No automatic RF resend or settings/profile migration.
+- Qualification/install status is in docs/history-reliability-20261127.md.
