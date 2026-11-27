@@ -1,9 +1,10 @@
 # Cardputer Zero Mesh
 
 Current instructions: docs/install.md (operations), docs/distribution.md (build/source
-assets), docs/README.md (index). Current installed runtime/package is 5776364
-(Mesh 0.1.20); later documentation changes do not imply another installation.
-Older dated notes below are historical and do not override those current runbooks.
+assets), docs/README.md (index). Installed keyboard runtime/package source is
+25ff876 (Mesh 0.1.23); later documentation/CI changes do not imply reinstall.
+Read docs/keyboard-audit-20261127.md for current evidence and scope.
+Older dated notes below are historical and do not override current runbooks.
 
 ## Current focus — Messages/loading acceptance (2026-11-26)
 
@@ -322,3 +323,6 @@ The deferred keyboard review is now implemented with owner authorization.
 Read docs/keyboard-audit-20261127.md for current scope and evidence; older
 pending notes remain historical. Keep normal-user system keys, shared source
 provenance and decoder/raw-event regressions together. Quartermaster is excluded.
+
+Installed keyboard update is verified; read docs/keyboard-audit-20261127.md.
+Keep physical-key acceptance separate from the completed real-device replay.

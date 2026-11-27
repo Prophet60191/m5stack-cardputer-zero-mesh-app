@@ -70,3 +70,17 @@ Debian arm64 suites: Mesh 6/6 plus 175 backend tests, Surveyor 8/8,
 NFC Tools 16/16, App Shell 6/6. Installer dependencies now explicitly include
 libpulse0 and libglib2.0-bin. Tests use fixtures/fakes and do not claim RF,
 NFC card, physical modifier or field-survey qualification.
+
+## Installed keyboard verification — 2026-11-27
+
+The committed installer was installed on Lockon. Its regular packaged files,
+modes and root ownership match the extracted package. Actual native UI input
+replay on the internal evdev device changed volume/mute/brightness and showed
+correct feedback, running as the ordinary user. Exact original per-channel
+volume, mute and raw brightness were restored; launcher restored, ADB left On.
+Original saved app files and all existing database rows remain, with SQLite
+integrity OK; Mesh's system configuration is byte-for-byte unchanged and radio
+stays Off. No Cap power, RF send, scan, tag write or camera/GPS test was made.
+Media's real normal-user D-Bus backend delivered PlayPause/Previous/Next to a
+synthetic player; absent/ambiguous players were safely reported. This is not
+acceptance of an arbitrary music app lacking MPRIS or of every physical key.

@@ -16,7 +16,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: sudo apt-get update && sudo apt-get install -y python3-venv fonts-dejavu-core poppler-utils
+      - name: Install dependencies from signed Ubuntu sources
+        run: |
+          test -f /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- update
+          sudo apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- install -y python3-venv fonts-dejavu-core fonts-dejavu-extra fonts-dejavu-mono poppler-utils
       - run: python3 -m venv build/docs-venv && build/docs-venv/bin/pip install -r scripts/user-guide/requirements.txt
       - run: build/docs-venv/bin/python scripts/user-guide/build.py
       - name: Render every page for visual review

@@ -9,7 +9,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
         with:
           persist-credentials: false
-      - run: sudo apt-get update && sudo apt-get install -y ninja-build libpng-dev libjpeg-dev libfmt-dev libsdl2-dev libfreetype-dev zlib1g-dev
+      - name: Install dependencies from signed Ubuntu sources
+        run: |
+          test -f /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- update
+          sudo apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- install -y ninja-build libpng-dev libjpeg-dev libfmt-dev libsdl2-dev libfreetype-dev zlib1g-dev
       - run: python3 -m venv .venv && .venv/bin/pip install cmake==3.31.6 meshtastic==2.7.11
       - run: .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Fetch qualified LVGL source

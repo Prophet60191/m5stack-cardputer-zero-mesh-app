@@ -8,7 +8,7 @@ keys, share URLs, device identities, chats, locations or personal paths.
 ## Local build
 
 Use Python 3.12 or later. On Debian/Ubuntu, install `python3-venv` and
-`fonts-dejavu-core`; on other systems, provide the directory containing the four
+`fonts-dejavu-core`, `fonts-dejavu-extra` and `fonts-dejavu-mono`; on other systems, provide the directory containing the four
 DejaVu Sans regular/bold/oblique/bold-oblique `.ttf` files with `--font-dir`.
 Do not copy font files into this repository. Their redistribution notices are
 included in [DejaVu-LICENSE.txt](DejaVu-LICENSE.txt) and attached to each PDF.

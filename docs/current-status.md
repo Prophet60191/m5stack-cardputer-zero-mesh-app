@@ -1,3 +1,12 @@
+# Current keyboard update — 2026-11-27
+
+Mesh 0.1.23 is installed from runtime/package source `25ff876`.
+Left/Right selects Channels/Direct Messages. Normal-user system keys and
+Shift+Tab are implemented. [Keyboard qualification](keyboard-audit-20261127.md)
+records all offline and installed checks and their physical-key limits.
+Saved chats/settings are preserved; Radio Off and ADB On. Earlier source/status
+entries below are historical. USB GPS/SIM and earlier unrelated limits stay deferred.
+
 # Current status
 
 **Mesh 0.1.22 is installed**, from exact runtime/package source `15092a8`.
