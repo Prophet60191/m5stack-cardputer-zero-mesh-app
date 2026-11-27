@@ -27,7 +27,7 @@ The contract between the **LVGL UI** (C++) and the **Python supervisor** (`super
 | `message.send` | `channel`, `text`, `dest?`, `cid`, `wantAck?` (default `true`) | send a text message; with `wantAck` an ack drives a `delivery` event keyed by `cid` |
 | `position.send` | `channel`, `dest?` | send this node's GPS position as a visible message, or reply `error` if there is no fix |
 | `position.request` | `node`, `channel` | ask a node to report its position (updates `nodes` when it replies) |
-| `traceroute` | `node`, `channel` | trace the mesh path to a node; replies `traceroute` with the path or a timeout |
+| `traceroute` | `node`, `channel` | trace the mesh path to a node; replies `traceroute` with a destination-confirmed path or a routing, invalid-reply, timeout or setup-change failure |
 
 ## Events (supervisor → UI)
 

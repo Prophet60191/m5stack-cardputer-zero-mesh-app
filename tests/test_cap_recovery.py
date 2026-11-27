@@ -38,6 +38,10 @@ class CapRecoveryTests(unittest.TestCase):
   with patch.object(cap,'_i2c_read_register',side_effect=PermissionError(errno.EACCES,'denied')):
    with self.assertRaises(cap.CapError) as error:cap.verify_expander(123)
    self.assertEqual(error.exception.kind,'permission')
+ def test_short_i2c_read_uses_the_bounded_absent_recovery_path(self):
+  with patch.object(cap.os,'write'), patch.object(cap.os,'read',return_value=b''):
+   with self.assertRaises(cap.CapError) as error:cap.verify_expander(123)
+   self.assertEqual(error.exception.kind,'absent')
  def test_interrupted_recovery_restores_original_switches(self):
   self.exercise([cap.CapError('absent','missing')],SystemExit,sleep_error=[None,SystemExit()])
  def test_power_only_does_not_probe_or_cycle(self):

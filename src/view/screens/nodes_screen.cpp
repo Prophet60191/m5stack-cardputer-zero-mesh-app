@@ -66,7 +66,9 @@ lv_obj_t* make_signal_bar(lv_obj_t* parent, double snr, const view::ThemePalette
     auto* bar = lv_bar_create(parent);
     lv_obj_set_size(bar, 34, 7);
     lv_bar_set_range(bar, 0, 100);
-    int pct = static_cast<int>((snr + 20.0) / 30.0 * 100.0);
+    // Bound untrusted numeric telemetry before converting it to an integer.
+    const double signal = std::clamp(std::isfinite(snr) ? snr : -20.0, -20.0, 10.0);
+    int pct = static_cast<int>((signal + 20.0) / 30.0 * 100.0);
     if (pct < 6) pct = 6;
     if (pct > 100) pct = 100;
     lv_bar_set_value(bar, pct, LV_ANIM_OFF);

@@ -1,6 +1,6 @@
 # Introduction & Getting Started
 
-> For Mesh **0.1.24 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
+> For Mesh **0.1.25 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
 
 Welcome to the **Cardputer Zero Mesh App**! This app turns your M5Stack CardputerZero and its LoRa radio Cap into a pocket-sized, off-grid communicator using the **Meshtastic** mesh network.
 

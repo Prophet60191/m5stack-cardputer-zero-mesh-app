@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.24 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
+> For Mesh **0.1.25 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 
@@ -251,3 +251,7 @@ explanation and any failure reason before deciding to resend.
 ---
 
 [← Introduction](01-Introduction-and-Getting-Started.md) | [Quick Reference](00-Quick-Reference-Card.md) | [Next: Nodes Menu →](03-Nodes-Menu.md)
+
+A route succeeds only when the destination returns a valid route reply. Routing
+errors and timeouts are shown as failures. Changing the radio setup cancels a
+pending trace; start a new trace after the new setup is ready.

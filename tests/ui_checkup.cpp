@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <iostream>
 #include <functional>
+#include <limits>
 
 #define CHECK(x) do { if (!(x)) { std::cerr << "FAIL " << __LINE__ << ": " << #x << '\n'; std::abort(); } } while (0)
 static bool dark = false;
@@ -303,6 +304,22 @@ static void font_fit(const std::string &dir) {
     }
     lv_obj_delete(root);
  }
+static void signal_bounds() {
+    viewmodel::BaseViewModel vm; vm.set_dark_mode(dark); app::AssetManager assets;
+    for (double snr : {-1e300, 1e300, -20.0, 10.0, std::numeric_limits<double>::quiet_NaN()}) {
+        viewmodel::NodeInfo node; node.id="!10000001"; node.name="Synthetic";
+        node.hasSnr=true; node.snr=snr; vm.set_nodes({node});
+        screen::NodesScreen screen(vm,assets);
+        int count=0;
+        const auto inspect=[&](auto &&self,lv_obj_t *object)->void {
+            if(lv_obj_check_type(object,&lv_bar_class)) {
+                CHECK(lv_bar_get_value(object)==(snr>=10?100:6)); ++count;
+            }
+            for(uint32_t i=0;i<lv_obj_get_child_count(object);++i)self(self,lv_obj_get_child(object,i));
+        };
+        inspect(inspect,screen.root()); CHECK(count==1);
+    }
+}
 static void composer_fit(const std::string &dir) {
     viewmodel::BaseViewModel vm;vm.set_dark_mode(dark);app::AssetManager assets;channel(vm);
     screen::MessagesScreen s(vm,assets);s.on_down();s.on_enter();s.on_enter();
@@ -320,7 +337,7 @@ int main(int argc,char **argv) {
     dark = theme;
     const std::string dir=output.empty()?"":(std::filesystem::path(output)/(dark?"dark":"light")).string();
     for (const auto &entry : std::vector<std::pair<std::string,std::function<void()>>>{
-         {"wrap",wrap},{"cancel-recipient",cancel_recipient},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
+         {"signal-bounds",signal_bounds},{"wrap",wrap},{"cancel-recipient",cancel_recipient},{"labels",[&]{long_labels(dir);}},{"slot",invalid_slot},
          {"quote",quote_without_channel},{"toast",[&]{toasts(dir);}},{"qr",[&]{qr(dir);}},{"header",header},{"home-standard",[&]{home_standard(dir);}},{"map",[&]{map_edges(dir);}},{"search",search},{"unicode",unicode},{"fonts",[&]{font_fit(dir);}},{"composer",[&]{composer_fit(dir);}}})
         if(test=="all" || test==entry.first) { std::cout<<entry.first<<std::endl;entry.second(); }
     }

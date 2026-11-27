@@ -1,3 +1,11 @@
+# Reliability follow-up candidate — 2026-11-27
+
+Mesh **0.1.25** adds truthful traceroute results, lifecycle-safe trace sends,
+released capacity after a thread-start failure, short I2C-read recovery and bounded
+node signal-bar conversion. Qualification/install status is recorded in
+[the review follow-up](reliability-followup-20261127.md). Until installation is
+recorded there, the installed runtime remains the qualified 0.1.24 below.
+
 # Current radio startup update — 2026-11-27
 
 Mesh **0.1.24 is installed** from runtime/package source `66fd215`.

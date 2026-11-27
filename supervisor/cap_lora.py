@@ -110,7 +110,10 @@ def _write_text(path: str, value: str) -> None:
 # with an ioctl, then write the register number and read/write its bytes.
 def _i2c_read_register(fd: int, reg: int) -> int:
     os.write(fd, bytes([reg]))     # "I want register <reg>"
-    return os.read(fd, 1)[0]       # read its one byte back
+    value = os.read(fd, 1)
+    if len(value) != 1:
+        raise OSError(errno.EIO, "short Cap I2C register read")
+    return value[0]
 
 
 def _i2c_write_register(fd: int, reg: int, value: int) -> None:

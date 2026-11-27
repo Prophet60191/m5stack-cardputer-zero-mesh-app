@@ -1044,7 +1044,13 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
                 self._validate_target(req, node)
                 if not self._trace_slots.acquire(blocking=False):
                     raise RuntimeError("two traces already running")
-                threading.Thread(target=self._trace_worker, args=(self._iface, node, ch, rid), daemon=True).start()
+                try:
+                    context = self._config_fingerprint()
+                    threading.Thread(target=self._trace_worker,
+                                     args=(self._iface, node, ch, rid, context), daemon=True).start()
+                except Exception:
+                    self._trace_slots.release()
+                    raise
                 reply({"event": "notice", "text": "tracing route"})
             elif intent == "channel.share":
                 self._require_online()
@@ -1272,42 +1278,81 @@ class Supervisor(ApplicationServices, ChannelImport, ChannelSetup, PhoneServices
             pass
         return None, None
 
-    def _trace_worker(self, iface, node, channel, request):
+    def _trace_worker(self, iface, node, channel, request, context):
         try:
-            self._run_traceroute(iface, node, channel, request)
+            self._run_traceroute(iface, node, channel, request, context)
         finally:
             self._trace_slots.release()
 
-    def _run_traceroute(self, iface, node: str, channel: int, request) -> None:
+    def _run_traceroute(self, iface, node: str, channel: int, request, context) -> None:
         from meshtastic.protobuf import mesh_pb2, portnums_pb2
-        result = {"route": None}
+        result = {"route": None, "error": ""}
         done = threading.Event()
+
+        def current():
+            return (not self._stop.is_set() and self._iface is iface and
+                    self._radio == "online" and self._config_confirmed and
+                    self._config_fingerprint() == context)
+
+        def fail(text):
+            self._broadcast({"event": "traceroute", "node": node, "id": request,
+                             "ok": False, "text": text})
 
         def on_resp(p):
             try:
+                decoded = p["decoded"]
+                port = decoded.get("portnum")
+                if port in ("ROUTING_APP", portnums_pb2.ROUTING_APP):
+                    routing = mesh_pb2.Routing.FromString(decoded["payload"])
+                    if not routing.error_reason:
+                        return  # A mesh ACK is not a route from the destination.
+                    result["error"] = "Route failed: " + mesh_pb2.Routing.Error.Name(routing.error_reason)
+                    done.set()
+                    return
+                if port not in ("TRACEROUTE_APP", portnums_pb2.TRACEROUTE_APP) or p.get("from") != int(node[1:], 16):
+                    raise ValueError("unexpected traceroute reply")
                 rd = mesh_pb2.RouteDiscovery()
-                rd.ParseFromString(p["decoded"]["payload"])
+                rd.ParseFromString(decoded["payload"])
                 result["route"] = list(rd.route)
             except Exception:
-                result["route"] = []
+                result["error"] = "Invalid traceroute reply"
             done.set()
 
         try:
-            r = mesh_pb2.RouteDiscovery()
-            iface.sendData(r, destinationId=node,
+            # Serialize only validation/send with lifecycle changes; never hold
+            # the lock while waiting for RF. A delayed thread cannot send using
+            # an old channel after a setup change or a switch to receive-only.
+            with self._life_lock:
+                if not current():
+                    fail("Radio setup changed; trace cancelled")
+                    return
+                self._validate_target({"channel": channel, "channel_id": self._channel_identity(channel)}, node)
+                iface.sendData(mesh_pb2.RouteDiscovery(), destinationId=node,
                                  portNum=portnums_pb2.PortNum.TRACEROUTE_APP,
                                  wantResponse=True, onResponse=on_resp,
                                  channelIndex=channel, hopLimit=5)
-        except Exception as exc:  # noqa: BLE001
-            self._broadcast({"event": "traceroute", "node": node, "id": request, "ok": False, "text": str(exc)})
+        except Exception:
+            fail("Trace could not be sent; check radio and channel")
             return
-        if not done.wait(timeout=20):
-            self._broadcast({"event": "traceroute", "node": node, "id": request, "ok": False,
-                             "text": "no response (timed out)"})
-            return
-        hops = [self._name_for(n) or f"!{n:08x}" for n in (result["route"] or [])]
-        path = ["You"] + hops + [self._name_for_id(node)]
-        self._broadcast({"event": "traceroute", "node": node, "id": request, "ok": True, "path": path})
+        deadline = time.monotonic() + 20
+        while True:
+            with self._life_lock:
+                if not current():
+                    fail("Radio setup changed; trace cancelled")
+                    return
+                if done.is_set():
+                    if result["error"]:
+                        fail(result["error"])
+                    else:
+                        hops = [self._name_for(n) or f"!{n:08x}" for n in result["route"]]
+                        path = ["You"] + hops + [self._name_for_id(node)]
+                        self._broadcast({"event": "traceroute", "node": node, "id": request, "ok": True, "path": path})
+                    return
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    fail("no response (timed out)")
+                    return
+            done.wait(min(0.2, remaining))
 
     def _channel_share_url(self, index: int):
         try:

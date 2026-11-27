@@ -806,3 +806,14 @@ with independent hardware notes/private backups preserved.
 - Cold-power qualification also exposed an API-listener readiness race. Retry only refused loopback connections within a fixed ten-second deadline, abort on daemon death/stop and retain handshake failures; add six tests.
 
 - Final 66fd215 / 0.1.24 is installed (SHA-256 0e08deb6d884283ebac06c52bb90af7d6a538ebb3c66186a7ad487416a634869); 266 files and original data/settings verified. Twelve full Cap starts (1.23–3.28 s), 60-sample ten-minute healthy radio/API/firewall watch, normal launcher reopen and both source CI jobs pass. Radio remains Online/send-receive, ADB On. See the startup record for bounded evidence and deferred checks.
+
+## 0.1.25 — 2026-11-27 (reliability follow-up)
+
+- Distinguish real destination traceroute replies from routing failures and
+  malformed replies. Cancel delayed/pending traces after radio/setup changes;
+  serialize validation/send without blocking lifecycle changes during RF waits.
+- Return trace capacity if thread startup fails. Classify empty I2C reads as
+  missing-device errors so existing bounded Cap recovery applies.
+- Clamp signal telemetry before floating-point-to-integer conversion in Nodes.
+- Add protobuf/lifecycle/failure and actual LVGL signal-bar regression cases.
+  See docs/reliability-followup-20261127.md for validation and device limits.
