@@ -23,6 +23,9 @@
 
 namespace platform {
 namespace {
+SystemKeyListener system_key_listener = nullptr;
+void* system_key_data = nullptr;
+
 
 std::array<lv_obj_t*, kNavKeyCount> nav_buttons{};
 uint32_t last_key = 0;
@@ -136,6 +139,8 @@ void ensure_long_press_timer() {
 }
 
 bool route_key_state(uint32_t key, bool pressed) {
+    if (key >= kKeySystemAction && route_system_key_event(key - kKeySystemAction, pressed ? 1 : 0)) return true;
+
     // Releasing an older rollover key must not cancel a newer key's hold.
     auto* source = lv_indev_active();
     if (!pressed && (pressed_key != key || hold_owner != source)) return false;
@@ -261,6 +266,15 @@ void evdev_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
                 continue;
             }
             if (input.type!=EV_KEY) continue;
+            if (route_system_key_event(input.code, input.value)) {
+                if (input.value == 1) {
+                    cancel_hold(indev); keypad->state = LV_INDEV_STATE_RELEASED;
+                    data->key = keypad->key; data->state = LV_INDEV_STATE_RELEASED;
+                    data->continue_reading = keypad->poll_budget != 0; return;
+                }
+                continue;
+            }
+
             const bool editing=text_entry_query ? text_entry_query(text_entry_query_data) : text_entry_mode;
             decoded=keypad->decoder.feed(input.code,input.value,editing);
         }
@@ -505,5 +519,11 @@ const char* describe_key(uint32_t key) {
     }
     return buffer;
 }
+
+void set_system_key_listener(SystemKeyListener listener, void* data) { system_key_listener=listener; system_key_data=data; }
+void clear_system_key_listener(SystemKeyListener listener, void* data) {
+    if(system_key_listener==listener && system_key_data==data){system_key_listener=nullptr;system_key_data=nullptr;}
+}
+bool route_system_key_event(unsigned code,int value) { return system_key_listener && system_key_listener(code,value,system_key_data); }
 
 } // namespace platform

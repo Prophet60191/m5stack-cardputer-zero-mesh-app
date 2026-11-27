@@ -44,10 +44,11 @@ modifier state. There is no direct I2C access or keyboard firmware modification.
   second line). Fn+K/N is Home/End and Fn+Backspace deletes to the right.
 - Fn+H toggles Help and Fn+J takes a screenshot while editing too. A visible Help
   overlay consumes Enter and typing, preserving the underlying draft and cursor.
-- PageUp/PageDown, Insert, F1-F12 and media/display keys are non-text actions.
-  Mesh does not bind additional editor behavior to those keys. They cannot
-  insert control values or unexpectedly move focus. Platform media/display
-  handling is separate; Mesh does not add shell commands for those functions.
+- PageUp/PageDown pages applicable browsing lists; editors retain their own
+  navigation. Insert and F1-F12 remain non-text, unbound actions. System keys
+  now use the app-owned normal-user adapter: Fn+A/S/D mute/volume and Fn+U/I
+  brightness. Media controls require one MPRIS player. See the
+  [current audit](keyboard-audit-20261127.md) for source reuse and limits.
 - Shortcuts are consumed in the indev reader **before** LVGL can send them to the
   focused textarea. The simulator uses that same filter. Hold-to-exit applies
   only in Home. Unbound Fn values never become invalid Unicode in a draft.

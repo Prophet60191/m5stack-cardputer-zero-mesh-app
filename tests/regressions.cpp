@@ -374,7 +374,7 @@ static void compact_layout_regression(const char* screenshot_path) {
     CHECK(labels(messages.root()).find("DM via choose channel")!=std::string::npos);
     messages.on_back();messages.on_back();lv_obj_update_layout(messages.root());
     CHECK(lv_obj_has_flag(context,LV_OBJ_FLAG_HIDDEN));
-    check_help(label_starting(messages.root(),"Tab: switch"));
+    check_help(label_starting(messages.root(),"Z/C: switch"));
 }
 
 static void qr_scan_ui_regression(const char* screenshot_path) {

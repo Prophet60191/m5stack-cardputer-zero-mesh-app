@@ -60,8 +60,9 @@ static void run(bool dark) {
     screen::MessagesScreen s(vm,assets);lv_screen_load(s.root());
     CHECK(find(s.root(),"Channels"));CHECK(find(s.root(),"Direct Messages"));
     CHECK(find(s.root(),"# 1: Field [Private]"));CHECK(!find(s.root(),"* Peer"));capture(s.root(),"channels",dark);
-    CHECK(s.on_key(LV_KEY_NEXT));CHECK(find(s.root(),"* Peer"));CHECK(!find(s.root(),"# 1: Field [Private]"));
+    CHECK(s.on_key(LV_KEY_RIGHT));CHECK(s.on_key(LV_KEY_RIGHT));CHECK(find(s.root(),"* Peer"));CHECK(!find(s.root(),"# 1: Field [Private]"));
     capture(s.root(),"direct-messages",dark);
+    CHECK(s.on_key(LV_KEY_LEFT));CHECK(find(s.root(),"# 1: Field [Private]"));CHECK(s.on_key(LV_KEY_RIGHT));
     search(s,"needle");capture(s.root(),"combined-search",dark);CHECK(find(s.root(),"Channel: # 1: Field [Private]"));CHECK(find(s.root(),"DM: * Peer"));
     s.on_enter();CHECK(selected(s.root(),"Needle latest"));capture(s.root(),"search-match",dark);CHECK(s.on_back());CHECK(find(s.root(),"Search: needle"));
     s.on_down();s.on_enter();CHECK(selected(s.root(),"Needle direct")); // no send-channel picker for reading

@@ -1,6 +1,8 @@
-# Deferred keyboard-alignment review
+# Keyboard-alignment review
 
-Logged 2026-11-18. **Status: pending; record only.** Resume when the owner asks.
+Logged 2026-11-18. **Resumed with owner authorization on 2026-11-27.**
+Current implementation and evidence: [keyboard audit](keyboard-audit-20261127.md).
+The original follow-up scope below is retained as historical context.
 This note does not establish that this app is aligned, justify an existing
 difference, or authorize implementation changes or device tests now.
 

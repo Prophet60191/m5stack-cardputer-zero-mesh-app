@@ -173,6 +173,20 @@ static void device_path_checks() {
     drain();REQUIRE(std::string(lv_textarea_get_text(area))==std::string(64,'a'));
     drain();REQUIRE(std::string(lv_textarea_get_text(area))==std::string(70,'a'));
 
+    // All media/display codes reach the app-owned system hook even while editing.
+    int system_events=0;
+    auto system_hook=+[](unsigned code,int,void* data) {
+        switch(code){case 113:case 114:case 115:case 163:case 164:case 165:case 224:case 225:
+            ++*static_cast<int*>(data);return true;default:return false;}
+    };
+    platform::set_system_key_listener(system_hook,&system_events);
+    state.editing=true;lv_textarea_set_text(area,"preserved draft");
+    for(unsigned code:{113u,114u,115u,163u,164u,165u,224u,225u}){
+        raw(EV_KEY,code,1);raw(EV_KEY,code,2);raw(EV_KEY,code,0);drain();
+    }
+    REQUIRE(system_events==24);REQUIRE(std::string(lv_textarea_get_text(area))=="preserved draft");
+    platform::clear_system_key_listener(system_hook,&system_events);
+
     // Closing the stream cancels a hold without a synthetic short-click/release.
     platform::set_key_release_listener(UiState::release,&state);
     raw(EV_KEY,KEY_ESC,1);drain();const int released_before=state.releases;
@@ -217,6 +231,10 @@ int main(int argc, char** argv) {
     if (argc==2) fixture_path=argv[1];
     else REQUIRE(argc==1);
     decoder_checks();
+    { Decoder d; d.feed(42,1,false); auto tab=d.feed(15,1,false); REQUIRE(tab && tab->key==LV_KEY_PREV);
+      d.feed(42,0,false); tab=d.feed(15,0,false); REQUIRE(tab && tab->key==LV_KEY_PREV);
+      tab=d.feed(15,1,false); REQUIRE(tab && tab->key==LV_KEY_NEXT); }
+
 #ifdef MESH_DEVICE_INPUT_TESTS
     device_path_checks();
 #endif

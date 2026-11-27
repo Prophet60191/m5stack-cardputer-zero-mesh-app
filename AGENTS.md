@@ -315,3 +315,10 @@ erase current setup. Owner will record video; no public/Store/upstream submissio
 USB GPS/SIM, public-peer/IPv6/full keyboard and long-term/earlier phone-drop
 limits remain. App/guide public sources and Desktop/Drive/mirrors are refreshed
 with independent hardware notes/private backups preserved.
+
+## Keyboard follow-up — 2026-11-27
+
+The deferred keyboard review is now implemented with owner authorization.
+Read docs/keyboard-audit-20261127.md for current scope and evidence; older
+pending notes remain historical. Keep normal-user system keys, shared source
+provenance and decoder/raw-event regressions together. Quartermaster is excluded.

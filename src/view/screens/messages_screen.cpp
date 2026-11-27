@@ -210,7 +210,7 @@ void MessagesScreen::update_hint() {
     lv_obj_align(body_, LV_ALIGN_TOP_MID, 0, top);
     if (mode_ == Mode::List) {
         lv_label_set_text(context_, filtered ? ("Search: " + search_).c_str() : "");
-        lv_label_set_text(hint_, filtered ? "Enter: open result   /: Search" : "Tab: switch   /: Search");
+        lv_label_set_text(hint_, filtered ? "Enter: open result   /: Search" : "Z/C: switch   /: Search");
         const int total = list_offset() + static_cast<int>(conversations_.size());
         if (total > kThreadPageSize)
             lv_label_set_text(hint_, (std::to_string(selected_ + 1) + "/" + std::to_string(total) + "   /: Search").c_str());
@@ -888,8 +888,12 @@ bool MessagesScreen::on_back() {
 
 bool MessagesScreen::on_key(uint32_t key) {
     if (composing_ || overlay_ || menu_ || picker_) return false;
-    if (mode_ == Mode::List && search_.empty() && (key == LV_KEY_NEXT || key == LV_KEY_PREV)) {
-        tab_ = tab_ == Tab::Channels ? Tab::DirectMessages : Tab::Channels;
+    if (mode_ == Mode::List && search_.empty() &&
+        (key == LV_KEY_LEFT || key == LV_KEY_RIGHT || key == LV_KEY_NEXT || key == LV_KEY_PREV)) {
+        const Tab next = key == LV_KEY_LEFT ? Tab::Channels : key == LV_KEY_RIGHT ? Tab::DirectMessages :
+            (tab_ == Tab::Channels ? Tab::DirectMessages : Tab::Channels);
+        if (next == tab_) return true;
+        tab_ = next;
         selected_ = 0;
         conversations_.clear();
         rebuild_list();

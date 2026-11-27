@@ -133,7 +133,7 @@ uint32_t KeyboardDecoder::translate(uint16_t code, bool text_entry) const {
         case 106: return LV_KEY_RIGHT;
         case 14: return LV_KEY_BACKSPACE;
         case 111: return LV_KEY_DEL;
-        case 15: return LV_KEY_NEXT;
+        case 15: return (left_shift_ || right_shift_) ? LV_KEY_PREV : LV_KEY_NEXT;
         case 102: return LV_KEY_HOME;
         case 107: return LV_KEY_END;
         case 104: return kKeyPageUp;

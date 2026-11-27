@@ -703,3 +703,7 @@ if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(mesh_keyboard_evdev_regressions PRIVATE lvgl)
     add_test(NAME mesh_keyboard_evdev_regressions COMMAND mesh_keyboard_evdev_regressions)
 endif()
+
+# Standalone input bridge reusing the official M5Stack mixer backend.
+add_subdirectory(src/platform/system_keys)
+target_link_libraries(${PROJECT_NAME}_platform PUBLIC cp0_system_keys)

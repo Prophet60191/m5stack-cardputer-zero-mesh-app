@@ -6,7 +6,8 @@ The existing uncommitted shared home carousel is preserved in this update.
 
 ## Behavior
 
-- Messages opens on **Channels**. **Tab** or **Shift+Tab** switches between
+- Messages opens on **Channels**. **Left/Z** selects Channels and **Right/C** selects Direct Messages.
+  **Tab** or **Shift+Tab** also switches between
   Channels and Direct Messages. Each list retains `+ New message` and wraps.
 - Within each list, conversation activity is newest first. The star still marks
   a pinned chat; pins break equal-time ties rather than placing older messages

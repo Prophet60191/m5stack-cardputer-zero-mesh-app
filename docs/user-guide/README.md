@@ -1,6 +1,6 @@
 # User Guide & Quick Reference
 
-For Mesh **0.1.22 (release candidate)** · Updated **2026-11-26**
+For Mesh **0.1.23 (release candidate)** · Updated **2026-11-27**
 
 Start with the introduction if you are new to the app, or keep the quick reference
 handy when you are away from a computer.

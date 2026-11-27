@@ -14,6 +14,7 @@
 #include "text.h"
 #include "logger.h"
 #include "linux_input.h"
+#include "system_keys/bridge.h"
 #include "screenshot_service.h"
 #include "screen_manager.h"
 #include "base_viewmodel.h"
@@ -386,6 +387,14 @@ private:
             return true;
         }
 
+        if (!on_menu && !long_pressed && screen_manager_ &&
+            (key == platform::kKeyPageUp || key == platform::kKeyPageDown)) {
+            for (int i=0;i<3;++i) {
+                if (key == platform::kKeyPageUp) screen_manager_->key_up();
+                else screen_manager_->key_down();
+            }
+            return true;
+        }
         if (key != LV_KEY_ESC) {
             return false;
         }
@@ -612,6 +621,7 @@ int Application::run() {
 
     ScreenManager screen_manager(view_model, assets);
     screen_manager.start();
+    cp0keys::Bridge system_keys;
     ShortcutController shortcuts(view_model, assets);
     shortcuts.set_screen_manager(&screen_manager);
 

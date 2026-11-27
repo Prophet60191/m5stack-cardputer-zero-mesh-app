@@ -7,6 +7,12 @@
 #include <cstdint>
 
 namespace platform {
+// Raw semantic system events; handle before text/global app shortcuts.
+using SystemKeyListener = bool (*)(unsigned code, int value, void* user_data);
+void set_system_key_listener(SystemKeyListener listener, void* user_data);
+void clear_system_key_listener(SystemKeyListener listener, void* user_data);
+bool route_system_key_event(unsigned code, int value);
+
 
 constexpr size_t kNavKeyCount = 5;
 

@@ -1,6 +1,6 @@
 # Messages Menu
 
-> For Mesh **0.1.22 (release candidate)** · Updated **2026-11-26** · [Guide index](README.md)
+> For Mesh **0.1.23 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
 
 The **Messages** screen is where you start conversations, read incoming texts, send replies, and use mesh tools like location sharing and route tracing.
 
@@ -14,7 +14,7 @@ From the Home Carousel, roll to **Messages** with **Z** / **C** and press **Ente
 |---|---|---|
 | **Conversations List** | **F / X** | Move up and down the list |
 | | **Enter** | Open **`+ New message`** or the highlighted conversation |
-| | **Tab / Shift+Tab** | Switch between Channels and Direct Messages |
+| | **Left/Z / Right/C** | Select Channels / Direct Messages (Tab also switches) |
 | | **/** | Search saved messages across both lists (case-insensitive for English letters) |
 | | **ESC** | Clear an active search filter, or return to the Home Carousel |
 | **Inside a Chat** | **Enter** | Open the typing box *(or open options when a message bubble is highlighted)* |
@@ -39,7 +39,7 @@ You can read existing messages and browse chats anytime, even while the radio is
 
 ## The Conversations List
 
-When you open **Messages**, the **Channels** tab shows group chats. Press **Tab** or **Shift+Tab** for **Direct Messages**, which shows one-to-one chats. Each list is ordered by most recent message activity:
+When you open **Messages**, the **Channels** tab shows group chats. Press **Right/C** for **Direct Messages** and **Left/Z** for **Channels**; **Tab** and **Shift+Tab** also switch, which shows one-to-one chats. Each list is ordered by most recent message activity:
 
 ![Messages Conversations List](images/messages-list.png)
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-27 — Standalone keyboard integration
+
+- Reuse the official MIT mixer/Pulse client for normal-user mute/volume; add bounded brightness and MPRIS actions with visible results.
+- Correct Shift+Tab and simulator paging/function/system actions; retain full Sym fixtures, typing ownership and raw-event regressions.
+- Preserve existing app features, owner data, permissions and radio/privacy choices. Third-party apps are excluded.
+- See docs/keyboard-audit-20261127.md for source decisions and verification boundaries.
+- Left/Right (Z/C) explicitly selects Channels/Direct Messages outside search and editing.
+
 ## 0.1.21 — 2026-11-26 (home-menu update)
 
 - Adopt the reusable NFC Tools home layout: compact title bar, plain

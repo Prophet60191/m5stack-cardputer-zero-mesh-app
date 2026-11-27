@@ -60,3 +60,12 @@ into the MIT UI. Native artifacts must retain attribution and their paired full
 corresponding-source/dependency archive; the scripts document the version/hash
 and the qualification boundary. Historical standalone package instructions remain for 0.1.18 rollback only. No upstream submission is
 implied by retaining a local downstream patch.
+
+## Official audio mixer reused for system keys
+
+`src/platform/system_keys/upstream/` contains unmodified M5Stack MIT-licensed
+audio-mixer and PulseAudio client source from CardputerZero/launcher commit
+`d59f15918c473bc61de13b4960d69ce0e7514899`. The per-file notices and MIT license
+are retained; `src/platform/system_keys/upstream.json` records hashes.
+The small app-owned key/worker/UI adapter is MIT and adapts the standalone
+Template input path; it does not replace the official shared runtime.

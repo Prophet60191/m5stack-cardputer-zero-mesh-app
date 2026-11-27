@@ -28,9 +28,19 @@ constexpr SDL_Rect kScreenRect{DesktopSimulatorFrame::kScreenX,
                                view::kScreenWidth,
                                view::kScreenHeight};
 
-uint32_t map_control_key(SDL_Keycode key) {
+uint32_t map_control_key(SDL_Keycode key, uint16_t mods = 0) {
+    if (key >= SDLK_F1 && key <= SDLK_F12) return platform::kKeyFunction1 + key - SDLK_F1;
     if (key >= SDLK_F1 && key <= SDLK_F12) return platform::kKeyFunction1 + key - SDLK_F1;
     switch (key) {
+        case SDLK_AUDIOMUTE: return platform::kKeySystemAction + 113;
+        case SDLK_VOLUMEDOWN: return platform::kKeySystemAction + 114;
+        case SDLK_VOLUMEUP: return platform::kKeySystemAction + 115;
+        case SDLK_AUDIONEXT: return platform::kKeySystemAction + 163;
+        case SDLK_AUDIOPLAY: return platform::kKeySystemAction + 164;
+        case SDLK_AUDIOPREV: return platform::kKeySystemAction + 165;
+        case SDLK_BRIGHTNESSDOWN: return platform::kKeySystemAction + 224;
+        case SDLK_BRIGHTNESSUP: return platform::kKeySystemAction + 225;
+
         case SDLK_RIGHT:
         case SDLK_KP_PLUS:
             return LV_KEY_RIGHT;
@@ -50,8 +60,7 @@ uint32_t map_control_key(SDL_Keycode key) {
         case SDLK_KP_ENTER:
         case SDLK_RETURN:
             return LV_KEY_ENTER;
-        case SDLK_TAB:
-            return LV_KEY_NEXT;
+        case SDLK_TAB: return (mods & KMOD_SHIFT) ? LV_KEY_PREV : LV_KEY_NEXT;
         case SDLK_PAGEDOWN:
             return platform::kKeyPageDown;
         case SDLK_PAGEUP:
@@ -377,7 +386,7 @@ void DesktopSimulatorFrame::handle_event(const SDL_Event& event, bool& running) 
             if (event.key.repeat) {
                 return;
             }
-            const auto control = map_control_key(event.key.keysym.sym);
+            const auto control = map_control_key(event.key.keysym.sym, event.key.keysym.mod);
             if (control != 0) {
                 emit_physical_key(static_cast<int32_t>(control), event.type == SDL_KEYDOWN);
             }

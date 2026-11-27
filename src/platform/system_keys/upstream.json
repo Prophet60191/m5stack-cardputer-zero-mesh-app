@@ -1,0 +1,22 @@
+{
+  "repository": "https://github.com/CardputerZero/launcher",
+  "commit": "d59f15918c473bc61de13b4960d69ce0e7514899",
+  "files": [
+    {
+      "path": "ext_components/cp0_lvgl/src/cp0/cp0_audio_mixer_control.cpp",
+      "sha256": "912a4ca6b66f7f337523ff84401c0228443bfa38e2b8cc40adcb5177c7980c86"
+    },
+    {
+      "path": "ext_components/cp0_lvgl/src/cp0/cp0_audio_mixer_control.hpp",
+      "sha256": "0de5de2d3d900de3b8ce609f7cc739705471ffbfcbc583938165b9ae30723248"
+    },
+    {
+      "path": "ext_components/cp0_lvgl/src/cp0/cp0_pulse_client.cpp",
+      "sha256": "15c74ff8558d335bde4ab34e4b86504d2aed34b57408d70eaa4a82562497db86"
+    },
+    {
+      "path": "ext_components/cp0_lvgl/src/cp0/cp0_pulse_client.hpp",
+      "sha256": "65e040defa9370181e4839d321b1660a1c5b060abd0e280376745e46421f2979"
+    }
+  ]
+}

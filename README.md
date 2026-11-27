@@ -265,3 +265,9 @@ app and cold-restart the device before using LoRa. The official NFC app uses
 GPIO22 as SPI-CS2 and documents that its runtime overlay stays until reboot;
 LoRa uses that pin as BUSY. Mesh checks ownership before power-on and does not
 unbind another app's kernel driver. See the [upstream NFC hardware notes](https://github.com/CardputerZero/Cap-CC1101-NFC#hardware).
+
+## Keyboard controls
+
+Fn+A/S/D controls mute and volume; Fn+U/I controls brightness. Fn+H opens
+Help and Fn+J takes a screenshot. Typing retains the official Shift/Sym map.
+See [keyboard integration and verification limits](docs/keyboard-audit-20261127.md).
