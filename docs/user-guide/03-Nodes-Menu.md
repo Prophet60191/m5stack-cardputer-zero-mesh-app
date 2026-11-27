@@ -1,6 +1,6 @@
 # Nodes Menu
 
-> For Mesh **0.1.23 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
+> For Mesh **0.1.24 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
 
 The **Nodes** screen is your live directory of every Meshtastic radio your device has heard on the mesh (up to 256 nodes), with your own radio always anchored at the top as **`(you)`**.
 

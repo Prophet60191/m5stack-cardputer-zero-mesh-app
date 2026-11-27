@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-> For Mesh **0.1.23 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
+> For Mesh **0.1.24 (release candidate)** · Updated **2026-11-27** · [Guide index](README.md)
 
 When something doesn't behave the way you expect out in the field, look up the message or symptom you see below.
 
@@ -38,6 +38,10 @@ For two-way messages, confirm both headers show **`TX/RX`** (send/receive).
 ---
 
 ## Radio Won't Start or Shows a Red `error` Dot
+
+Mesh 0.1.24 automatically tries one brief Cap power cycle if its control chip
+does not answer during startup. It stops if the retry also fails; it never takes
+a pin from another hardware owner. Keep the Cap seated and antenna attached.
 
 | What You See | Why It Happens & How to Fix It |
 |---|---|

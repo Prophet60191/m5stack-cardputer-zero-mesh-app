@@ -326,3 +326,12 @@ provenance and decoder/raw-event regressions together. Quartermaster is excluded
 
 Installed keyboard update is verified; read docs/keyboard-audit-20261127.md.
 Keep physical-key acceptance separate from the completed real-device replay.
+
+## Radio startup follow-up — 2026-11-27
+
+Read docs/radio-startup-20261127.md. A stale unused NFC runtime overlay was
+released administratively through supported BSP lifecycle, not by app takeover.
+The 0.1.24 candidate adds one leased power-cycle retry only for missing I2C
+identity, before RF writes. Preserve normal healthy startup and switch recovery;
+wrong chip, access and ownership errors do not trigger retries. Qualification
+and exact installed source remain separate from the earlier 0.1.23 record.

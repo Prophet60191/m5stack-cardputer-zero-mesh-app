@@ -36,7 +36,7 @@ sorts each by recent activity, and searches both in one newest-first result list
 Long histories load in small windows while retaining all saved messages.
 See [Messages navigation and loading](docs/messages-navigation.md).
 
-The current source is **0.1.23, a release candidate** with public/private channel
+The current source is **0.1.24, a release candidate** with public/private channel
 support, clearer delivery results, grouped setup forms, readable values and
 Cancel-first deletion. The header shows battery percentage without a battery
 icon. The [latest status](docs/current-status.md) separates current changes from
@@ -271,3 +271,6 @@ unbind another app's kernel driver. See the [upstream NFC hardware notes](https:
 Fn+A/S/D controls mute and volume; Fn+U/I controls brightness. Fn+H opens
 Help and Fn+J takes a screenshot. Typing retains the official Shift/Sym map.
 See [keyboard integration and verification limits](docs/keyboard-audit-20261127.md).
+
+Radio startup now has one bounded recovery for an unresponsive Cap control chip.
+See [observed failures and qualification](docs/radio-startup-20261127.md).

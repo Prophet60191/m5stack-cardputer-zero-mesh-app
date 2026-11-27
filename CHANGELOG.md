@@ -797,3 +797,9 @@ with independent hardware notes/private backups preserved.
 
 - Installed exact source 15092a8 / 0.1.22-rev1; all 265 package files, 27 messages, three thread/draft records, three preferences and saved settings/profile hashes pass verification. ADB/hotplug and launcher remain active; Radio Off.
 - Actual-font synthetic 27-message open improves 276.763→60.639 ms; 2,000 messages improves from a 60-second timeout to 112.256 ms without deleting history. Installed launch measures 1.020 s warm / 2.701 s with supervisor startup; intermittent startup cause is not claimed fixed. Detailed tests, package hash and qualification limits are in docs/messages-navigation.md.
+
+## 2026-11-27 — 0.1.24 radio startup recovery
+
+- Identify and administratively clear a stale NFC SPI-CS2 ownership conflict using supported BSP runtime release.
+- Add one bounded, leased power-cycle retry for an unresponsive Cap I2C identity; preserve switch restoration and all existing safety gates.
+- Add seven fault/cleanup tests. Exact package and installed cycle/soak results are in docs/radio-startup-20261127.md.

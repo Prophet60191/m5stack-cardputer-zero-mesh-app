@@ -52,6 +52,8 @@ GPIO_CHIP = "/dev/gpiochip0"                                # GPIO lines for the
 
 EXPANDER_ADDR = 0x43        # PI4IOE5V6408 I/O expander (the RF/band switch)
 EXPANDER_RF_BIT = 0         # P0 is the line that enables the RF path
+POWER_RECOVERY_OFF_S = 1.0       # bounded recovery of an unresponsive Cap
+POWER_RECOVERY_SETTLE_S = 1.0
 POWER_SETTLE_S = 0.10       # let the regulator + expander wake after power-on
 
 # PI4IOE5V6408 register addresses (from its datasheet):
@@ -164,6 +166,8 @@ def verify_expander(fd: int) -> int:
     try:
         chip_id = _i2c_read_register(fd, REG_CHIP_ID)
     except OSError as exc:
+        if exc.errno in (errno.EACCES, errno.EPERM):
+            raise CapError("permission", "no access to the Cap I2C control chip") from exc
         if exc.errno == errno.EBUSY:
             raise CapError("busy", f"{EXPANDER_ADDR:#04x} on {I2C_BUS} is held by a "
                                    f"kernel driver.") from exc
@@ -229,13 +233,27 @@ def powered_cap(*, drive_rf: bool = True):
 
         chip_id = None
         if drive_rf:
-            fd = os.open(I2C_BUS, os.O_RDWR | os.O_CLOEXEC)
-            try:
-                fcntl.ioctl(fd, I2C_SLAVE, EXPANDER_ADDR)
-                chip_id = verify_expander(fd)
-                enable_rf_path(fd)
-            finally:
-                os.close(fd)
+            # Recover once, before any RF configuration write, if the control
+            # chip does not answer. The guardian owns the hardware lease and
+            # recovery record; no other owner's GPIO/overlay is taken over.
+            for attempt in range(2):
+                fd = os.open(I2C_BUS, os.O_RDWR | os.O_CLOEXEC)
+                try:
+                    fcntl.ioctl(fd, I2C_SLAVE, EXPANDER_ADDR)
+                    try:
+                        chip_id = verify_expander(fd)
+                    except CapError as exc:
+                        if exc.kind != "absent" or attempt:
+                            raise
+                    else:
+                        enable_rf_path(fd)
+                        break
+                finally:
+                    os.close(fd)
+                _write_text(POWER_LED, "0")
+                time.sleep(POWER_RECOVERY_OFF_S)
+                _write_text(POWER_LED, "1")
+                time.sleep(POWER_RECOVERY_SETTLE_S)
 
         yield chip_id
     finally:
