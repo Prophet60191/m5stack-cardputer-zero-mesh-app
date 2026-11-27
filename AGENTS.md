@@ -5,16 +5,17 @@ assets), docs/README.md (index). Current installed runtime/package is 5776364
 (Mesh 0.1.20); later documentation changes do not imply another installation.
 Older dated notes below are historical and do not override those current runbooks.
 
-## Current focus — Messages and loading (2026-11-26)
+## Current focus — Messages/loading acceptance (2026-11-26)
 
-Owner requested two Messages tabs, most recent activity first, one combined
-message search, and fixes for slow launch/conversation loading. Preserve the
-uncommitted shared home-carousel work; owner confirms no other chat is working
-on Mesh and authorizes committing all resulting changes. Work is prepared in
-an isolated checkout; see docs/messages-navigation.md for behavior, measurements
-and qualification. Installed pre-change device is 0.1.21-rev2, not the older
-0.1.20 records below. Leave ADB enabled and preserve all chats/drafts/settings,
-radio ownership, channel identities and the unchanged backend safety contracts.
+0.1.22 is installed from runtime/package source 15092a8; docs/messages-navigation.md
+records package identity, tests, preserved data and performance limits. Channels /
+Direct Messages tabs, combined message search and bounded rendering are complete;
+shared home-carousel work and upstream troubleshooting docs are preserved.
+Owner physical Tab/search/return acceptance and any remaining slow-launch timing
+are the next feedback. Long-history speed is measured; a universal startup fix
+is not claimed. Leave ADB enabled, Radio Off while the Cap is absent and saved
+TX/GPS/privacy/profile choices intact. Earlier historical notes do not reopen
+deferred work or authorize publication.
 
 Native C++/LVGL UI (`src/`) talks to a Python radio supervisor (`supervisor/`)
 over newline JSON. The UI owns no radio hardware. Read `CHANGELOG.md`,

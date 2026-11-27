@@ -1,11 +1,12 @@
 # Current status
 
-**Mesh 0.1.22 is the tested Messages/loading candidate.** The pre-update
-installed package is 0.1.21-rev2 with the shared home carousel. This change
-preserves that layout and adds two conversation tabs, recency ordering, combined
-message search and bounded rendering. See [Messages navigation and loading](messages-navigation.md)
-for measurements and final device qualification. The previous [UI checkup](ui-checkup.md)
-remains historical evidence for the 0.1.20 fixes retained here.
+**Mesh 0.1.22 is installed**, from exact runtime/package source `15092a8`.
+[Messages navigation and loading](messages-navigation.md) records the two tabs,
+combined search, recency ordering, preserved shared home carousel, package
+identity and qualification. All 265 installed files and original chats/settings
+are verified. Long-history rendering is substantially faster; an intermittent
+launch delay has not been fully explained (measured about 1 second warm and
+2.7 seconds with supervisor startup). Later closeout commits are records only.
 
 The earlier [0.1.19 distribution qualification](distribution-validation-20261123.md)
 remains evidence for the unchanged bundled native/Python runtime and radio/GPS/
@@ -19,9 +20,10 @@ are preserved. See [installation/build/distribution](distribution.md).
 
 ## Everyday-use observation
 
-The owner requested this bounded UI checkup after the previous pause. With the
-fixes qualified, return to ordinary use and concrete issue reports rather than
-speculative feature/optimization work. Keep deferred checks explicit.
+The owner requested the Messages/loading update after ordinary use. Check the
+two tabs and combined search physically, then report any remaining slow launch
+with approximate duration and whether the app was already used since boot.
+Keep earlier deferred checks explicit.
 
 ## Qualified behavior
 

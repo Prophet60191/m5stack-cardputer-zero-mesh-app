@@ -78,3 +78,33 @@ The 2,000-message open is approximately 91 ms in the integrated regression
 in the installed closeout below. All six host Debug ASan/UBSan suites pass with
 object diagnostics enabled; five arm64 Release suites and all 175 backend tests,
 package/upgrade/firewall gates pass with the new configuration.
+
+## Installed closeout
+
+- Installed **0.1.22-rev1** from runtime/package source
+  `15092a82990358eb3d4186739a045dd5a632ba1e`. Later closeout commits only
+  update records. Package: 7,902,006 bytes; SHA-256
+  `02f7771f91b78a6fd31f33927c88a5c941d7fe4026382c19c2332e470102cfa3`.
+- All 265 installed regular files match package hashes, modes and root ownership;
+  dpkg audit passes. All 27 messages, three saved thread records/drafts, three
+  preferences and original saved app/radio/profile files are byte/logically
+  preserved. Radio remains Off; launcher and ADB/hotplug are active.
+- Standalone synthetic device timings: 27 messages **276.763 → 60.639 ms**;
+  2,000 messages **did not finish within 60 seconds → 112.256 ms**, with 322
+  live screen objects and all 2,000 messages still present. These single-run
+  observations are not an exact universal speed or battery-life guarantee.
+- Installed normal-user first changed framebuffer: **2.701 seconds** after
+  the upgrade, including starting its supervisor; subsequent warm repeat
+  **1.020 seconds**. Earlier warm baseline was 0.816 seconds. This does not
+  establish a launch-time improvement or explain every intermittent slow start.
+  Keep the owner's launch report open for concrete timing/reproduction if it
+  recurs; the demonstrated fix is bounded UI/rendering cost.
+- Both-theme actual-device-font navigation/search/page tests pass. All six host
+  sanitizer suites, five arm64 Release suites, all 175 backend tests and the
+  isolated package/upgrade/firewall gate pass. Source User guide CI succeeds;
+  source host CI succeeds, with its arm64 job still running at closeout readback.
+- User-guide Markdown/screenshots and generated 0.1.22 manual/reference are
+  refreshed. Older published/Drive editions were not silently replaced. No new
+  public release, Store submission, RF/phone/GPS acceptance or physical-key
+  walkthrough is claimed. Private backups and reduced evidence are retained
+  under the hardware workspace's `private-review-backups/mesh-messages-20261126/`.
