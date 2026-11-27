@@ -1,3 +1,12 @@
+# Current radio startup update — 2026-11-27
+
+Mesh **0.1.24 is installed** from runtime/package source `66fd215`.
+[The startup recovery record](radio-startup-20261127.md) documents the NFC pin
+conflict, unresponsive Cap recovery, local API readiness fix and exact artifact.
+Twelve full Cap starts and the following ten-minute radio/API/firewall watch pass;
+all original data/settings remain. Radio is Online/send-receive and ADB On.
+This supersedes the earlier keyboard-only status; older sections stay historical.
+
 # Current keyboard update — 2026-11-27
 
 Mesh 0.1.23 is installed from runtime/package source `25ff876`.

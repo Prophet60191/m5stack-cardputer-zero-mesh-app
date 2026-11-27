@@ -52,3 +52,38 @@ Meshtastic client closes failed constructors, and callbacks are subscribed only
 after the one successful connection. Six tests cover readiness, one fixed
 deadline, daemon death, stop/cancel and non-retryable failures. The intermediate
 installed artifact is superseded by final qualification below.
+
+## Final installed qualification
+
+Final Mesh **0.1.24-rev1** is installed from runtime/package source `66fd21519592bc6f25996751c9055f4ddf8f2efd`.
+Installer SHA-256: `0e08deb6d884283ebac06c52bb90af7d6a538ebb3c66186a7ad487416a634869`. All 266 regular packaged files, modes and root
+ownership match the extracted package. Earlier same-version 8eb0349 was an
+intermediate candidate and is superseded; do not identify artifacts by version
+alone. Source-correlated [CI run 46014468424](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/46014468424)
+passes both jobs; local native/arm64 package gates pass six CTest suites and
+all **188 backend tests**, including 13 new recovery/readiness cases.
+
+- Real Cap test: inject only the first identity failure, then perform the actual
+  recovery cycle and verify a real 0xA2 response and original switch restoration.
+  This is fault injection, separate from the earlier naturally failing I2C read.
+- **12/12 full Cap power-off/start cycles pass**, with the rail verified Off
+  before each start. Online/send-receive takes **1.23–3.28 seconds**. These are
+  Cap power cycles, not full-device cold boots. No API-refusal event recurred in
+  this bounded run; mocked timing cases separately exercise the retry branch.
+- The following **ten-minute watch passes all 60 samples**: Online, send/receive,
+  control connection and trusted firewall healthy. Final status is also Online.
+- The updated UI opens cleanly from the actual launcher, with a visible TX/RX
+  header; closing/reopening it and restarting the launcher do not interrupt the
+  separately owned radio. A CLI-launch test had terminal drawing over the UI;
+  the final check uses the supported launcher context instead.
+- Original app files, saved radio/channel/profile choices and all existing
+  SQLite rows are preserved, with integrity OK. No tuning, privacy, auto-start
+  preference, firmware, native GPS patch or channel-key change. No explicit
+  message/peer, outdoor GPS, USB dongle, SIM or fresh-image test is claimed.
+- ADB stays enabled, Mesh stays open and the radio stays Online in send/receive.
+  Private backups/raw evidence remain outside Git; temporary test files are
+  removed after verification. Another chat's app-guide edits are untouched.
+
+This bounded qualification fixes the observed startup defects; it is not a claim
+that future hardware absence, another active owner or every long-term failure is
+impossible. Mesh still refuses conflicting GPIO ownership rather than taking it.

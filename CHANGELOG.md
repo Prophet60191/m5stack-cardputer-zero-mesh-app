@@ -804,3 +804,5 @@ with independent hardware notes/private backups preserved.
 - Add one bounded, leased power-cycle retry for an unresponsive Cap I2C identity; preserve switch restoration and all existing safety gates.
 - Add seven fault/cleanup tests. Exact package and installed cycle/soak results are in docs/radio-startup-20261127.md.
 - Cold-power qualification also exposed an API-listener readiness race. Retry only refused loopback connections within a fixed ten-second deadline, abort on daemon death/stop and retain handshake failures; add six tests.
+
+- Final 66fd215 / 0.1.24 is installed (SHA-256 0e08deb6d884283ebac06c52bb90af7d6a538ebb3c66186a7ad487416a634869); 266 files and original data/settings verified. Twelve full Cap starts (1.23–3.28 s), 60-sample ten-minute healthy radio/API/firewall watch, normal launcher reopen and both source CI jobs pass. Radio remains Online/send-receive, ADB On. See the startup record for bounded evidence and deferred checks.

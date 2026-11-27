@@ -1,9 +1,10 @@
 # Cardputer Zero Mesh
 
 Current instructions: docs/install.md (operations), docs/distribution.md (build/source
-assets), docs/README.md (index). Installed keyboard runtime/package source is
-25ff876 (Mesh 0.1.23); later documentation/CI changes do not imply reinstall.
-Read docs/keyboard-audit-20261127.md for current evidence and scope.
+assets), docs/README.md (index). Installed runtime/package source is
+66fd215 (Mesh 0.1.24); later documentation/CI changes do not imply reinstall.
+Read docs/radio-startup-20261127.md for current radio evidence and scope;
+docs/keyboard-audit-20261127.md preserves the earlier input qualification.
 Older dated notes below are historical and do not override current runbooks.
 
 ## Current focus — Messages/loading acceptance (2026-11-26)
@@ -335,3 +336,8 @@ The 0.1.24 candidate adds one leased power-cycle retry only for missing I2C
 identity, before RF writes. Preserve normal healthy startup and switch recovery;
 wrong chip, access and ownership errors do not trigger retries. Qualification
 and exact installed source remain separate from the earlier 0.1.23 record.
+
+Final 0.1.24 qualification passes 12 cold Cap starts, a ten-minute healthy
+radio/API/firewall watch, normal launcher UI, 188 backend tests and both CI jobs
+on runtime source 66fd215. Leave Radio Online/send-receive and ADB On. No
+automatic overlay takeover; preserve all settings and defer unrelated hardware work.

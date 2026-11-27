@@ -7,24 +7,24 @@ Use the Cap LoRa-1262 and attach its antenna **before Radio On**.
 
 ## 1. Get the correct installer
 
-At this documentation update, 0.1.23 is a **source/package candidate**, not a public
+At this documentation update, 0.1.24 is a **source/package candidate**, not a public
 release or Store listing. Older published candidates do not include this new
 dependency arrangement. Check [current status](current-status.md) and
-[current keyboard qualification](keyboard-audit-20261127.md) before choosing a file.
+[current radio startup qualification](radio-startup-20261127.md) before choosing a file.
 
-The source-correlated candidate build is [CI run 45948339756](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/45948339756),
+The source-correlated candidate build is [CI run 46014468424](https://github.com/Prophet60191/m5stack-cardputer-zero-mesh-app/actions/runs/46014468424),
 artifact **cardputerzero-mesh-debian13-arm64**. Require a successful run before
 using its output. CI artifacts and the exact locally built, installed package
-have separate hashes; see [the device record](keyboard-audit-20261127.md)
+have separate hashes; see [the device record](radio-startup-20261127.md)
 for the latter. The older [0.1.19 record](distribution-validation-20261123.md)
 remains evidence for its separately qualified RF behavior. Signed-in GitHub users can download
 that artifact in a browser. With the optional GitHub CLI on your computer:
 
 ```sh
-gh run download 45948339756 \
+gh run download 46014468424 \
   --repo Prophet60191/m5stack-cardputer-zero-mesh-app \
-  --name cardputerzero-mesh-debian13-arm64 --dir mesh-0.1.23
-cd mesh-0.1.23
+  --name cardputerzero-mesh-debian13-arm64 --dir mesh-0.1.24
+cd mesh-0.1.24
 sha256sum -c SHA256SUMS
 ```
 
@@ -35,11 +35,11 @@ Ordinary users need the `.deb`; developers/redistributors also need its paired
 source and license material. Actions artifacts expire; they are not permanent
 release hosting. A private draft requires maintainer access.
 
-The separately built installer verified on Lockon is `cardputerzero-mesh_0.1.23-rev1_arm64.deb`:
+The separately built installer verified on Lockon is `cardputerzero-mesh_0.1.24-rev1_arm64.deb`:
 
 ```text
-SHA-256: f8b4fb2b231963961c321ce4fa994638984dae9c4b6280592d01c04debb8914a
-Source: 25ff876ef6fdfa6a4ec5d539a0cf2e93bc3438d6
+SHA-256: 0e08deb6d884283ebac06c52bb90af7d6a538ebb3c66186a7ad487416a634869
+Source: 66fd21519592bc6f25996751c9055f4ddf8f2efd
 ```
 
 That hash identifies the locally built device installer only. For the CI artifact,
@@ -71,7 +71,7 @@ Copy the `.deb` to the device using your usual download/transfer method. For SSH
 replace `YOUR_USER` and `YOUR_DEVICE` with your own working login and host:
 
 ```sh
-scp cardputerzero-mesh_0.1.23-rev1_arm64.deb YOUR_USER@YOUR_DEVICE:~/
+scp cardputerzero-mesh_0.1.24-rev1_arm64.deb YOUR_USER@YOUR_DEVICE:~/
 ```
 
 An SSH server, VPN or USB/ADB connection is not required by Mesh itself. The
@@ -110,10 +110,10 @@ physical qualification, not something the minimal Debian container proves.
 In a terminal on the Cardputer, from the directory containing the installer:
 
 ```sh
-sudo apt install ./cardputerzero-mesh_0.1.23-rev1_arm64.deb
+sudo apt install ./cardputerzero-mesh_0.1.24-rev1_arm64.deb
 ```
 
-If this version is already installed, use `sudo apt install --reinstall ./cardputerzero-mesh_0.1.23-rev1_arm64.deb` to replace it with these verified bytes or repair package files. Normal install may otherwise leave a same-version package alone.
+If this version is already installed, use `sudo apt install --reinstall ./cardputerzero-mesh_0.1.24-rev1_arm64.deb` to replace it with these verified bytes or repair package files. Normal install may otherwise leave a same-version package alone.
 
 Keep `./` so APT uses the local file. APT installs missing declared Debian
 packages; refresh its indexes with `sudo apt update` if the configured image's
@@ -301,7 +301,7 @@ but Radio won’t start, use the Mesh service checks below instead.
 For missing/corrupt **package-owned** files, after Radio Off/close/backup:
 
 ```sh
-sudo apt install --reinstall ./cardputerzero-mesh_0.1.23-rev1_arm64.deb
+sudo apt install --reinstall ./cardputerzero-mesh_0.1.24-rev1_arm64.deb
 ```
 
 For a **user managed-cache** problem, first stop its service. If the app's data
@@ -353,7 +353,7 @@ with Developer → ADB enabled intentionally. Copy the verified package:
 
 ```sh
 adb devices
-adb push cardputerzero-mesh_0.1.23-rev1_arm64.deb /tmp/cardputerzero-mesh.deb
+adb push cardputerzero-mesh_0.1.24-rev1_arm64.deb /tmp/cardputerzero-mesh.deb
 adb shell sha256sum /tmp/cardputerzero-mesh.deb
 adb shell apt install /tmp/cardputerzero-mesh.deb
 ```

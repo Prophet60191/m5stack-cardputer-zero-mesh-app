@@ -37,3 +37,5 @@ No spare microSD: fresh-image hardware acceptance is deferred, distinct from
 passed minimal Debian container checks. USB GPS/SIM work and documented
 public-peer/IPv6/full-keyboard/long-term phone limits are not silently certified.
 No public release or Store submission follows automatically from a source push.
+
+- [Radio startup recovery and final qualification](radio-startup-20261127.md) — current 0.1.24 hardware/API recovery and exact installer.
